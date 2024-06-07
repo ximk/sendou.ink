@@ -129,6 +129,12 @@ export interface BuildWeapon {
   weaponSplId: MainWeaponId;
 }
 
+/** Image associated with the avatar when the event is showcased on the front page */
+export type CalendarEventAvatarMetadata = {
+  backgroundColor: string;
+  textColor: string;
+};
+
 export interface CalendarEvent {
   authorId: number;
   bracketUrl: string;
@@ -140,6 +146,12 @@ export interface CalendarEvent {
   participantCount: number | null;
   tags: string | null;
   tournamentId: number | null;
+  avatarImgId: number | null;
+  avatarMetadata: ColumnType<
+    CalendarEventAvatarMetadata | null,
+    string | null,
+    string | null
+  >;
 }
 
 export interface CalendarEventBadge {
@@ -255,13 +267,22 @@ export interface LogInLink {
   userId: number;
 }
 
+export type LFGType =
+  | "PLAYER_FOR_TEAM"
+  | "TEAM_FOR_PLAYER"
+  | "TEAM_FOR_COACH"
+  | "COACH_FOR_TEAM";
+
+export const LFG_TYPES: LFGType[] = [
+  "PLAYER_FOR_TEAM",
+  "TEAM_FOR_PLAYER",
+  "TEAM_FOR_COACH",
+  "COACH_FOR_TEAM",
+];
+
 export interface LFGPost {
   id: GeneratedAlways<number>;
-  type:
-    | "PLAYER_FOR_TEAM"
-    | "TEAM_FOR_PLAYER"
-    | "TEAM_FOR_COACH"
-    | "COACH_FOR_TEAM";
+  type: LFGType;
   text: string;
   /** e.g. Europe/Helsinki */
   timezone: string;
@@ -454,7 +475,7 @@ export interface TournamentBadgeOwner {
       - If enabled, the Consolation Final.
     - A double elimination stage can have two or three groups:
       - Upper and lower brackets.
-      - If enabled, the Grand Final. 
+      - If enabled, the Grand Final.
 */
 export interface TournamentGroup {
   id: GeneratedAlways<number>;
@@ -523,7 +544,7 @@ export interface TournamentRoundMaps {
   pickBan?: "COUNTERPICK" | "BAN_2" | null;
 }
 
-/** 
+/**
  * A round is a logical structure used to group multiple matches together.
 
   - In round-robin stages, a round can be viewed as a list of matches that can be played at the same time.
@@ -576,6 +597,11 @@ export interface TournamentTeam {
   noScreen: Generated<number>;
   droppedOut: Generated<number>;
   seed: number | null;
+  activeRosterUserIds: ColumnType<
+    number[] | null,
+    string | null,
+    string | null
+  >;
   tournamentId: number;
   teamId: number | null;
 }
@@ -641,9 +667,11 @@ export interface User {
   css: ColumnType<Record<string, string> | null, string | null, string | null>;
   customUrl: string | null;
   discordAvatar: string | null;
-  discordDiscriminator: string;
   discordId: string;
   discordName: string;
+  customName: string | null;
+  /** coalesce(customName, discordName) */
+  username: ColumnType<string, never, never>;
   discordUniqueName: string | null;
   favoriteBadgeId: number | null;
   id: GeneratedAlways<number>;

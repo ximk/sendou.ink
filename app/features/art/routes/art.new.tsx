@@ -11,7 +11,7 @@ import clone from "just-clone";
 import { nanoid } from "nanoid";
 import * as React from "react";
 import { useFetcher } from "react-router-dom";
-import invariant from "tiny-invariant";
+import invariant from "~/utils/invariant";
 import { Button } from "~/components/Button";
 import { Combobox } from "~/components/Combobox";
 import { FormMessage } from "~/components/FormMessage";
@@ -96,7 +96,7 @@ export const action: ActionFunction = async ({ request }) => {
     const fileName = urlParts[urlParts.length - 1];
     invariant(fileName);
 
-    const data = parseFormData({
+    const data = await parseFormData({
       formData,
       schema: newArtSchema,
     });

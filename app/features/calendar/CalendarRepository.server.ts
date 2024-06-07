@@ -2,13 +2,18 @@ import type { ExpressionBuilder, Transaction } from "kysely";
 import { sql } from "kysely";
 import { jsonArrayFrom } from "kysely/helpers/sqlite";
 import { db } from "~/db/sql";
-import type { DB, Tables, TournamentSettings } from "~/db/tables";
+import type {
+  CalendarEventAvatarMetadata,
+  DB,
+  Tables,
+  TournamentSettings,
+} from "~/db/tables";
 import type { CalendarEventTag } from "~/db/types";
 import { MapPool } from "~/features/map-list-generator/core/map-pool";
-import { dateToDatabaseTimestamp } from "~/utils/dates";
+import { databaseTimestampNow, dateToDatabaseTimestamp } from "~/utils/dates";
 import { sumArray } from "~/utils/number";
 import type { Unwrapped } from "~/utils/types";
-import invariant from "tiny-invariant";
+import invariant from "~/utils/invariant";
 
 // TODO: convert from raw to using the "exists" function
 const hasBadge = sql<number>/* sql */ `exists (
@@ -84,12 +89,13 @@ export async function findById({
       "CalendarEvent.tags",
       "CalendarEvent.tournamentId",
       "CalendarEvent.participantCount",
+      "CalendarEvent.avatarMetadata",
+      "CalendarEvent.avatarImgId",
       "Tournament.mapPickingStyle",
       "User.id as authorId",
       "CalendarEventDate.startTime",
       "CalendarEventDate.eventId",
-      "User.discordName",
-      "User.discordDiscriminator",
+      "User.username",
       "User.discordId",
       "User.discordAvatar",
       hasBadge,
@@ -150,9 +156,13 @@ export async function findAllBetweenTwoTimestamps({
       "CalendarEventDate.id as eventDateId",
       "CalendarEventDate.eventId",
       "CalendarEventDate.startTime",
-      "User.discordName",
-      "User.discordDiscriminator",
+      "User.username",
       "CalendarEventRanks.nthAppearance",
+      eb
+        .selectFrom("UserSubmittedImage")
+        .select(["UserSubmittedImage.url"])
+        .whereRef("CalendarEvent.avatarImgId", "=", "UserSubmittedImage.id")
+        .as("logoUrl"),
       eb
         .selectFrom("Tournament")
         .select("Tournament.settings")
@@ -352,7 +362,7 @@ export async function findResultsByEventId(eventId: number) {
           .select([
             "CalendarEventResultPlayer.userId as id",
             "CalendarEventResultPlayer.name",
-            "User.discordName",
+            "User.username",
             "User.discordId",
             "User.discordAvatar",
           ])
@@ -421,6 +431,10 @@ type CreateArgs = Pick<
   tournamentToCopyId?: number | null;
   swissGroupCount?: number;
   swissRoundCount?: number;
+  avatarFileName?: string;
+  avatarMetadata?: CalendarEventAvatarMetadata;
+  avatarImgId?: number;
+  autoValidateAvatar?: boolean;
 };
 export async function create(args: CreateArgs) {
   const copiedStaff = args.tournamentToCopyId
@@ -483,6 +497,15 @@ export async function create(args: CreateArgs) {
       }
     }
 
+    const avatarImgId = args.avatarFileName
+      ? await createSubmittedImageInTrx({
+          trx,
+          avatarFileName: args.avatarFileName,
+          autoValidateAvatar: args.autoValidateAvatar,
+          userId: args.authorId,
+        })
+      : null;
+
     const { id: eventId } = await trx
       .insertInto("CalendarEvent")
       .values({
@@ -492,6 +515,10 @@ export async function create(args: CreateArgs) {
         description: args.description,
         discordInviteCode: args.discordInviteCode,
         bracketUrl: args.bracketUrl,
+        avatarImgId: args.avatarImgId ?? avatarImgId,
+        avatarMetadata: args.avatarMetadata
+          ? JSON.stringify(args.avatarMetadata)
+          : null,
         tournamentId,
       })
       .returning("id")
@@ -514,14 +541,47 @@ export async function create(args: CreateArgs) {
   });
 }
 
+async function createSubmittedImageInTrx({
+  trx,
+  autoValidateAvatar,
+  avatarFileName,
+  userId,
+}: {
+  trx: Transaction<DB>;
+  avatarFileName: string;
+  autoValidateAvatar?: boolean;
+  userId: number;
+}) {
+  const result = await trx
+    .insertInto("UnvalidatedUserSubmittedImage")
+    .values({
+      url: avatarFileName,
+      validatedAt: autoValidateAvatar ? databaseTimestampNow() : null,
+      submitterUserId: userId,
+    })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+
+  return result.id;
+}
+
 type UpdateArgs = Omit<
   CreateArgs,
-  "authorId" | "createTournament" | "mapPickingStyle" | "isFullTournament"
+  "createTournament" | "mapPickingStyle" | "isFullTournament"
 > & {
   eventId: number;
 };
 export async function update(args: UpdateArgs) {
   return db.transaction().execute(async (trx) => {
+    const avatarImgId = args.avatarFileName
+      ? await createSubmittedImageInTrx({
+          trx,
+          avatarFileName: args.avatarFileName,
+          autoValidateAvatar: args.autoValidateAvatar,
+          userId: args.authorId,
+        })
+      : null;
+
     const { tournamentId } = await trx
       .updateTable("CalendarEvent")
       .set({
@@ -530,6 +590,10 @@ export async function update(args: UpdateArgs) {
         description: args.description,
         discordInviteCode: args.discordInviteCode,
         bracketUrl: args.bracketUrl,
+        avatarMetadata: args.avatarMetadata
+          ? JSON.stringify(args.avatarMetadata)
+          : null,
+        avatarImgId: args.avatarImgId ?? avatarImgId,
       })
       .where("id", "=", args.eventId)
       .returning("tournamentId")

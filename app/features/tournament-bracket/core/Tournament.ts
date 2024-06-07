@@ -1,4 +1,4 @@
-import invariant from "tiny-invariant";
+import invariant from "~/utils/invariant";
 import type {
   TournamentBracketProgression,
   TournamentStage,
@@ -9,7 +9,6 @@ import { assertUnreachable } from "~/utils/types";
 import { isAdmin } from "~/permissions";
 import { TOURNAMENT } from "~/features/tournament";
 import type { TournamentData, TournamentDataTeam } from "./Tournament.server";
-import { HACKY_resolvePicture } from "~/features/tournament/tournament-utils";
 import { rankedModesShort } from "~/modules/in-game-lists/modes";
 import type { ModeShort } from "~/modules/in-game-lists";
 import {
@@ -483,7 +482,7 @@ export class Tournament {
   }
 
   get logoSrc() {
-    return HACKY_resolvePicture(this.ctx);
+    return this.ctx.logoSrc;
   }
 
   get modesIncluded(): ModeShort[] {

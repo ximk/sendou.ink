@@ -38,12 +38,12 @@ export function TournamentStream({
       <div className="stack md horizontal justify-between">
         {user && team ? (
           <div className="tournament__stream__user-container">
-            <Avatar size="xxs" user={user} /> {user.discordName}
+            <Avatar size="xxs" user={user} /> {user.username}
             <span className="text-theme-secondary">{team.name}</span>
           </div>
         ) : (
           <div className="tournament__stream__user-container">
-            <Avatar size="xxs" url={tournament.logoSrc + ".png"} />
+            <Avatar size="xxs" url={tournament.logoSrc} />
             Cast <span className="text-lighter">{stream.twitchUserName}</span>
           </div>
         )}

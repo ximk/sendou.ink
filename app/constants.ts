@@ -1,5 +1,3 @@
-import type { CalendarEventTag } from "./db/types";
-import { tags } from "./features/calendar/calendar-constants";
 import type { BuildAbilitiesTupleWithUnknown } from "./modules/in-game-lists";
 
 export const TWEET_LENGTH_MAX_LENGTH = 280;
@@ -8,6 +6,7 @@ export const DISCORD_MESSAGE_MAX_LENGTH = 2000;
 export const USER = {
   BIO_MAX_LENGTH: DISCORD_MESSAGE_MAX_LENGTH,
   CUSTOM_URL_MAX_LENGTH: 32,
+  CUSTOM_NAME_MAX_LENGTH: 32,
   IN_GAME_NAME_TEXT_MAX_LENGTH: 20,
   IN_GAME_NAME_DISCRIMINATOR_MAX_LENGTH: 5,
   WEAPON_POOL_MAX_SIZE: 5,
@@ -16,17 +15,6 @@ export const USER = {
 
 export const PlUS_SUGGESTION_FIRST_COMMENT_MAX_LENGTH = 500;
 export const PlUS_SUGGESTION_COMMENT_MAX_LENGTH = TWEET_LENGTH_MAX_LENGTH;
-
-export const CALENDAR_EVENT = {
-  NAME_MIN_LENGTH: 2,
-  NAME_MAX_LENGTH: 100,
-  DESCRIPTION_MAX_LENGTH: 3000,
-  RULES_MAX_LENGTH: 10_000,
-  DISCORD_INVITE_CODE_MAX_LENGTH: 50,
-  BRACKET_URL_MAX_LENGTH: 200,
-  MAX_AMOUNT_OF_DATES: 5,
-  TAGS: Object.keys(tags) as Array<CalendarEventTag>,
-};
 
 export const CALENDAR_EVENT_RESULT = {
   MAX_PARTICIPANTS_COUNT: 1000,
@@ -98,6 +86,10 @@ export const findSplatoon3XpBadgeValue = (xPower: number) => {
 
 export const PATCHES = [
   {
+    patch: "8.0.0",
+    date: "2024-05-31",
+  },
+  {
     patch: "7.2.0",
     date: "2024-04-17",
   },
@@ -105,10 +97,10 @@ export const PATCHES = [
     patch: "7.0.0",
     date: "2024-02-21",
   },
-  {
-    patch: "6.1.0",
-    date: "2024-01-24",
-  },
+  // {
+  //   patch: "6.1.0",
+  //   date: "2024-01-24",
+  // },
   // {
   //   patch: "6.0.0",
   //   date: "2023-11-29",

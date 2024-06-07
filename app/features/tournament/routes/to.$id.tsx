@@ -5,6 +5,7 @@ import type {
 } from "@remix-run/node";
 import {
   Outlet,
+  type ShouldRevalidateFunction,
   useLoaderData,
   useLocation,
   useOutletContext,
@@ -30,21 +31,32 @@ import * as UserRepository from "~/features/user-page/UserRepository.server";
 import * as TournamentRepository from "~/features/tournament/TournamentRepository.server";
 import { databaseTimestampToDate } from "~/utils/dates";
 import { isAdmin } from "~/permissions";
-import { tournamentPage } from "~/utils/urls";
+import { tournamentPage, userSubmittedImage } from "~/utils/urls";
 
 import "../tournament.css";
 import "~/styles/maps.css";
 import "~/styles/calendar-event.css";
+
+export const shouldRevalidate: ShouldRevalidateFunction = (args) => {
+  const navigatedToMatchPage =
+    typeof args.nextParams["mid"] === "string" && args.formMethod !== "POST";
+
+  if (navigatedToMatchPage) return false;
+
+  return args.defaultShouldRevalidate;
+};
 
 export const meta: MetaFunction = (args) => {
   const data = args.data as SerializeFrom<typeof loader>;
 
   if (!data) return [];
 
+  const title = makeTitle(data.tournament.ctx.name);
+
   return [
     {
       property: "og:title",
-      content: makeTitle(data.tournament.ctx.name),
+      content: title,
     },
     {
       property: "og:description",
@@ -56,7 +68,20 @@ export const meta: MetaFunction = (args) => {
     },
     {
       property: "og:image",
-      content: HACKY_resolvePicture(data.tournament.ctx) + ".png",
+      content: data.tournament.ctx.logoSrc,
+    },
+    // Twitter special snowflake tags, see https://developer.x.com/en/docs/twitter-for-websites/cards/overview/summary
+    {
+      name: "twitter:card",
+      content: "summary",
+    },
+    {
+      name: "twitter:title",
+      content: title,
+    },
+    {
+      name: "twitter:site",
+      content: "@sendouink",
     },
   ];
 };
@@ -70,7 +95,9 @@ export const handle: SendouRouteHandle = {
 
     return [
       {
-        imgPath: HACKY_resolvePicture(data.tournament.ctx),
+        imgPath: data.tournament.ctx.logoUrl
+          ? userSubmittedImage(data.tournament.ctx.logoUrl)
+          : HACKY_resolvePicture(data.tournament.ctx),
         href: tournamentPage(data.tournament.ctx.id),
         type: "IMAGE",
         text: data.tournament.ctx.name,

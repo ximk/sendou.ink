@@ -10,6 +10,7 @@ import {
   navIconUrl,
   tournamentPage,
   userPage,
+  userSubmittedImage,
 } from "~/utils/urls";
 import { useTranslation } from "react-i18next";
 import { Link } from "@remix-run/react";
@@ -131,7 +132,8 @@ function TournamentCard({
   const { t } = useTranslation(["common"]);
   const isMounted = useIsMounted();
   const { i18n } = useTranslation();
-  const theme = HACKY_resolveThemeColors(tournament);
+  const theme =
+    tournament.avatarMetadata ?? HACKY_resolveThemeColors(tournament);
 
   const happeningNow =
     tournament.firstPlacers.length === 0 &&
@@ -166,14 +168,19 @@ function TournamentCard({
       to={tournamentPage(tournament.id)}
       className="front__tournament-card"
       style={{
-        "--card-bg": theme.bg,
-        "--card-text": theme.text,
+        "--card-bg": theme.backgroundColor,
+        "--card-text": theme.textColor,
       }}
     >
       <div className="stack horizontal justify-between items-center">
-        <Image
-          path={HACKY_resolvePicture(tournament)}
-          size={24}
+        <img
+          src={
+            tournament.logoUrl
+              ? userSubmittedImage(tournament.logoUrl)
+              : HACKY_resolvePicture(tournament)
+          }
+          width={24}
+          height={24}
           className="rounded-full"
           alt=""
         />
@@ -195,7 +202,7 @@ function TournamentCard({
           </div>
           <ul className="front__tournament-card__first-placers">
             {tournament.firstPlacers.map((p) => (
-              <li key={p.id}>{p.discordName}</li>
+              <li key={p.id}>{p.username}</li>
             ))}
           </ul>
         </>
@@ -221,7 +228,7 @@ function LogInButton() {
         <Avatar
           user={user}
           alt={t("common:header.loggedInAs", {
-            userName: `${user.discordName}`,
+            userName: `${user.username}`,
           })}
           className="front__avatar"
           size="sm"

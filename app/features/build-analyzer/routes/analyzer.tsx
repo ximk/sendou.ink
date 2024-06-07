@@ -4,7 +4,7 @@ import { Link } from "@remix-run/react";
 import clsx from "clsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import invariant from "tiny-invariant";
+import invariant from "~/utils/invariant";
 import { AbilitiesSelector } from "~/components/AbilitiesSelector";
 import { Ability } from "~/components/Ability";
 import Chart from "~/components/Chart";
@@ -82,7 +82,7 @@ import {
 
 import "../analyzer.css";
 
-export const CURRENT_PATCH = "7.2";
+export const CURRENT_PATCH = "8.0";
 
 export const meta: MetaFunction = () => {
   return [

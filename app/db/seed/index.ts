@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import capitalize from "just-capitalize";
 import shuffle from "just-shuffle";
 import { nanoid } from "nanoid";
-import invariant from "tiny-invariant";
+import invariant from "~/utils/invariant";
 import { ADMIN_DISCORD_ID, ADMIN_ID, INVITE_CODE_LENGTH } from "~/constants";
 import { db, sql } from "~/db/sql";
 import { MapPool } from "~/features/map-list-generator/core/map-pool";
@@ -223,7 +223,6 @@ function wipeDB() {
 
 async function adminUser() {
   await UserRepository.upsert({
-    discordDiscriminator: "0",
     discordId: ADMIN_DISCORD_ID,
     discordName: "Sendou",
     twitch: "Sendou",
@@ -267,7 +266,6 @@ function adminUserWeaponPool() {
 
 function nzapUser() {
   return UserRepository.upsert({
-    discordDiscriminator: "6227",
     discordId: NZAP_TEST_DISCORD_ID,
     discordName: "N-ZAP",
     twitch: null,
@@ -450,7 +448,6 @@ async function userQWeaponPool() {
 function fakeUser(usedNames: Set<string>) {
   return () => ({
     discordAvatar: null,
-    discordDiscriminator: String(faker.string.numeric(4)),
     discordId: String(faker.string.numeric(17)),
     discordName: uniqueDiscordName(usedNames),
     twitch: null,

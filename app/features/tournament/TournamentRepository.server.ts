@@ -32,8 +32,14 @@ export async function findById(id: number) {
       "Tournament.mapPickingStyle",
       "Tournament.rules",
       "CalendarEvent.name",
+      "CalendarEvent.avatarImgId",
       "CalendarEvent.description",
       "CalendarEventDate.startTime",
+      eb
+        .selectFrom("UserSubmittedImage")
+        .select(["UserSubmittedImage.url"])
+        .whereRef("CalendarEvent.avatarImgId", "=", "UserSubmittedImage.id")
+        .as("logoUrl"),
       jsonObjectFrom(
         eb
           .selectFrom("User")
@@ -80,6 +86,7 @@ export async function findById(id: number) {
             "TournamentTeam.droppedOut",
             "TournamentTeam.inviteCode",
             "TournamentTeam.createdAt",
+            "TournamentTeam.activeRosterUserIds",
             jsonArrayFrom(
               innerEb
                 .selectFrom("TournamentTeamMember")
@@ -87,7 +94,7 @@ export async function findById(id: number) {
                 .leftJoin("PlusTier", "User.id", "PlusTier.userId")
                 .select([
                   "User.id as userId",
-                  "User.discordName",
+                  "User.username",
                   "User.discordId",
                   "User.discordAvatar",
                   "User.customUrl",
@@ -224,6 +231,12 @@ export async function forShowcase() {
       "Tournament.id",
       "CalendarEvent.name",
       "CalendarEventDate.startTime",
+      eb
+        .selectFrom("UserSubmittedImage")
+        .select(["UserSubmittedImage.url"])
+        .whereRef("CalendarEvent.avatarImgId", "=", "UserSubmittedImage.id")
+        .as("logoUrl"),
+      "CalendarEvent.avatarMetadata",
       jsonArrayFrom(
         eb
           .selectFrom("TournamentResult")
@@ -237,7 +250,7 @@ export async function forShowcase() {
           .where("TournamentResult.placement", "=", 1)
           .select([
             "User.id",
-            "User.discordName",
+            "User.username",
             "TournamentTeam.name as teamName",
           ]),
       ).as("firstPlacers"),

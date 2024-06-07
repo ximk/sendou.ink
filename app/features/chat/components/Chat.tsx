@@ -7,7 +7,7 @@ import { nanoid } from "nanoid";
 import clsx from "clsx";
 import { Button } from "../../../components/Button";
 import ReconnectingWebSocket from "reconnecting-websocket";
-import invariant from "tiny-invariant";
+import invariant from "~/utils/invariant";
 import { useRootLoaderData } from "~/hooks/useRootLoaderData";
 import { useRevalidator } from "@remix-run/react";
 import type { ChatMessage } from "../chat-types";
@@ -17,7 +17,7 @@ import { soundPath } from "~/utils/urls";
 import { useTranslation } from "react-i18next";
 import { logger } from "~/utils/logger";
 
-type ChatUser = Pick<User, "discordName" | "discordId" | "discordAvatar"> & {
+type ChatUser = Pick<User, "username" | "discordId" | "discordAvatar"> & {
   chatNameColor: string | null;
   title?: string;
 };
@@ -239,7 +239,7 @@ function Message({
                 : undefined
             }
           >
-            {user?.discordName ?? missingUserName}
+            {user?.username ?? missingUserName}
           </div>
           {user?.title ? (
             <div className="text-xs text-theme-secondary font-semi-bold">

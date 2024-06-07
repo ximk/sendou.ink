@@ -3,7 +3,7 @@ import { redirect } from "@remix-run/node";
 import { Form, useLoaderData } from "@remix-run/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import invariant from "tiny-invariant";
+import invariant from "~/utils/invariant";
 import { SubmitButton } from "~/components/SubmitButton";
 import { INVITE_CODE_LENGTH } from "~/constants";
 import { useUser } from "~/features/auth/core/user";
@@ -171,7 +171,7 @@ export default function JoinTeamPage() {
                 <input id={id} type="checkbox" name="trust" />{" "}
                 <label htmlFor={id} className="mb-0">
                   {t("tournament:join.giveTrust", {
-                    name: captain ? captain.discordName : "",
+                    name: captain ? captain.username : "",
                   })}
                 </label>
               </div>

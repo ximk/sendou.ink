@@ -28,7 +28,7 @@ import {
 import clsx from "clsx";
 import clone from "just-clone";
 import * as React from "react";
-import invariant from "tiny-invariant";
+import invariant from "~/utils/invariant";
 import { Alert } from "~/components/Alert";
 import { Button } from "~/components/Button";
 import { Catcher } from "~/components/Catcher";
@@ -314,7 +314,7 @@ function RowContents({
                 target="_blank"
                 className="tournament__seeds__team-member__name"
               >
-                {member.discordName}
+                {member.username}
               </Link>
               {member.plusTier ? (
                 <div

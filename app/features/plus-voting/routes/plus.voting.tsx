@@ -27,7 +27,7 @@ import { safeJSONParse } from "~/utils/zod";
 import { PlusSuggestionComments } from "../../plus-suggestions/routes/plus.suggestions";
 import * as PlusVotingRepository from "~/features/plus-voting/PlusVotingRepository.server";
 import { dateToDatabaseTimestamp } from "~/utils/dates";
-import invariant from "tiny-invariant";
+import invariant from "~/utils/invariant";
 import { isVotingActive } from "~/features/plus-voting/core/voting-time";
 
 export const meta: MetaFunction = () => {
@@ -275,7 +275,7 @@ function Voting(data: Extract<PlusVotingLoaderData, { type: "voting" }>) {
             {previous.score > 0 ? "+" : ""}
             {previous.score}
           </span>{" "}
-          on {previous.user.discordName}.
+          on {previous.user.username}.
           <Button className="ml-auto" variant="minimal" onClick={undoLast}>
             Undo?
           </Button>
@@ -286,7 +286,7 @@ function Voting(data: Extract<PlusVotingLoaderData, { type: "voting" }>) {
       {currentUser ? (
         <div className="stack md items-center">
           <Avatar user={currentUser.user} size="lg" />
-          <h2>{currentUser.user.discordName}</h2>
+          <h2>{currentUser.user.username}</h2>
           <div className="stack horizontal lg">
             <Button
               className="plus-voting__vote-button downvote"

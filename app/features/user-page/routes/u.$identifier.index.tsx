@@ -1,7 +1,7 @@
 import { Link, useMatches } from "@remix-run/react";
 import clsx from "clsx";
 import * as React from "react";
-import invariant from "tiny-invariant";
+import invariant from "~/utils/invariant";
 import { Avatar } from "~/components/Avatar";
 import { Badge } from "~/components/Badge";
 import { Flag } from "~/components/Flag";
@@ -12,7 +12,7 @@ import { YouTubeIcon } from "~/components/icons/YouTube";
 import { useTranslation } from "react-i18next";
 import { modesShort } from "~/modules/in-game-lists";
 import { type SendouRouteHandle } from "~/utils/remix";
-import { isNewDiscordUniqueName, rawSensToString } from "~/utils/strings";
+import { rawSensToString } from "~/utils/strings";
 import type { Unpacked } from "~/utils/types";
 import { assertUnreachable } from "~/utils/types";
 import {
@@ -41,16 +41,8 @@ export default function UserInfoPage() {
         <Avatar user={data} size="lg" className="u__avatar" />
         <div>
           <h2 className="u__name">
-            <div>{data.discordName}</div>
+            <div>{data.username}</div>
             <div>
-              <span className="u__discriminator">
-                {!isNewDiscordUniqueName(data.discordDiscriminator) ? (
-                  <>
-                    #{data.discordDiscriminator}
-                    <wbr />
-                  </>
-                ) : null}
-              </span>
               {data.country ? <Flag countryCode={data.country} tiny /> : null}
             </div>
           </h2>
