@@ -3,7 +3,7 @@ import type {
   TournamentBracketProgression,
   TournamentStage,
 } from "~/db/tables";
-import type { DataTypes, ValueToArray } from "~/modules/brackets-manager/types";
+import type { TournamentManagerDataSet } from "~/modules/brackets-manager/types";
 import { logger } from "~/utils/logger";
 import { assertUnreachable } from "~/utils/types";
 import { isAdmin } from "~/permissions";
@@ -32,7 +32,7 @@ export class Tournament {
   ctx;
 
   constructor({ data, ctx }: TournamentData) {
-    const hasStarted = ctx.inProgressBrackets.length > 0;
+    const hasStarted = data.stage.length > 0;
 
     const teamsInSeedOrder = ctx.teams.sort((a, b) => {
       if (a.seed && b.seed) {
@@ -86,23 +86,16 @@ export class Tournament {
     return a.createdAt - b.createdAt;
   }
 
-  private initBrackets(data: ValueToArray<DataTypes>) {
+  private initBrackets(data: TournamentManagerDataSet) {
     for (const [
       bracketIdx,
       { type, name, sources },
     ] of this.ctx.settings.bracketProgression.entries()) {
-      const inProgressStage = this.ctx.inProgressBrackets.find(
-        (stage) => stage.name === name,
-      );
+      const inProgressStage = data.stage.find((stage) => stage.name === name);
 
       if (inProgressStage) {
         const match = data.match.filter(
           (match) => match.stage_id === inProgressStage.id,
-        );
-        const participants = new Set(
-          match
-            .flatMap((match) => [match.opponent1?.id, match.opponent2?.id])
-            .filter((id) => typeof id === "number"),
         );
 
         this.brackets.push(
@@ -115,9 +108,6 @@ export class Tournament {
             createdAt: inProgressStage.createdAt,
             data: {
               ...data,
-              participant: data.participant.filter((participant) =>
-                participants.has(participant.id),
-              ),
               group: data.group.filter(
                 (group) => group.stage_id === inProgressStage.id,
               ),
@@ -136,7 +126,7 @@ export class Tournament {
         const { teams, relevantMatchesFinished } = sources
           ? this.resolveTeamsFromSources(sources)
           : {
-              teams: this.ctx.teams,
+              teams: this.ctx.teams.map((team) => team.id),
               relevantMatchesFinished: true,
             };
 
@@ -166,7 +156,7 @@ export class Tournament {
               checkedInTeams.length >= TOURNAMENT.ENOUGH_TEAMS_TO_START &&
               (sources ? relevantMatchesFinished : this.regularCheckInHasEnded),
             teamsPendingCheckIn:
-              bracketIdx !== 0 ? notCheckedInTeams.map((t) => t.id) : undefined,
+              bracketIdx !== 0 ? notCheckedInTeams : undefined,
           }),
         );
       } else {
@@ -174,7 +164,7 @@ export class Tournament {
         const { teams, relevantMatchesFinished } = sources
           ? this.resolveTeamsFromSources(sources)
           : {
-              teams: this.ctx.teams,
+              teams: this.ctx.teams.map((team) => team.id),
               relevantMatchesFinished: true,
             };
 
@@ -225,7 +215,7 @@ export class Tournament {
                 TOURNAMENT.ENOUGH_TEAMS_TO_START &&
               (sources ? relevantMatchesFinished : this.regularCheckInHasEnded),
             teamsPendingCheckIn:
-              bracketIdx !== 0 ? notCheckedInTeams.map((t) => t.id) : undefined,
+              bracketIdx !== 0 ? notCheckedInTeams : undefined,
           }),
         );
       }
@@ -235,7 +225,7 @@ export class Tournament {
   private resolveTeamsFromSources(
     sources: NonNullable<TournamentBracketProgression[number]["sources"]>,
   ) {
-    const teams: { id: number; name: string }[] = [];
+    const teams: number[] = [];
 
     let allRelevantMatchesFinished = true;
     for (const { bracketIdx, placements } of sources) {
@@ -254,10 +244,7 @@ export class Tournament {
   }
 
   private avoidReplaysOfPreviousBracketOpponent(
-    teams: {
-      id: number;
-      name: string;
-    }[],
+    teams: number[],
     bracket: {
       sources: TournamentBracketProgression[number]["sources"];
       type: TournamentBracketProgression[number]["type"];
@@ -304,12 +291,7 @@ export class Tournament {
       new Map() as Map<number, number[]>,
     );
 
-    const bracketReplays = (
-      candidateTeams: {
-        id: number;
-        name: string;
-      }[],
-    ) => {
+    const bracketReplays = (candidateTeams: number[]) => {
       const manager = getTournamentManager();
       manager.create({
         tournamentId: this.ctx.id,
@@ -358,12 +340,12 @@ export class Tournament {
       const [oneId, twoId] = replays[0];
 
       const lowerSeedId =
-        newOrder.findIndex((t) => t.id === oneId) <
-        newOrder.findIndex((t) => t.id === twoId)
+        newOrder.findIndex((t) => t === oneId) <
+        newOrder.findIndex((t) => t === twoId)
           ? twoId
           : oneId;
 
-      if (!potentialSwitchCandidates.some((t) => t.id === lowerSeedId)) {
+      if (!potentialSwitchCandidates.some((t) => t === lowerSeedId)) {
         logger.warn(
           `Avoiding replays failed, no potential switch candidates found in match: ${oneId} vs. ${twoId}`,
         );
@@ -373,10 +355,10 @@ export class Tournament {
 
       for (const candidate of potentialSwitchCandidates) {
         // can't switch place with itself
-        if (candidate.id === lowerSeedId) continue;
+        if (candidate === lowerSeedId) continue;
 
-        const candidateIdx = newOrder.findIndex((t) => t.id === candidate.id);
-        const otherIdx = newOrder.findIndex((t) => t.id === lowerSeedId);
+        const candidateIdx = newOrder.findIndex((t) => t === candidate);
+        const otherIdx = newOrder.findIndex((t) => t === lowerSeedId);
 
         const temp = newOrder[candidateIdx];
         newOrder[candidateIdx] = newOrder[otherIdx];
@@ -403,12 +385,12 @@ export class Tournament {
     teams,
     bracketIdx,
   }: {
-    teams: { id: number; name: string }[];
+    teams: number[];
     bracketIdx: number;
   }) {
     return teams.reduce(
       (acc, cur) => {
-        const team = this.teamById(cur.id);
+        const team = this.teamById(cur);
         invariant(team, "Team not found");
 
         const usesRegularCheckIn = bracketIdx === 0;
@@ -431,8 +413,8 @@ export class Tournament {
         return acc;
       },
       { checkedInTeams: [], notCheckedInTeams: [] } as {
-        checkedInTeams: { id: number; name: string }[];
-        notCheckedInTeams: { id: number; name: string }[];
+        checkedInTeams: number[];
+        notCheckedInTeams: number[];
       },
     );
   }
@@ -684,13 +666,7 @@ export class Tournament {
     return isParticipant || this.isOrganizer(user);
   }
 
-  checkInConditionsFulfilled({
-    tournamentTeamId,
-    mapPool,
-  }: {
-    tournamentTeamId: number;
-    mapPool: unknown[];
-  }) {
+  checkInConditionsFulfilledByTeamId(tournamentTeamId: number) {
     const team = this.teamById(tournamentTeamId);
     invariant(team, "Team not found");
 
@@ -702,7 +678,7 @@ export class Tournament {
       return false;
     }
 
-    if (this.teamsPrePickMaps && mapPool.length === 0) {
+    if (this.teamsPrePickMaps && (!team.mapPool || team.mapPool.length === 0)) {
       return false;
     }
 
@@ -817,6 +793,117 @@ export class Tournament {
     );
   }
 
+  teamMemberOfProgressStatus(user: OptionalIdObject) {
+    const team = this.teamMemberOfByUser(user);
+    if (!team) return null;
+
+    if (
+      this.brackets.every((bracket) => bracket.preview) &&
+      !this.regularCheckInIsOpen
+    ) {
+      return null;
+    }
+
+    for (const bracket of this.brackets) {
+      if (bracket.preview) continue;
+      for (const match of bracket.data.match) {
+        const isParticipant =
+          match.opponent1?.id === team.id || match.opponent2?.id === team.id;
+        const isNotFinished =
+          match.opponent1 &&
+          match.opponent2 &&
+          match.opponent1?.result !== "win" &&
+          match.opponent2?.result !== "win";
+        const isWaitingForTeam =
+          (match.opponent1 && match.opponent1.id === null) ||
+          (match.opponent2 && match.opponent2.id === null);
+
+        if (isParticipant && isNotFinished && !isWaitingForTeam) {
+          const otherTeam = this.teamById(
+            match.opponent1!.id === team.id
+              ? match.opponent2!.id!
+              : match.opponent1!.id!,
+          )!;
+
+          const otherTeamBusyWithPreviousMatch =
+            bracket.type === "round_robin" &&
+            bracket.data.match.find(
+              (match) =>
+                (match.opponent1?.id === otherTeam.id ||
+                  match.opponent2?.id === otherTeam.id) &&
+                match.opponent1?.result !== "win" &&
+                match.opponent2?.result !== "win",
+            )?.id !== match.id;
+
+          if (otherTeamBusyWithPreviousMatch) {
+            return { type: "WAITING_FOR_MATCH" } as const;
+          }
+
+          if (this.ctx.castedMatchesInfo?.lockedMatches.includes(match.id)) {
+            return { type: "WAITING_FOR_CAST" } as const;
+          }
+
+          return {
+            type: "MATCH",
+            matchId: match.id,
+            opponent: otherTeam.name,
+          } as const;
+        }
+
+        if (isParticipant && isWaitingForTeam) {
+          return { type: "WAITING_FOR_MATCH" } as const;
+        }
+      }
+    }
+
+    if (team.checkIns.length === 0 && this.regularCheckInIsOpen) {
+      const canCheckIn = this.checkInConditionsFulfilledByTeamId(team.id);
+
+      return { type: "CHECKIN", canCheckIn } as const;
+    }
+
+    for (const [bracketIdx, bracket] of this.brackets.entries()) {
+      if (bracket.teamsPendingCheckIn?.includes(team.id)) {
+        return { type: "CHECKIN", bracketIdx } as const;
+      }
+    }
+
+    for (const bracket of this.brackets) {
+      if (!bracket.preview) continue;
+
+      const isParticipant = bracket.seeding?.includes(team.id);
+
+      if (isParticipant) {
+        return { type: "WAITING_FOR_BRACKET" } as const;
+      }
+    }
+
+    for (const bracket of this.brackets) {
+      if (bracket.preview || bracket.type !== "swiss") continue;
+
+      // TODO: both seeding and participantTournamentTeamIds are used for the same thing
+      const isParticipant = bracket.participantTournamentTeamIds.includes(
+        team.id,
+      );
+
+      const setsGeneratedCount = bracket.data.match.filter(
+        (match) =>
+          match.opponent1?.id === team.id || match.opponent2?.id === team.id,
+      ).length;
+      const notAllRoundsGenerated =
+        this.ctx.settings.swiss?.roundCount &&
+        setsGeneratedCount !== this.ctx.settings.swiss?.roundCount;
+
+      if (isParticipant && notAllRoundsGenerated) {
+        return { type: "WAITING_FOR_ROUND" } as const;
+      }
+    }
+
+    if (team.checkIns.length === 0) return null;
+
+    return { type: "THANKS_FOR_PLAYING" } as const;
+  }
+
   // basic idea is that they can reopen match as long as they don't have a following match
   // in progress whose participants could be dependent on the results of this match
   matchCanBeReopened(matchId: number) {
@@ -887,9 +974,11 @@ export class Tournament {
     }
 
     const participantInAnotherBracket = ongoingFollowUpBrackets
-      .flatMap((b) => b.data.participant)
+      .flatMap((b) => b.participantTournamentTeamIds)
       .some(
-        (p) => p.id === match.opponent1?.id || p.id === match.opponent2?.id,
+        (tournamentTeamId) =>
+          tournamentTeamId === match.opponent1?.id ||
+          tournamentTeamId === match.opponent2?.id,
       );
 
     return participantInAnotherBracket;

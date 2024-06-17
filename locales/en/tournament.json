@@ -3,7 +3,6 @@
   "tabs.teams": "Teams ({{count}})",
   "tabs.admin": "Admin",
   "tabs.register": "Register",
-  "tabs.maps": "Maps",
   "tabs.brackets": "Brackets",
   "tabs.seeds": "Seeds",
   "tabs.streams": "Streams ({{count}})",
@@ -77,6 +76,7 @@
   "admin.actions.ADD_TEAM": "Register team",
   "admin.actions.DROP_TEAM_OUT": "Drop out team",
   "admin.actions.UNDO_DROP_TEAM_OUT": "Undo drop out",
+  "admin.actions.UPDATE_IN_GAME_NAME": "Update player IGN",
 
   "staff.role.ORGANIZER": "organizer",
   "staff.role.STREAMER": "streamer",

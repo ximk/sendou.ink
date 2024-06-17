@@ -428,6 +428,7 @@ export interface TournamentSettings {
   autoCheckInAll?: boolean;
   enableNoScreenToggle?: boolean;
   deadlines?: "STRICT" | "DEFAULT";
+  requireInGameNames?: boolean;
   isInvitational?: boolean;
   /** Can teams add subs on their own while tournament is in progress? */
   autonomousSubs?: boolean;
@@ -450,7 +451,8 @@ export interface Tournament {
   settings: ColumnType<TournamentSettings, string, string>;
   id: GeneratedAlways<number>;
   mapPickingStyle: TournamentMapPickingStyle;
-  showMapListGenerator: Generated<number | null>;
+  // TODO: remove in migration
+  // showMapListGenerator: Generated<number | null>;
   castTwitchAccounts: ColumnType<string[] | null, string | null, string | null>;
   castedMatchesInfo: ColumnType<
     CastedMatchesInfo | null,
@@ -579,7 +581,7 @@ export interface TournamentSub {
   okWeapons: string | null;
   tournamentId: number;
   userId: number;
-  visibility: string;
+  visibility: "+1" | "+2" | "+3" | "ALL";
 }
 
 export interface TournamentStaff {
@@ -616,6 +618,7 @@ export interface TournamentTeamCheckIn {
 export interface TournamentTeamMember {
   createdAt: Generated<number>;
   isOwner: Generated<number>;
+  inGameName: string | null;
   tournamentTeamId: number;
   userId: number;
 }

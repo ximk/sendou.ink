@@ -10,7 +10,10 @@ import type { CalendarEventTag } from "~/db/types";
 import { requireUser } from "~/features/auth/core/user.server";
 import * as CalendarRepository from "~/features/calendar/CalendarRepository.server";
 import { MapPool } from "~/features/map-list-generator/core/map-pool";
-import { tournamentFromDB } from "~/features/tournament-bracket/core/Tournament.server";
+import {
+  clearTournamentDataCache,
+  tournamentFromDB,
+} from "~/features/tournament-bracket/core/Tournament.server";
 import {
   FORMATS_SHORT,
   TOURNAMENT,
@@ -99,6 +102,7 @@ export const action: ActionFunction = async ({ request }) => {
     isInvitational: data.isInvitational ?? false,
     deadlines: data.strictDeadline ? ("STRICT" as const) : ("DEFAULT" as const),
     enableNoScreenToggle: data.enableNoScreenToggle ?? undefined,
+    requireInGameNames: data.requireInGameNames ?? undefined,
     autoCheckInAll: data.autoCheckInAll ?? undefined,
     autonomousSubs: data.autonomousSubs ?? undefined,
     swissGroupCount: data.swissGroupCount ?? undefined,
@@ -146,6 +150,10 @@ export const action: ActionFunction = async ({ request }) => {
       mapPoolMaps: deserializedMaps,
       ...commonArgs,
     });
+
+    if (eventToEdit.tournamentId) {
+      clearTournamentDataCache(eventToEdit.tournamentId);
+    }
 
     throw redirect(calendarEventPage(data.eventToEditId));
   } else {
@@ -266,6 +274,10 @@ export const newCalendarEventActionSchema = z
     autonomousSubs: z.preprocess(checkboxValueToBoolean, z.boolean().nullish()),
     strictDeadline: z.preprocess(checkboxValueToBoolean, z.boolean().nullish()),
     isInvitational: z.preprocess(checkboxValueToBoolean, z.boolean().nullish()),
+    requireInGameNames: z.preprocess(
+      checkboxValueToBoolean,
+      z.boolean().nullish(),
+    ),
     //
     // tournament format related fields
     //

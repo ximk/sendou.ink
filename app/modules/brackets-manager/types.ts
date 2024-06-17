@@ -1,7 +1,6 @@
 import type {
   Group,
   Match,
-  Participant,
   Round,
   SeedOrdering,
   Stage,
@@ -90,7 +89,6 @@ export interface DataTypes {
   group: Group;
   round: Round;
   match: Match;
-  participant: Participant;
 }
 
 /**
@@ -102,6 +100,8 @@ export type Table = keyof DataTypes;
  * Format of the data in a database.
  */
 export type Database = ValueToArray<DataTypes>;
+
+export type TournamentManagerDataSet = Database;
 
 /**
  * An item in the final standings of an elimination stage.

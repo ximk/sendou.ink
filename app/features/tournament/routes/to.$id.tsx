@@ -17,8 +17,7 @@ import { SubNav, SubNavLink } from "~/components/SubNav";
 import { useUser } from "~/features/auth/core/user";
 import { getUser } from "~/features/auth/core/user.server";
 import { Tournament } from "~/features/tournament-bracket/core/Tournament";
-import { tournamentData } from "~/features/tournament-bracket/core/Tournament.server";
-import { findSubsByTournamentId } from "~/features/tournament-subs";
+import { tournamentDataCached } from "~/features/tournament-bracket/core/Tournament.server";
 import { type SendouRouteHandle } from "~/utils/remix";
 import { makeTitle } from "~/utils/strings";
 import { assertUnreachable } from "~/utils/types";
@@ -27,7 +26,6 @@ import {
   HACKY_resolvePicture,
   tournamentIdFromParams,
 } from "../tournament-utils";
-import * as UserRepository from "~/features/user-page/UserRepository.server";
 import * as TournamentRepository from "~/features/tournament/TournamentRepository.server";
 import { databaseTimestampToDate } from "~/utils/dates";
 import { isAdmin } from "~/permissions";
@@ -54,6 +52,7 @@ export const meta: MetaFunction = (args) => {
   const title = makeTitle(data.tournament.ctx.name);
 
   return [
+    { title },
     {
       property: "og:title",
       content: title,
@@ -113,39 +112,11 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const user = await getUser(request);
   const tournamentId = tournamentIdFromParams(params);
 
-  const subsCount = findSubsByTournamentId({
-    tournamentId,
-    userId: user?.id,
-    // eslint-disable-next-line array-callback-return
-  }).filter((sub) => {
-    if (sub.visibility === "ALL") return true;
-
-    const userPlusTier = user?.plusTier ?? 4;
-
-    switch (sub.visibility) {
-      case "+1": {
-        return userPlusTier === 1;
-      }
-      case "+2": {
-        return userPlusTier <= 2;
-      }
-      case "+3": {
-        return userPlusTier <= 3;
-      }
-      default: {
-        assertUnreachable(sub.visibility);
-      }
-    }
-  }).length;
-
-  const tournament = await tournamentData({ tournamentId, user });
+  const tournament = await tournamentDataCached({ tournamentId, user });
 
   const streams =
-    tournament.ctx.inProgressBrackets.length > 0
-      ? await streamsByTournamentId({
-          tournamentId,
-          castTwitchAccounts: tournament.ctx.castTwitchAccounts,
-        })
+    tournament.data.stage.length > 0
+      ? await streamsByTournamentId(tournament.ctx)
       : [];
 
   const tournamentStartedInTheLastMonth =
@@ -161,16 +132,8 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 
   return {
     tournament,
-    subsCount,
     streamingParticipants: streams.flatMap((s) => (s.userId ? [s.userId] : [])),
     streamsCount: streams.length,
-    toSetMapPool:
-      tournament.ctx.mapPickingStyle === "TO"
-        ? await TournamentRepository.findTOSetMapPoolById(tournamentId)
-        : [],
-    friendCode: user
-      ? await UserRepository.currentFriendCodeByUserId(user.id)
-      : undefined,
     friendCodes: showFriendCodes
       ? await TournamentRepository.friendCodesByTournamentId(tournamentId)
       : undefined,
@@ -201,6 +164,28 @@ export default function TournamentLayout() {
 
   const onBracketsPage = location.pathname.includes("brackets");
 
+  const subsCount = () =>
+    tournament.ctx.subCounts.reduce((acc, cur) => {
+      if (cur.visibility === "ALL") return acc + cur.count;
+
+      const userPlusTier = user?.plusTier ?? 4;
+
+      switch (cur.visibility) {
+        case "+1": {
+          return userPlusTier === 1 ? acc + cur.count : acc;
+        }
+        case "+2": {
+          return userPlusTier <= 2 ? acc + cur.count : acc;
+        }
+        case "+3": {
+          return userPlusTier <= 3 ? acc + cur.count : acc;
+        }
+        default: {
+          assertUnreachable(cur.visibility);
+        }
+      }
+    }, 0);
+
   return (
     <Main bigger={onBracketsPage}>
       <SubNav>
@@ -210,15 +195,12 @@ export default function TournamentLayout() {
         <SubNavLink to="brackets" data-testid="brackets-tab" prefetch="render">
           {t("tournament:tabs.brackets")}
         </SubNavLink>
-        {tournament.ctx.showMapListGenerator ? (
-          <SubNavLink to="maps">{t("tournament:tabs.maps")}</SubNavLink>
-        ) : null}
         <SubNavLink to="teams" end={false} prefetch="render">
           {t("tournament:tabs.teams", { count: tournament.ctx.teams.length })}
         </SubNavLink>
         {!tournament.everyBracketOver && tournament.subsFeatureEnabled && (
           <SubNavLink to="subs" end={false}>
-            {t("tournament:tabs.subs", { count: data.subsCount })}
+            {t("tournament:tabs.subs", { count: subsCount() })}
           </SubNavLink>
         )}
         {tournament.hasStarted && !tournament.everyBracketOver ? (
@@ -245,9 +227,7 @@ export default function TournamentLayout() {
               bracketExpanded,
               setBracketExpanded,
               streamingParticipants: data.streamingParticipants,
-              friendCode: data.friendCode?.friendCode,
               friendCodes: data.friendCodes,
-              toSetMapPool: data.toSetMapPool,
             } satisfies TournamentContext
           }
         />
@@ -263,7 +243,6 @@ type TournamentContext = {
   setBracketExpanded: (expanded: boolean) => void;
   friendCode?: string;
   friendCodes?: SerializeFrom<typeof loader>["friendCodes"];
-  toSetMapPool: SerializeFrom<typeof loader>["toSetMapPool"];
 };
 
 export function useTournament() {
@@ -281,14 +260,6 @@ export function useStreamingParticipants() {
   return useOutletContext<TournamentContext>().streamingParticipants;
 }
 
-export function useTournamentFriendCode() {
-  return useOutletContext<TournamentContext>().friendCode;
-}
-
 export function useTournamentFriendCodes() {
   return useOutletContext<TournamentContext>().friendCodes;
-}
-
-export function useTournamentToSetMapPool() {
-  return useOutletContext<TournamentContext>().toSetMapPool;
 }

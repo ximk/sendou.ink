@@ -1,7 +1,8 @@
 import { BRACKET_NAMES } from "~/features/tournament/tournament-constants";
 import { Tournament } from "../Tournament";
 import type { TournamentData } from "../Tournament.server";
-import type { DataTypes, ValueToArray } from "~/modules/brackets-manager/types";
+import type { TournamentManagerDataSet } from "~/modules/brackets-manager/types";
+import { removeDuplicates } from "~/utils/arrays";
 
 const tournamentCtxTeam = (
   teamId: number,
@@ -34,9 +35,15 @@ const nTeams = (n: number, startingId: number) => {
 };
 
 export const testTournament = (
-  data: ValueToArray<DataTypes>,
+  data: TournamentManagerDataSet,
   partialCtx?: Partial<TournamentData["ctx"]>,
 ) => {
+  const participant = removeDuplicates(
+    data.match
+      .flatMap((m) => [m.opponent1?.id, m.opponent2?.id])
+      .filter(Boolean),
+  ) as number[];
+
   return new Tournament({
     data,
     ctx: {
@@ -51,10 +58,11 @@ export const testTournament = (
       startTime: 1705858842,
       isFinalized: 0,
       name: "test",
-      showMapListGenerator: 0,
       castTwitchAccounts: [],
+      subCounts: [],
       staff: [],
       tieBreakerMapPool: [],
+      toSetMapPool: [],
       participatedUsers: [],
       mapPickingStyle: "AUTO_SZ",
       settings: {
@@ -62,17 +70,8 @@ export const testTournament = (
           { name: BRACKET_NAMES.MAIN, type: "double_elimination" },
         ],
       },
-      inProgressBrackets: data.stage.map((stage) => ({
-        id: stage.id,
-        name: stage.name,
-        type: stage.type,
-        createdAt: 0,
-      })),
       castedMatchesInfo: null,
-      teams: nTeams(
-        data.participant.length,
-        Math.min(...data.participant.map((p) => p.id)),
-      ),
+      teams: nTeams(participant.length, Math.min(...participant)),
       author: {
         chatNameColor: null,
         customUrl: null,
@@ -87,13 +86,13 @@ export const testTournament = (
 };
 
 export const adjustResults = (
-  data: ValueToArray<DataTypes>,
+  data: TournamentManagerDataSet,
   adjustedArr: Array<{
     ids: [number, number];
     score: [number, number];
     points?: [number, number];
   }>,
-): ValueToArray<DataTypes> => {
+): TournamentManagerDataSet => {
   return {
     ...data,
     match: data.match.map((match, idx) => {

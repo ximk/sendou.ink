@@ -39,12 +39,17 @@ import { requireUser } from "~/features/auth/core/user.server";
 import { cachedFullUserLeaderboard } from "~/features/leaderboards/core/leaderboards.server";
 import { currentOrPreviousSeason } from "~/features/mmr/season";
 import {
+  clearTournamentDataCache,
   tournamentFromDB,
   type TournamentDataTeam,
 } from "~/features/tournament-bracket/core/Tournament.server";
 import { useTimeoutState } from "~/hooks/useTimeoutState";
 import { parseRequestFormData, validate } from "~/utils/remix";
-import { navIconUrl, tournamentBracketsPage, userPage } from "~/utils/urls";
+import {
+  navIconUrl,
+  tournamentBracketsPage,
+  userResultsPage,
+} from "~/utils/urls";
 import { updateTeamSeeds } from "../queries/updateTeamSeeds.server";
 import { seedsActionSchema } from "../tournament-schemas.server";
 import { tournamentIdFromParams } from "../tournament-utils";
@@ -65,6 +70,8 @@ export const action: ActionFunction = async ({ request, params }) => {
   validate(!tournament.hasStarted, "Tournament has started");
 
   updateTeamSeeds({ tournamentId, teamIds: data.seeds });
+
+  clearTournamentDataCache(tournamentId);
 
   return null;
 };
@@ -310,7 +317,7 @@ function RowContents({
           return (
             <div key={member.userId} className="tournament__seeds__team-member">
               <Link
-                to={userPage(member)}
+                to={userResultsPage(member, true)}
                 target="_blank"
                 className="tournament__seeds__team-member__name"
               >

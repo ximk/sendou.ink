@@ -30,6 +30,7 @@ import { ModeMapPoolPicker } from "~/features/sendouq-settings/components/ModeMa
 import * as QRepository from "~/features/sendouq/QRepository.server";
 import type { TournamentData } from "~/features/tournament-bracket/core/Tournament.server";
 import {
+  clearTournamentDataCache,
   tournamentFromDB,
   type TournamentDataTeam,
 } from "~/features/tournament-bracket/core/Tournament.server";
@@ -51,6 +52,7 @@ import {
   readonlyMapsPage,
   tournamentJoinPage,
   tournamentSubsPage,
+  userEditProfilePage,
   userPage,
 } from "~/utils/urls";
 import { checkIn } from "../queries/checkIn.server";
@@ -68,17 +70,14 @@ import {
   isOneModeTournamentOf,
   tournamentIdFromParams,
 } from "../tournament-utils";
-import {
-  useTournament,
-  useTournamentFriendCode,
-  useTournamentToSetMapPool,
-} from "./to.$id";
+import { useTournament } from "./to.$id";
 import Markdown from "markdown-to-jsx";
 import { NewTabs } from "~/components/NewTabs";
 import { useSearchParamState } from "~/hooks/useSearchParamState";
 import * as TeamRepository from "~/features/team/TeamRepository.server";
 import { Toggle } from "~/components/Toggle";
 import { DiscordIcon } from "~/components/icons/Discord";
+import { inGameNameIfNeeded } from "../tournament-utils.server";
 
 export const action: ActionFunction = async ({ request, params }) => {
   const user = await requireUser(request);
@@ -89,7 +88,7 @@ export const action: ActionFunction = async ({ request, params }) => {
   const event = notFoundIfFalsy(findByIdentifier(tournamentId));
 
   validate(
-    tournament.ctx.inProgressBrackets.length === 0,
+    !tournament.hasStarted,
     "Tournament has started, cannot make edits to registration",
   );
 
@@ -120,7 +119,7 @@ export const action: ActionFunction = async ({ request, params }) => {
       } else {
         validate(!tournament.isInvitational, "Event is invite only");
         validate(
-          await UserRepository.currentFriendCodeByUserId(user.id),
+          (await UserRepository.findLeanById(user.id))?.friendCode,
           "No friend code",
         );
         validate(
@@ -135,6 +134,10 @@ export const action: ActionFunction = async ({ request, params }) => {
           ownerId: user.id,
           prefersNotToHost: booleanToInt(data.prefersNotToHost),
           noScreen: booleanToInt(data.noScreen),
+          ownerInGameName: await inGameNameIfNeeded({
+            tournament,
+            userId: user.id,
+          }),
           teamId: data.teamId ?? null,
         });
       }
@@ -196,22 +199,25 @@ export const action: ActionFunction = async ({ request, params }) => {
     }
     case "CHECK_IN": {
       logger.info(
-        `Checking in (try): tournament team id: ${ownTeam?.id} - user id: ${user.id} - tournament id: ${tournamentId}`,
+        `Checking in (try): owned tournament team id: ${ownTeam?.id} - user id: ${user.id} - tournament id: ${tournamentId}`,
+      );
+
+      const teamMemberOf = tournament.teamMemberOfByUser(user);
+      validate(teamMemberOf, "You are not in a team");
+      validate(
+        teamMemberOf.checkIns.length === 0,
+        "You have already checked in",
       );
 
       validate(tournament.regularCheckInIsOpen, "Check in is not open");
-      validate(ownTeam);
-      validate(!ownTeamCheckedIn, "You have already checked in");
       validate(
-        tournament.checkInConditionsFulfilled({
-          tournamentTeamId: ownTeam.id,
-          mapPool: findMapPoolByTeamId(ownTeam.id),
-        }),
+        tournament.checkInConditionsFulfilledByTeamId(teamMemberOf.id),
+        "Check in conditions not fulfilled",
       );
 
-      checkIn(ownTeam.id);
+      checkIn(teamMemberOf.id);
       logger.info(
-        `Checking in (success): tournament team id: ${ownTeam.id} - user id: ${user.id} - tournament id: ${tournamentId}`,
+        `Checking in (success): tournament team id: ${teamMemberOf.id} - user id: ${user.id} - tournament id: ${tournamentId}`,
       );
       break;
     }
@@ -230,7 +236,7 @@ export const action: ActionFunction = async ({ request, params }) => {
         "No trust given from this user",
       );
       validate(
-        await UserRepository.currentFriendCodeByUserId(data.userId),
+        (await UserRepository.findLeanById(user.id))?.friendCode,
         "No friend code",
       );
       validate(tournament.registrationOpen, "Registration is closed");
@@ -239,6 +245,10 @@ export const action: ActionFunction = async ({ request, params }) => {
         userId: data.userId,
         newTeamId: ownTeam.id,
         tournamentId,
+        inGameName: await inGameNameIfNeeded({
+          tournament,
+          userId: data.userId,
+        }),
       });
       break;
     }
@@ -253,6 +263,8 @@ export const action: ActionFunction = async ({ request, params }) => {
       assertUnreachable(data);
     }
   }
+
+  clearTournamentDataCache(tournamentId);
 
   return null;
 };
@@ -377,6 +389,12 @@ function TournamentRegisterInfoTabs() {
     revive: Number,
   });
 
+  const showAddIGNAlert =
+    tournament.ctx.settings.requireInGameNames &&
+    !teamOwned &&
+    user &&
+    !user?.inGameName;
+
   return (
     <div>
       <NewTabs
@@ -461,12 +479,24 @@ function TournamentRegisterInfoTabs() {
                       </FormWithConfirm>
                     ) : null}
                   </div>
+                ) : showAddIGNAlert ? (
+                  <div>
+                    <Alert variation="WARNING">
+                      <div className="stack horizontal sm items-center flex-wrap justify-center text-center">
+                        This tournament requires you to have an in-game name set{" "}
+                        <LinkButton to={userEditProfilePage(user)} size="tiny">
+                          Edit profile
+                        </LinkButton>
+                      </div>
+                    </Alert>
+                  </div>
                 ) : (
                   <RegistrationForms />
                 )}
                 {user &&
                 !tournament.teamMemberOfByUser(user) &&
                 tournament.canAddNewSubPost &&
+                !showAddIGNAlert &&
                 !tournament.hasStarted ? (
                   <Link
                     to={tournamentSubsPage(tournament.ctx.id)}
@@ -500,7 +530,6 @@ function RegistrationForms() {
   const data = useLoaderData<typeof loader>();
   const user = useUser();
   const tournament = useTournament();
-  const friendCode = useTournamentFriendCode();
 
   const ownTeam = tournament.ownedTeamByUser(user);
   const ownTeamCheckedIn = Boolean(ownTeam && ownTeam.checkIns.length > 0);
@@ -540,7 +569,7 @@ function RegistrationForms() {
       {showRegisterNewTeam() ? (
         <>
           <FriendCode />
-          {friendCode ? (
+          {user?.friendCode ? (
             <TeamInfo
               name={ownTeam?.name}
               prefersNotToHost={ownTeam?.prefersNotToHost}
@@ -813,7 +842,7 @@ function TeamInfo({
             <input type="hidden" name="teamId" value={data.team.id} />
           ) : null}
           <div className="stack sm items-center">
-            {data?.team ? (
+            {data?.team && tournament.registrationOpen ? (
               <div className="tournament__section__input-container">
                 <Label htmlFor="signUpAsTeam">
                   Sign up as {data.team.name}
@@ -881,16 +910,21 @@ function TeamInfo({
 }
 
 function FriendCode() {
-  const friendCode = useTournamentFriendCode();
+  const user = useUser();
 
   return (
     <div>
       <h3 className="tournament__section-header">1. Friend code</h3>
       <section className="tournament__section">
         <div className="tournament__section__input-container mx-auto">
-          <FriendCodeInput friendCode={friendCode} />
+          <FriendCodeInput friendCode={user?.friendCode} />
         </div>
       </section>
+      {user?.friendCode ? (
+        <div className="tournament__section__warning">
+          Is the friend code above wrong? Contact Sendou directly to change it.
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -933,9 +967,14 @@ function FillRoster({
 
   const playersAvailableToDirectlyAdd = (() => {
     return (data!.trusterPlayers ?? []).filter((user) => {
-      return tournament.ctx.teams.every((team) =>
+      const isNotInTeam = tournament.ctx.teams.every((team) =>
         team.members.every((member) => member.userId !== user.id),
       );
+
+      const hasInGameNameIfNeeded =
+        !tournament.ctx.settings.requireInGameNames || user.inGameName;
+
+      return isNotInTeam && hasInGameNameIfNeeded;
     });
   })();
 
@@ -979,7 +1018,20 @@ function FillRoster({
                 data-testid={`member-num-${i + 1}`}
               >
                 <Avatar size="xsm" user={member} />
-                {member.username}
+                {tournament.ctx.settings.requireInGameNames ? (
+                  <div>
+                    <div className="text-center">
+                      {member.inGameName ?? member.username}
+                    </div>
+                    {member.inGameName ? (
+                      <div className="text-lighter text-xs font-bold text-center">
+                        {member.username}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  member.username
+                )}
               </div>
             );
           })}
@@ -1005,12 +1057,20 @@ function FillRoster({
           <DeleteMember members={ownTeamMembers} />
         ) : null}
       </section>
-      <div className="tournament__section__warning">
-        {t("tournament:pre.roster.footer", {
-          atLeastCount: TOURNAMENT.TEAM_MIN_MEMBERS_FOR_FULL,
-          maxCount: tournament.maxTeamMemberCount,
-        })}
-      </div>
+      {tournament.ctx.settings.requireInGameNames ? (
+        <div className="tournament__section__warning text-warning-important">
+          Note that you are expected to use the in-game names as listed above.
+          Playing in the event with a different name or using the alias feature
+          might result in disqualification.
+        </div>
+      ) : (
+        <div className="tournament__section__warning">
+          {t("tournament:pre.roster.footer", {
+            atLeastCount: TOURNAMENT.TEAM_MIN_MEMBERS_FOR_FULL,
+            maxCount: tournament.maxTeamMemberCount,
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -1286,15 +1346,14 @@ function validateCounterPickMapPool(
 
 function TOPickedMapPoolInfo() {
   const { t } = useTranslation(["calendar"]);
-  const toSetMapPool = useTournamentToSetMapPool();
   const tournament = useTournament();
 
-  if (toSetMapPool.length === 0) return null;
+  if (tournament.ctx.toSetMapPool.length === 0) return null;
 
   return (
     <Section title={t("calendar:forms.mapPool")}>
       <div className="event__map-pool-section">
-        <MapPoolStages mapPool={new MapPool(toSetMapPool)} />
+        <MapPoolStages mapPool={new MapPool(tournament.ctx.toSetMapPool)} />
         <LinkButton
           className="event__create-map-list-link"
           to={readonlyMapsPage(tournament.ctx.eventId)}

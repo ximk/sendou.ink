@@ -1,5 +1,5 @@
 import { add } from "date-fns";
-import type { Insertable, NotNull, Transaction } from "kysely";
+import { sql, type Insertable, type NotNull, type Transaction } from "kysely";
 import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/sqlite";
 import { nanoid } from "nanoid";
 import { db } from "~/db/sql";
@@ -11,7 +11,11 @@ import {
   dateToDatabaseTimestamp,
 } from "~/utils/dates";
 import { COMMON_USER_FIELDS, userChatNameColor } from "~/utils/kysely.server";
+import { userSubmittedImage } from "~/utils/urls";
+import { HACKY_resolvePicture } from "./tournament-utils";
+import type { Unwrapped } from "~/utils/types";
 
+export type FindById = NonNullable<Unwrapped<typeof findById>>;
 export async function findById(id: number) {
   const result = await db
     .selectFrom("Tournament")
@@ -26,7 +30,6 @@ export async function findById(id: number) {
       "CalendarEvent.id as eventId",
       "CalendarEvent.discordUrl",
       "Tournament.settings",
-      "Tournament.showMapListGenerator",
       "Tournament.castTwitchAccounts",
       "Tournament.castedMatchesInfo",
       "Tournament.mapPickingStyle",
@@ -57,23 +60,21 @@ export async function findById(id: number) {
           ])
           .where("TournamentStaff.tournamentId", "=", id),
       ).as("staff"),
+      jsonArrayFrom(
+        eb
+          .selectFrom("TournamentSub")
+          .select(({ fn }) => [
+            "TournamentSub.visibility",
+            fn.countAll<number>().as("count"),
+          ])
+          .where("TournamentSub.tournamentId", "=", id)
+          .groupBy("TournamentSub.visibility"),
+      ).as("subCounts"),
       exists(
         selectFrom("TournamentResult")
           .where("TournamentResult.tournamentId", "=", id)
           .select("TournamentResult.tournamentId"),
       ).as("isFinalized"),
-      jsonArrayFrom(
-        eb
-          .selectFrom("TournamentStage")
-          .select([
-            "TournamentStage.id",
-            "TournamentStage.name",
-            "TournamentStage.type",
-            "TournamentStage.createdAt",
-          ])
-          .where("TournamentStage.tournamentId", "=", id)
-          .orderBy("TournamentStage.number asc"),
-      ).as("inProgressBrackets"),
       jsonArrayFrom(
         eb
           .selectFrom("TournamentTeam")
@@ -98,11 +99,15 @@ export async function findById(id: number) {
                   "User.discordId",
                   "User.discordAvatar",
                   "User.customUrl",
-                  "User.inGameName",
                   "User.country",
+                  "User.twitch",
                   "PlusTier.tier as plusTier",
                   "TournamentTeamMember.isOwner",
                   "TournamentTeamMember.createdAt",
+                  sql<string | null>/*sql*/ `coalesce(
+                    "TournamentTeamMember"."inGameName",
+                    "User"."inGameName"
+                  )`.as("inGameName"),
                 ])
                 .whereRef(
                   "TournamentTeamMember.tournamentTeamId",
@@ -165,6 +170,12 @@ export async function findById(id: number) {
       ).as("tieBreakerMapPool"),
       jsonArrayFrom(
         eb
+          .selectFrom("MapPoolMap")
+          .select(["MapPoolMap.mode", "MapPoolMap.stageId"])
+          .whereRef("MapPoolMap.calendarEventId", "=", "CalendarEvent.id"),
+      ).as("toSetMapPool"),
+      jsonArrayFrom(
+        eb
           .selectFrom("TournamentStage")
           .innerJoin(
             "TournamentMatch",
@@ -194,6 +205,9 @@ export async function findById(id: number) {
 
   return {
     ...result,
+    logoSrc: result.logoUrl
+      ? userSubmittedImage(result.logoUrl)
+      : HACKY_resolvePicture(result),
     participatedUsers: result.participatedUsers.map((user) => user.userId),
   };
 }
