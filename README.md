@@ -201,10 +201,10 @@ Note: This is only useful if you have access to a production running on Render.c
 
 ### Doing monthly update
 
-1. Fill /scripts/dicts with new data from leanny repository:
-   - weapon = contents of `weapon` folder
-   - langs = contents of `language` folder
-   - Couple of others at the root: `GearInfoClothes.json`, `GearInfoHead.json`, `GearInfoShoes.json`, `spl__DamageRateInfoConfig.pp__CombinationDataTableData.json`, `SplPlayer.game__GameParameterTable.json`, `WeaponInfoMain.json`, `WeaponInfoSpecial.json` and `WeaponInfoSub.json`
+1. Fill /scripts/dicts with new data from [Leanny's repository](https://github.com/Leanny/splat3):
+   - weapon = contents of `weapon` folder [(Link for 8.0.0)](https://github.com/Leanny/splat3/tree/main/data/parameter/800/weapon)
+   - langs = contents of `language` folder [(Link)](https://github.com/Leanny/splat3/tree/main/data/language)
+   - Couple of others: `spl__DamageRateInfoConfig.pp__CombinationDataTableData.json`, `SplPlayer.game__GameParameterTable.json`, `GearInfoClothes.json`, `GearInfoHead.json`, `GearInfoShoes.json`, `WeaponInfoMain.json`, `WeaponInfoSpecial.json` and `WeaponInfoSub.json` [(Link for first 2 in 8.0.0)](https://github.com/Leanny/splat3/tree/main/data/parameter/800/misc) | [(Link for the rest in 8.0.0)](https://github.com/Leanny/splat3/tree/main/data/mush/800)
 2. Update `AVAILABLE_SR_GEAR` with new SR gear & new gear bought with scales
 3. Update all `CURRENT_SEASON` constants
 4. Update `CURRENT_PATCH` constants
