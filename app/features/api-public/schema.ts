@@ -82,9 +82,21 @@ export type GetTournamentTeamsResponse = Array<{
   registeredAt: string;
   checkedIn: boolean;
   /**
+   * URL for the tournament team page.
+   *
    * @example "https://sendou.ink/to/9/teams/327"
    */
   url: string;
+  /**
+   * URL for the global team page.
+   *
+   * @example "https://sendou.ink/t/moonlight"
+   */
+  teamPageUrl: string | null;
+  /**
+   * @example "https://sendou.nyc3.cdn.digitaloceanspaces.com/pickup-logo-uReSb1b1XS3TWGLCKMDUD-1719054364813.webp"
+   */
+  logoUrl: string | null;
   seed: number | null;
   mapPool: Array<StageWithMode> | null;
   members: Array<{
@@ -97,6 +109,10 @@ export type GetTournamentTeamsResponse = Array<{
      * @example "79237403620945920"
      */
     discordId: string;
+    /**
+     * @example "sendouc"
+     */
+    battlefy: string | null;
     /**
      * @example "https://cdn.discordapp.com/avatars/79237403620945920/6fc41a44b069a0d2152ac06d1e496c6c.png"
      */

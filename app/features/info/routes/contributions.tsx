@@ -60,14 +60,18 @@ const TRANSLATORS: Array<{
   },
   {
     translators: ["Charakiga", "marie-maxime", "Filuz"],
-    language: "fr",
+    language: "fr-CA",
+  },
+  {
+    translators: ["Charakiga", "marie-maxime", "Filuz"],
+    language: "fr-EU",
   },
   {
     translators: ["shachar700"],
     language: "he",
   },
   {
-    translators: [{ name: "funyaaa", twitter: "funyaaa1" }, "taqm"],
+    translators: [{ name: "funyaaa", twitter: "funyaaa1" }, "taqm", "yutarour"],
     language: "ja",
   },
   {

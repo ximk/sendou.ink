@@ -438,6 +438,7 @@ export interface TournamentSettings {
     groupCount: number;
     roundCount: number;
   };
+  minMembersPerTeam?: number;
 }
 
 export interface CastedMatchesInfo {
@@ -606,6 +607,7 @@ export interface TournamentTeam {
   >;
   tournamentId: number;
   teamId: number | null;
+  avatarImgId: number | null;
 }
 
 export interface TournamentTeamCheckIn {
@@ -690,6 +692,7 @@ export interface User {
   stickSens: number | null;
   twitch: string | null;
   twitter: string | null;
+  battlefy: string | null;
   vc: Generated<"YES" | "NO" | "LISTEN_ONLY">;
   youtubeId: string | null;
   mapModePreferences: ColumnType<
