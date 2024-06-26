@@ -268,16 +268,20 @@ export interface LogInLink {
 
 export type LFGType =
 	| "PLAYER_FOR_TEAM"
+	| "PLAYER_FOR_COACH"
 	| "TEAM_FOR_PLAYER"
 	| "TEAM_FOR_COACH"
+	| "TEAM_FOR_SCRIM"
 	| "COACH_FOR_TEAM";
 
-export const LFG_TYPES: LFGType[] = [
+export const LFG_TYPES = [
 	"PLAYER_FOR_TEAM",
+	"PLAYER_FOR_COACH",
 	"TEAM_FOR_PLAYER",
 	"TEAM_FOR_COACH",
+	"TEAM_FOR_SCRIM",
 	"COACH_FOR_TEAM",
-];
+] as const;
 
 export interface LFGPost {
 	id: GeneratedAlways<number>;
@@ -660,6 +664,20 @@ export interface UserMapModePreferences {
 	}>;
 }
 
+export const BUILD_SORT_IDENTIFIERS = [
+	"UPDATED_AT",
+	"TOP_500",
+	"WEAPON_POOL",
+	"WEAPON_IN_GAME_ORDER",
+	"ALPHABETICAL_TITLE",
+	"MODE",
+	"HEADGEAR_ID",
+	"CLOTHES_ID",
+	"SHOES_ID",
+] as const;
+
+export type BuildSort = (typeof BUILD_SORT_IDENTIFIERS)[number];
+
 export interface User {
 	/** 1 = permabanned, timestamp = ban active till then */
 	banned: Generated<number | null>;
@@ -702,6 +720,7 @@ export interface User {
 	qWeaponPool: ColumnType<MainWeaponId[] | null, string | null, string | null>;
 	plusSkippedForSeasonNth: number | null;
 	noScreen: Generated<number>;
+	buildSorting: ColumnType<BuildSort[] | null, string | null, string | null>;
 }
 
 export interface UserResultHighlight {
