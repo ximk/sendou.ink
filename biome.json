@@ -5,7 +5,7 @@
 			"./scripts/dicts/**/*",
 			"./scripts/output/**/*",
 			"./app/db/seed/placements.json",
-			"./app/features/map-planner/plans.css"
+			"./build/**/*"
 		]
 	},
 	"linter": {

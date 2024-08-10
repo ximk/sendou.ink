@@ -145,6 +145,7 @@ export interface CalendarEvent {
 	participantCount: number | null;
 	tags: string | null;
 	tournamentId: number | null;
+	organizationId: number | null;
 	avatarImgId: number | null;
 	avatarMetadata: ColumnType<
 		CalendarEventAvatarMetadata | null,
@@ -628,6 +629,45 @@ export interface TournamentTeamMember {
 	userId: number;
 }
 
+export interface TournamentOrganization {
+	id: GeneratedAlways<number>;
+	name: string;
+	slug: string;
+	description: string | null;
+	socials: ColumnType<string[] | null, string | null, string | null>;
+	avatarImgId: number | null;
+}
+
+export const TOURNAMENT_ORGANIZATION_ROLES = [
+	"ADMIN",
+	"MEMBER",
+	"ORGANIZER",
+	"STREAMER",
+] as const;
+type TournamentOrganizationRole =
+	(typeof TOURNAMENT_ORGANIZATION_ROLES)[number];
+
+export interface TournamentOrganizationMember {
+	organizationId: number;
+	userId: number;
+	role: TournamentOrganizationRole;
+	roleDisplayName: string | null;
+}
+
+export interface TournamentOrganizationBadge {
+	organizationId: number;
+	badgeId: number;
+}
+
+export interface TournamentOrganizationSeries {
+	id: GeneratedAlways<number>;
+	organizationId: number;
+	name: string;
+	description: string | null;
+	substringMatches: ColumnType<string[], string, string>;
+	showLeaderboard: Generated<number>;
+}
+
 export interface TrustRelationship {
 	trustGiverUserId: number;
 	trustReceiverUserId: number;
@@ -674,6 +714,8 @@ export const BUILD_SORT_IDENTIFIERS = [
 	"HEADGEAR_ID",
 	"CLOTHES_ID",
 	"SHOES_ID",
+	"PUBLIC_BUILD",
+	"PRIVATE_BUILD",
 ] as const;
 
 export type BuildSort = (typeof BUILD_SORT_IDENTIFIERS)[number];
@@ -853,6 +895,10 @@ export interface DB {
 	TournamentTeam: TournamentTeam;
 	TournamentTeamCheckIn: TournamentTeamCheckIn;
 	TournamentTeamMember: TournamentTeamMember;
+	TournamentOrganization: TournamentOrganization;
+	TournamentOrganizationMember: TournamentOrganizationMember;
+	TournamentOrganizationBadge: TournamentOrganizationBadge;
+	TournamentOrganizationSeries: TournamentOrganizationSeries;
 	TrustRelationship: TrustRelationship;
 	UnvalidatedUserSubmittedImage: UnvalidatedUserSubmittedImage;
 	UnvalidatedVideo: UnvalidatedVideo;

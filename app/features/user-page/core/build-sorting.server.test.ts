@@ -1,5 +1,6 @@
 import { suite } from "uvu";
 import * as assert from "uvu/assert";
+import type { MainWeaponId } from "~/modules/in-game-lists";
 import { databaseTimestampNow } from "~/utils/dates";
 import { sortBuilds } from "./build-sorting.server";
 
@@ -99,6 +100,71 @@ BuildSorting("sorts by WEAPON_POOL", () => {
 
 	assert.equal(sortedBuilds[0].id, 3);
 	assert.equal(sortedBuilds[1].id, 2);
+});
+
+BuildSorting("sorts by WEAPON_POOL (alt kits are same priority)", () => {
+	const mockBuildBuilder = (
+		id: number,
+		weaponIds: MainWeaponId[],
+	): BuildSortingBuildArg => {
+		return mockBuild({
+			id,
+			weapons: weaponIds.map((wepId) => ({
+				weaponSplId: wepId,
+				maxPower: null,
+				minRank: null,
+			})),
+		});
+	};
+
+	const builds1 = [
+		[1, [1000]],
+		[2, [10]],
+		[3, [0]],
+		[4, [11]],
+		[5, [1]],
+	].map(([id, weaponIds]) =>
+		mockBuildBuilder(id as number, weaponIds as MainWeaponId[]),
+	);
+
+	const sortedBuilds1 = sortBuilds({
+		builds: builds1,
+		buildSorting: ["WEAPON_POOL"],
+		weaponPool: [1, 10],
+	});
+
+	// Sorting is stable; should keep relative order of alt kits
+	// and relative order of non-weapon pool kits
+	let expected = [3, 5, 2, 4, 1];
+	for (const [idx, expectedVal] of expected.entries()) {
+		assert.equal(sortedBuilds1[idx].id, expectedVal);
+	}
+
+	const builds2 = [
+		[1, [1000]],
+		[2, [0, 10, 1011]],
+		[3, [2]],
+		[4, [2010, 40]],
+		[5, [8001, 8000]],
+		[6, [8020, 201, 8021]],
+		[7, [5010, 46, 50]],
+	].map(([id, weaponIds]) =>
+		mockBuildBuilder(id as number, weaponIds as MainWeaponId[]),
+	);
+
+	const sortedBuilds2 = sortBuilds({
+		builds: builds2,
+		buildSorting: ["WEAPON_POOL"],
+		weaponPool: [47, 205, 1015],
+	});
+
+	// Using alt kit ids still acts as the vanilla kit id
+	// Last 3 builds are not any variant of weapon pool weapons;
+	// relative order is still preserved
+	expected = [4, 7, 6, 2, 1, 3, 5];
+	for (const [idx, expectedVal] of expected.entries()) {
+		assert.equal(sortedBuilds2[idx].id, expectedVal);
+	}
 });
 
 BuildSorting("sorts by ALPHABETICAL_TITLE", () => {
@@ -281,6 +347,73 @@ BuildSorting("sorts by ALPHABETICAL_TITLE and UPDATED_AT (reverse)", () => {
 	});
 
 	assert.equal(sortedBuilds[0].id, 3);
+});
+
+BuildSorting("sorts by PUBLIC_BUILD", () => {
+	const builds = [
+		mockBuild({ id: 1, private: 1 }),
+		mockBuild({ id: 2, private: 1 }),
+		mockBuild({ id: 3, private: 0 }),
+	];
+
+	const sortedBuilds = sortBuilds({
+		builds,
+		buildSorting: ["PUBLIC_BUILD"],
+		weaponPool: [],
+	});
+
+	assert.equal(sortedBuilds[0].id, 3);
+	assert.equal(sortedBuilds[1].id, 1);
+	assert.equal(sortedBuilds[2].id, 2);
+});
+
+BuildSorting("sorts by PRIVATE_BUILD", () => {
+	const builds = [
+		mockBuild({ id: 1, private: 0 }),
+		mockBuild({ id: 2, private: 1 }),
+		mockBuild({ id: 3, private: 1 }),
+	];
+
+	const sortedBuilds = sortBuilds({
+		builds,
+		buildSorting: ["PRIVATE_BUILD"],
+		weaponPool: [],
+	});
+
+	assert.equal(sortedBuilds[0].id, 2);
+	assert.equal(sortedBuilds[1].id, 3);
+	assert.equal(sortedBuilds[2].id, 1);
+});
+
+BuildSorting("sorts by both PUBLIC_BUILD and PRIVATE_BUILD", () => {
+	const builds = [
+		mockBuild({ id: 1, private: 1 }),
+		mockBuild({ id: 2, private: 0 }),
+		mockBuild({ id: 3, private: 1 }),
+		mockBuild({ id: 4, private: 0 }),
+	];
+
+	const sortedBuilds1 = sortBuilds({
+		builds,
+		buildSorting: ["PUBLIC_BUILD", "PRIVATE_BUILD"],
+		weaponPool: [],
+	});
+
+	assert.equal(sortedBuilds1[0].id, 2);
+	assert.equal(sortedBuilds1[1].id, 4);
+	assert.equal(sortedBuilds1[2].id, 1);
+	assert.equal(sortedBuilds1[3].id, 3);
+
+	const sortedBuilds2 = sortBuilds({
+		builds,
+		buildSorting: ["PRIVATE_BUILD", "PUBLIC_BUILD"],
+		weaponPool: [],
+	});
+
+	assert.equal(sortedBuilds2[0].id, 1);
+	assert.equal(sortedBuilds2[1].id, 3);
+	assert.equal(sortedBuilds2[2].id, 2);
+	assert.equal(sortedBuilds2[3].id, 4);
 });
 
 BuildSorting.run();

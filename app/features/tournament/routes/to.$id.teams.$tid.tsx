@@ -8,7 +8,9 @@ import { Placement } from "~/components/Placement";
 import { Popover } from "~/components/Popover";
 import { Redirect } from "~/components/Redirect";
 import type { TournamentDataTeam } from "~/features/tournament-bracket/core/Tournament.server";
+import { tournamentTeamPageParamsSchema } from "~/features/tournament-bracket/tournament-bracket-schemas.server";
 import type { TournamentMaplistSource } from "~/modules/tournament-map-list-generator";
+import { parseParams } from "~/utils/remix";
 import {
 	teamPage,
 	tournamentMatchPage,
@@ -22,16 +24,15 @@ import {
 	tournamentTeamSets,
 	winCounts,
 } from "../core/sets.server";
-import {
-	tournamentIdFromParams,
-	tournamentRoundI18nKey,
-	tournamentTeamIdFromParams,
-} from "../tournament-utils";
+import { tournamentIdFromParams } from "../tournament-utils";
 import { useTournament } from "./to.$id";
 
 export const loader = ({ params }: LoaderFunctionArgs) => {
 	const tournamentId = tournamentIdFromParams(params);
-	const tournamentTeamId = tournamentTeamIdFromParams(params);
+	const tournamentTeamId = parseParams({
+		params,
+		schema: tournamentTeamPageParamsSchema,
+	}).tid;
 
 	const sets = tournamentTeamSets({ tournamentTeamId, tournamentId });
 
@@ -192,6 +193,9 @@ function SetInfo({ set, team }: { set: PlayedSet; team: TournamentDataTeam }) {
 		}
 	};
 
+	const { bracketName, roundNameWithoutMatchIdentifier } =
+		tournament.matchNameById(set.tournamentMatchId);
+
 	return (
 		<div className="tournament__team__set">
 			<div className="tournament__team__set__top-container">
@@ -205,10 +209,7 @@ function SetInfo({ set, team }: { set: PlayedSet; team: TournamentDataTeam }) {
 					})}
 					className="tournament__team__set__round-name"
 				>
-					{t(`tournament:${tournamentRoundI18nKey(set.round)}`, {
-						round: set.round.round,
-					})}{" "}
-					- {set.stageName}
+					{roundNameWithoutMatchIdentifier} - {bracketName}
 				</Link>
 			</div>
 			<div className="overlap-divider">

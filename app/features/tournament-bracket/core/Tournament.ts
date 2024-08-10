@@ -18,11 +18,15 @@ import invariant from "~/utils/invariant";
 import { logger } from "~/utils/logger";
 import { assertUnreachable } from "~/utils/types";
 import { userSubmittedImage } from "~/utils/urls";
-import { fillWithNullTillPowerOfTwo } from "../tournament-bracket-utils";
+import {
+	fillWithNullTillPowerOfTwo,
+	groupNumberToLetter,
+} from "../tournament-bracket-utils";
 import { Bracket } from "./Bracket";
 import * as Swiss from "./Swiss";
 import type { TournamentData, TournamentDataTeam } from "./Tournament.server";
 import { getTournamentManager } from "./brackets-manager";
+import { getRounds } from "./rounds";
 
 export type OptionalIdObject = { id: number } | undefined;
 
@@ -767,6 +771,102 @@ export class Tournament {
 		return this.ctx.settings.autonomousSubs ?? true;
 	}
 
+	matchNameById(matchId: number) {
+		let bracketName: string | undefined;
+		let roundName: string | undefined;
+
+		for (const bracket of this.brackets) {
+			if (bracket.preview) continue;
+
+			for (const match of bracket.data.match) {
+				if (match.id === matchId) {
+					bracketName = bracket.name;
+
+					if (bracket.type === "round_robin") {
+						const group = bracket.data.group.find(
+							(group) => group.id === match.group_id,
+						);
+						const round = bracket.data.round.find(
+							(round) => round.id === match.round_id,
+						);
+
+						roundName = `Groups ${group?.number ? groupNumberToLetter(group.number) : ""}${round?.number ?? ""}.${match.number}`;
+					} else if (bracket.type === "swiss") {
+						const group = bracket.data.group.find(
+							(group) => group.id === match.group_id,
+						);
+						const round = bracket.data.round.find(
+							(round) => round.id === match.round_id,
+						);
+
+						const oneGroupOnly = bracket.data.group.length === 1;
+
+						roundName = `Swiss${oneGroupOnly ? "" : " Group"} ${group?.number && !oneGroupOnly ? groupNumberToLetter(group.number) : ""} ${round?.number ?? ""}.${match.number}`;
+					} else if (
+						bracket.type === "single_elimination" ||
+						bracket.type === "double_elimination"
+					) {
+						const rounds =
+							bracket.type === "single_elimination"
+								? getRounds({ type: "single", bracket })
+								: [
+										...getRounds({ type: "winners", bracket }),
+										...getRounds({ type: "losers", bracket }),
+									];
+
+						const round = rounds.find((round) => round.id === match.round_id);
+
+						if (round) {
+							const specifier = () => {
+								if (
+									[
+										"WB Finals",
+										"Grand Finals",
+										"Bracket Reset",
+										"Finals",
+										"LB Finals",
+										"LB Semis",
+										"3rd place match",
+									].includes(round.name)
+								) {
+									return "";
+								}
+
+								const roundNameEndsInDigit = /\d$/.test(round.name);
+
+								if (!roundNameEndsInDigit) {
+									return ` ${match.number}`;
+								}
+
+								return `.${match.number}`;
+							};
+							roundName = `${round.name}${specifier()}`;
+						}
+					} else {
+						assertUnreachable(bracket.type);
+					}
+				}
+			}
+		}
+
+		const roundNameWithoutMatchIdentifier = (roundName?: string) => {
+			if (!roundName) return;
+
+			if (roundName.includes("Semis")) {
+				return roundName.replace(/\d/g, "");
+			}
+
+			return roundName.split(".")[0];
+		};
+
+		return {
+			bracketName,
+			roundName,
+			roundNameWithoutMatchIdentifier:
+				roundNameWithoutMatchIdentifier(roundName),
+		};
+	}
+
 	bracketByIdxOrDefault(idx: number): Bracket {
 		const bracket = this.brackets[idx];
 		if (bracket) return bracket;
@@ -1036,11 +1136,36 @@ export class Tournament {
 			});
 	}
 
+	isAdmin(user: OptionalIdObject) {
+		if (!user) return false;
+		if (isAdmin(user)) return true;
+
+		if (
+			this.ctx.organization?.members.some(
+				(member) => member.userId === user.id && member.role === "ADMIN",
+			)
+		) {
+			return true;
+		}
+
+		return this.ctx.author.id === user.id;
+	}
+
 	isOrganizer(user: OptionalIdObject) {
 		if (!user) return false;
 		if (isAdmin(user)) return true;
 
 		if (this.ctx.author.id === user.id) return true;
+
+		if (
+			this.ctx.organization?.members.some(
+				(member) =>
+					member.userId === user.id &&
+					["ADMIN", "ORGANIZER"].includes(member.role),
+			)
+		) {
+			return true;
+		}
 
 		return this.ctx.staff.some(
 			(staff) => staff.id === user.id && staff.role === "ORGANIZER",
@@ -1053,16 +1178,19 @@ export class Tournament {
 
 		if (this.ctx.author.id === user.id) return true;
 
+		if (
+			this.ctx.organization?.members.some(
+				(member) =>
+					member.userId === user.id &&
+					["ADMIN", "ORGANIZER", "STREAMER"].includes(member.role),
+			)
+		) {
+			return true;
+		}
+
 		return this.ctx.staff.some(
 			(staff) =>
 				staff.id === user.id && ["ORGANIZER", "STREAMER"].includes(staff.role),
 		);
-	}
-
-	isAdmin(user: OptionalIdObject) {
-		if (!user) return false;
-		if (isAdmin(user)) return true;
-
-		return this.ctx.author.id === user.id;
 	}
 }

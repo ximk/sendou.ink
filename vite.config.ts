@@ -186,6 +186,15 @@ export default defineConfig(() => {
 							);
 						});
 
+						route(
+							"/org/:slug",
+							"features/tournament-organization/routes/org.$slug.tsx",
+						);
+						route(
+							"/org/:slug/edit",
+							"features/tournament-organization/routes/org.$slug.edit.tsx",
+						);
+
 						route("/faq", "features/info/routes/faq.tsx");
 						route("/contributions", "features/info/routes/contributions.tsx");
 						route("/privacy-policy", "features/info/routes/privacy-policy.tsx");
@@ -307,6 +316,10 @@ export default defineConfig(() => {
 							"features/api-public/routes/user.$identifier.ts",
 						);
 						route(
+							"/api/calendar/:year/:week",
+							"features/api-public/routes/calendar.$year.$week.ts",
+						);
+						route(
 							"/api/tournament/:id",
 							"features/api-public/routes/tournament.$id.ts",
 						);
@@ -347,5 +360,12 @@ export default defineConfig(() => {
 			}),
 			tsconfigPaths(),
 		],
+		build: {
+			// this is mostly done so that i18n jsons as defined in ./app/modules/i18n/loader.ts
+			// do not end up in the js bundle as minimized strings
+			// if we decide later that this is a useful optimization in some cases then we can
+			// switch the value to a callback one that checks the file path
+			assetsInlineLimit: 0,
+		},
 	};
 });

@@ -18,7 +18,11 @@ import {
 	canAddCommentToSuggestionFE,
 } from "~/permissions";
 import { atOrError } from "~/utils/arrays";
-import { parseRequestFormData, validate } from "~/utils/remix";
+import {
+	badRequestIfFalsy,
+	parseRequestPayload,
+	validate,
+} from "~/utils/remix";
 import { plusSuggestionPage } from "~/utils/urls";
 import { actualNumber, trimmedString } from "~/utils/zod";
 import type { PlusSuggestionsLoaderData } from "./plus.suggestions";
@@ -40,13 +44,15 @@ const commentActionSchema = z.object({
 });
 
 export const action: ActionFunction = async ({ request }) => {
-	const data = await parseRequestFormData({
+	const data = await parseRequestPayload({
 		request,
 		schema: commentActionSchema,
 	});
 	const user = await requireUser(request);
 
-	const votingMonthYear = rangeToMonthYear(nextNonCompletedVoting(new Date()));
+	const votingMonthYear = rangeToMonthYear(
+		badRequestIfFalsy(nextNonCompletedVoting(new Date())),
+	);
 
 	const suggestions =
 		await PlusSuggestionRepository.findAllByMonth(votingMonthYear);

@@ -35,14 +35,59 @@ export async function findById(id: number) {
 			"Tournament.mapPickingStyle",
 			"Tournament.rules",
 			"CalendarEvent.name",
-			"CalendarEvent.avatarImgId",
 			"CalendarEvent.description",
 			"CalendarEventDate.startTime",
+			jsonObjectFrom(
+				eb
+					.selectFrom("TournamentOrganization")
+					.leftJoin(
+						"UserSubmittedImage",
+						"TournamentOrganization.avatarImgId",
+						"UserSubmittedImage.id",
+					)
+					.select(({ eb: innerEb }) => [
+						"TournamentOrganization.id",
+						"TournamentOrganization.name",
+						"TournamentOrganization.slug",
+						"UserSubmittedImage.url as avatarUrl",
+						jsonArrayFrom(
+							innerEb
+								.selectFrom("TournamentOrganizationMember")
+								.select([
+									"TournamentOrganizationMember.userId",
+									"TournamentOrganizationMember.role",
+								])
+								.whereRef(
+									"TournamentOrganizationMember.organizationId",
+									"=",
+									"TournamentOrganization.id",
+								),
+						).as("members"),
+					])
+					.whereRef(
+						"TournamentOrganization.id",
+						"=",
+						"CalendarEvent.organizationId",
+					),
+			).as("organization"),
 			eb
-				.selectFrom("UserSubmittedImage")
-				.select(["UserSubmittedImage.url"])
-				.whereRef("CalendarEvent.avatarImgId", "=", "UserSubmittedImage.id")
+				.selectFrom("UnvalidatedUserSubmittedImage")
+				.select(["UnvalidatedUserSubmittedImage.url"])
+				.whereRef(
+					"CalendarEvent.avatarImgId",
+					"=",
+					"UnvalidatedUserSubmittedImage.id",
+				)
 				.as("logoUrl"),
+			eb
+				.selectFrom("UnvalidatedUserSubmittedImage")
+				.select(["UnvalidatedUserSubmittedImage.validatedAt"])
+				.whereRef(
+					"CalendarEvent.avatarImgId",
+					"=",
+					"UnvalidatedUserSubmittedImage.id",
+				)
+				.as("logoValidatedAt"),
 			jsonObjectFrom(
 				eb
 					.selectFrom("User")
@@ -213,7 +258,7 @@ export async function findById(id: number) {
 		...result,
 		logoSrc: result.logoUrl
 			? userSubmittedImage(result.logoUrl)
-			: HACKY_resolvePicture(result),
+			: `${process.env.BASE_URL}${HACKY_resolvePicture(result)}`,
 		participatedUsers: result.participatedUsers.map((user) => user.userId),
 	};
 }
@@ -300,6 +345,25 @@ export async function forShowcase() {
 	}
 
 	return [latestWinners, ...next].filter(Boolean);
+}
+
+export function topThreeResultsByTournamentId(tournamentId: number) {
+	return db
+		.selectFrom("TournamentResult")
+		.select(({ eb }) => [
+			"TournamentResult.placement",
+			"TournamentResult.tournamentTeamId",
+			jsonObjectFrom(
+				eb
+					.selectFrom("User")
+					.select([...COMMON_USER_FIELDS])
+					.whereRef("User.id", "=", "TournamentResult.userId"),
+			).as("user"),
+		])
+		.where("tournamentId", "=", tournamentId)
+		.where("TournamentResult.placement", "<=", 3)
+		.$narrowType<{ user: NotNull }>()
+		.execute();
 }
 
 export async function findCastTwitchAccountsByTournamentId(

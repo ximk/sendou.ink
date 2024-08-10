@@ -2,10 +2,9 @@ import { type ActionFunction, redirect } from "@remix-run/node";
 import { z } from "zod";
 import { BUILD } from "~/constants";
 import { requireUser } from "~/features/auth/core/user.server";
-import type { BuildWeaponWithTop500Info } from "~/features/builds";
-import { buildsByUserId } from "~/features/builds";
 import * as BuildRepository from "~/features/builds/BuildRepository.server";
 import { refreshBuildsCacheByWeaponSplIds } from "~/features/builds/core/cached-builds.server";
+import type { BuildWeaponWithTop500Info } from "~/features/builds/queries/buildsBy.server";
 import {
 	clothesGearIds,
 	headGearIds,
@@ -18,7 +17,7 @@ import type {
 } from "~/modules/in-game-lists/types";
 import { removeDuplicates } from "~/utils/arrays";
 import { logger } from "~/utils/logger";
-import { parseRequestFormData, validate } from "~/utils/remix";
+import { parseRequestPayload, validate } from "~/utils/remix";
 import type { Nullish } from "~/utils/types";
 import { userBuildsPage } from "~/utils/urls";
 import {
@@ -41,14 +40,14 @@ import {
 
 export const action: ActionFunction = async ({ request }) => {
 	const user = await requireUser(request);
-	const data = await parseRequestFormData({
+	const data = await parseRequestPayload({
 		request,
 		schema: newBuildActionSchema,
 	});
 
-	const usersBuilds = buildsByUserId({
+	const usersBuilds = await BuildRepository.allByUserId({
 		userId: user.id,
-		loggedInUserId: user.id,
+		showPrivate: true,
 	});
 
 	if (usersBuilds.length >= BUILD.MAX_COUNT) {
@@ -59,13 +58,16 @@ export const action: ActionFunction = async ({ request }) => {
 			usersBuilds.some((build) => build.id === data.buildToEditId),
 	);
 
+	const someGearIsMissing =
+		!data["HEAD[value]"] || !data["CLOTHES[value]"] || !data["SHOES[value]"];
+
 	const commonArgs = {
 		title: data.title,
 		description: data.description,
 		abilities: data.abilities as BuildAbilitiesTuple,
-		headGearSplId: data["HEAD[value]"],
-		clothesGearSplId: data["CLOTHES[value]"],
-		shoesGearSplId: data["SHOES[value]"],
+		headGearSplId: (someGearIsMissing ? -1 : data["HEAD[value]"])!,
+		clothesGearSplId: (someGearIsMissing ? -1 : data["CLOTHES[value]"])!,
+		shoesGearSplId: (someGearIsMissing ? -1 : data["SHOES[value]"])!,
 		modes: modesShort.filter((mode) => data[mode]),
 		weaponSplIds: data["weapon[value]"],
 		ownerId: user.id,
@@ -111,24 +113,33 @@ const newBuildActionSchema = z.object({
 		actualNumber,
 		z
 			.number()
-			.refine((val) =>
-				headGearIds.includes(val as (typeof headGearIds)[number]),
+			.optional()
+			.refine(
+				(val) =>
+					val === undefined ||
+					headGearIds.includes(val as (typeof headGearIds)[number]),
 			),
 	),
 	"CLOTHES[value]": z.preprocess(
 		actualNumber,
 		z
 			.number()
-			.refine((val) =>
-				clothesGearIds.includes(val as (typeof clothesGearIds)[number]),
+			.optional()
+			.refine(
+				(val) =>
+					val === undefined ||
+					clothesGearIds.includes(val as (typeof clothesGearIds)[number]),
 			),
 	),
 	"SHOES[value]": z.preprocess(
 		actualNumber,
 		z
 			.number()
-			.refine((val) =>
-				shoesGearIds.includes(val as (typeof shoesGearIds)[number]),
+			.optional()
+			.refine(
+				(val) =>
+					val === undefined ||
+					shoesGearIds.includes(val as (typeof shoesGearIds)[number]),
 			),
 	),
 	abilities: z.preprocess(

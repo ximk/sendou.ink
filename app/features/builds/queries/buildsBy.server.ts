@@ -11,6 +11,7 @@ import type {
 	MainWeaponId,
 } from "~/modules/in-game-lists/types";
 import invariant from "~/utils/invariant";
+import { sortAbilities } from "../core/ability-sorting.server";
 
 const buildsByWeaponIdStm = sql.prepare(/* sql */ `
 with "Top500Weapon" as (
@@ -112,76 +113,6 @@ limit
   @limit
 `);
 
-const buildsByUserIdStm = sql.prepare(/* sql */ `
-with "Top500Weapon" as (
-  select
-    "BuildWeapon".*,
-    min("XRankPlacement"."rank") as "minRank",
-    max("XRankPlacement"."power") as "maxPower"
-  from "Build"
-    left join "BuildWeapon" on "BuildWeapon"."buildId" = "Build"."id"
-    left join "SplatoonPlayer" on "SplatoonPlayer"."userId" = @userId
-    left join "XRankPlacement" on "XRankPlacement"."playerId" = "SplatoonPlayer"."id"
-    and "XRankPlacement"."weaponSplId" = "BuildWeapon"."weaponSplId"
-  where "Build"."ownerId" = @userId
-  group by
-    "BuildWeapon"."buildId",
-    "BuildWeapon"."weaponSplId"
-),
-"BuildWithWeapon" as (
-  select
-    "id",
-    "title",
-    "description",
-    "modes",
-    "headGearSplId",
-    "clothesGearSplId",
-    "shoesGearSplId",
-    "updatedAt",
-    "private",
-    json_group_array(
-      json_object(
-        'weaponSplId',
-        "Top500Weapon"."weaponSplId",
-        'maxPower',
-        "Top500Weapon"."maxPower",
-        'minRank',
-        "Top500Weapon"."minRank"
-      )
-    ) as "weapons"
-  from
-    "Build"
-    left join "Top500Weapon" on "Top500Weapon"."buildId" = "Build"."id"
-  where
-    "Build"."ownerId" = @userId
-    and (
-      "Build"."private" = 0
-      or "Build"."ownerId" = @loggedInUserId
-    )
-  group by
-    "Build"."id"
-)
-select
-  "BuildWithWeapon".*,
-  json_group_array(
-    json_object(
-      'ability',
-      "BuildAbility"."ability",
-      'gearType',
-      "BuildAbility"."gearType",
-      'slotIndex',
-      "BuildAbility"."slotIndex"
-    )
-  ) as "abilities"
-from
-  "BuildWithWeapon"
-  left join "BuildAbility" on "BuildAbility"."buildId" = "BuildWithWeapon"."id"
-group by
-  "BuildWithWeapon"."id"
-order by
-  "BuildWithWeapon"."updatedAt" desc
-`);
-
 type BuildsByWeaponIdRow = BuildsByUserRow &
 	Pick<UserWithPlusTier, "discordId" | "username" | "plusTier">;
 
@@ -234,21 +165,6 @@ export interface BuildWeaponWithTop500Info {
 	maxPower: number | null;
 }
 
-export function buildsByUserId({
-	userId,
-	loggedInUserId,
-}: {
-	userId: Build["ownerId"];
-	loggedInUserId?: UserWithPlusTier["id"];
-}) {
-	const rows = buildsByUserIdStm.all({
-		userId,
-		loggedInUserId,
-	}) as Array<BuildsByUserRow>;
-
-	return rows.map(augmentBuild);
-}
-
 function augmentBuild<T>({
 	weapons: rawWeapons,
 	modes: rawModes,
@@ -267,7 +183,7 @@ function augmentBuild<T>({
 		...row,
 		modes,
 		weapons,
-		abilities: dbAbilitiesToArrayOfArrays(abilities),
+		abilities: sortAbilities(dbAbilitiesToArrayOfArrays(abilities)),
 	};
 }
 

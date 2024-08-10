@@ -119,47 +119,6 @@
 	font-weight: var(--bold);
 }
 
-.u__badges {
-	display: flex;
-	max-width: 24rem;
-	align-items: center;
-	padding: var(--s-2);
-	border-radius: var(--rounded);
-	background-color: var(--bg-badge);
-	margin-inline: auto;
-}
-
-.u__small-badges {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: center;
-	cursor: pointer;
-	gap: var(--s-3);
-}
-
-.u__badge-explanation {
-	color: var(--text-lighter);
-	font-size: var(--fonts-xs);
-	text-align: center;
-}
-
-.u__small-badge-container {
-	position: relative;
-}
-
-.u__small-badge-count {
-	position: absolute;
-	top: 0;
-	right: 0;
-	margin-top: -8px;
-	margin-right: auto;
-	margin-left: auto;
-	color: var(--theme-vibrant);
-	font-size: var(--fonts-xxxs);
-	font-weight: var(--bold);
-}
-
 .u__results-table-wrapper {
 	width: 100%;
 	overflow-x: auto;
@@ -252,7 +211,7 @@
 .u__build-filter-button {
 	padding: 0 var(--s-1-5) !important;
 	gap: var(--s-1);
-	min-height: 24px;
+	min-height: 32px;
 }
 
 .u__placements {
@@ -362,11 +321,11 @@
 	gap: var(--s-4);
 }
 
-.u__season__match__with-diff {
+.u__season__match__with-sub-section {
 	border-radius: var(--rounded) var(--rounded) 0 0;
 }
 
-.u__season__match__sp-diff {
+.u__season__match__sub-section {
 	border-radius: 0 0 var(--rounded) var(--rounded);
 	background-color: var(--bg-light-variation);
 	font-size: var(--fonts-xs);
@@ -375,6 +334,12 @@
 	display: flex;
 	gap: var(--s-1);
 	justify-content: center;
+	padding-block: var(--s-0-5);
+}
+
+.u__season__match__sub-section__icon {
+	width: 18px;
+	color: var(--theme-warning);
 }
 
 .u__season__match:hover {

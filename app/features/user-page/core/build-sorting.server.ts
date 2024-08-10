@@ -1,6 +1,7 @@
 import type { BuildSort } from "~/db/tables";
 import type * as BuildRepository from "~/features/builds/BuildRepository.server";
 import { type MainWeaponId, modesShort } from "~/modules/in-game-lists";
+import { weaponIdToBucketId } from "~/modules/in-game-lists/weapon-ids";
 import { DEFAULT_BUILD_SORT } from "../user-page-constants";
 
 interface SortBuildsArgs {
@@ -53,16 +54,43 @@ export function sortBuilds({
 		},
 		WEAPON_POOL: (a, b) => {
 			const aLowestWeaponIdx = weaponPool.findIndex((wp) =>
-				a.weapons.map((wpn) => wpn.weaponSplId).includes(wp),
+				a.weapons
+					.map((wpn) => weaponIdToBucketId(wpn.weaponSplId))
+					.includes(weaponIdToBucketId(wp)),
 			);
 			const bLowestWeaponIdx = weaponPool.findIndex((wp) =>
-				b.weapons.map((wpn) => wpn.weaponSplId).includes(wp),
+				b.weapons
+					.map((wpn) => weaponIdToBucketId(wpn.weaponSplId))
+					.includes(weaponIdToBucketId(wp)),
 			);
 
 			if (aLowestWeaponIdx === -1 && bLowestWeaponIdx !== -1) return 1;
 			if (aLowestWeaponIdx !== -1 && bLowestWeaponIdx === -1) return -1;
 
 			return aLowestWeaponIdx - bLowestWeaponIdx;
+		},
+		PUBLIC_BUILD: (a, b) => {
+			const aIsPublic = a?.private === 0;
+			const bIsPublic = b?.private === 0;
+			if (aIsPublic && !bIsPublic) {
+				return -1;
+			}
+			if (!aIsPublic && bIsPublic) {
+				return 1;
+			}
+			return 0;
+		},
+		PRIVATE_BUILD: (a, b) => {
+			const aIsPrivate = a?.private === 1;
+			const bIsPrivate = b?.private === 1;
+
+			if (aIsPrivate && !bIsPrivate) {
+				return -1;
+			}
+			if (!aIsPrivate && bIsPrivate) {
+				return 1;
+			}
+			return 0;
 		},
 	};
 

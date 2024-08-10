@@ -1978,6 +1978,7 @@ export const PADDLING_POOL_257 = () =>
 		},
 		ctx: {
 			id: 27,
+			organization: null,
 			eventId: 1352,
 			settings: {
 				bracketProgression: [
@@ -2028,7 +2029,7 @@ export const PADDLING_POOL_257 = () =>
 			rules: null,
 			logoUrl: null,
 			logoSrc: "/test.png",
-			avatarImgId: null,
+			logoValidatedAt: null,
 			subCounts: [],
 			startTime: 1709748000,
 			author: {
@@ -7884,6 +7885,7 @@ export const PADDLING_POOL_255 = () =>
 		},
 		ctx: {
 			id: 18,
+			organization: null,
 			eventId: 1286,
 			settings: {
 				bracketProgression: [
@@ -7931,7 +7933,7 @@ export const PADDLING_POOL_255 = () =>
 			rules: null,
 			logoUrl: null,
 			logoSrc: "/test.png",
-			avatarImgId: null,
+			logoValidatedAt: null,
 			subCounts: [],
 			startTime: 1708538400,
 			author: {
@@ -14133,6 +14135,7 @@ export const IN_THE_ZONE_32 = () =>
 		},
 		ctx: {
 			id: 11,
+			organization: null,
 			eventId: 1134,
 			settings: {
 				bracketProgression: [
@@ -14161,7 +14164,7 @@ export const IN_THE_ZONE_32 = () =>
 			rules: null,
 			logoUrl: null,
 			logoSrc: "/test.png",
-			avatarImgId: null,
+			logoValidatedAt: null,
 			subCounts: [],
 			startTime: 1707588000,
 			author: {

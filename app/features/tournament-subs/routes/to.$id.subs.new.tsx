@@ -11,6 +11,7 @@ import { WeaponCombobox } from "~/components/Combobox";
 import { FormMessage } from "~/components/FormMessage";
 import { WeaponImage } from "~/components/Image";
 import { Label } from "~/components/Label";
+import { RequiredHiddenInput } from "~/components/RequiredHiddenInput";
 import { SubmitButton } from "~/components/SubmitButton";
 import { TrashIcon } from "~/components/icons/Trash";
 import { useUser } from "~/features/auth/core/user";
@@ -20,7 +21,7 @@ import { tournamentFromDB } from "~/features/tournament-bracket/core/Tournament.
 import type { MainWeaponId } from "~/modules/in-game-lists";
 import {
 	type SendouRouteHandle,
-	parseRequestFormData,
+	parseRequestPayload,
 	validate,
 } from "~/utils/remix";
 import { tournamentSubsPage } from "~/utils/urls";
@@ -37,7 +38,7 @@ export const handle: SendouRouteHandle = {
 
 export const action: ActionFunction = async ({ params, request }) => {
 	const user = await requireUser(request);
-	const data = await parseRequestFormData({
+	const data = await parseRequestPayload({
 		request,
 		schema: subSchema,
 	});
@@ -267,7 +268,11 @@ function WeaponPoolSelect({
 
 	return (
 		<div className="stack md sub__weapon-pool">
-			<input type="hidden" name={id} value={JSON.stringify(weapons)} />
+			<RequiredHiddenInput
+				isValid={!required || weapons.length > 0}
+				name={id}
+				value={JSON.stringify(weapons)}
+			/>
 			<div>
 				<Label htmlFor={id} required={required}>
 					{label}

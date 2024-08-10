@@ -36,7 +36,7 @@ import { joinListToNaturalString } from "~/utils/arrays";
 import invariant from "~/utils/invariant";
 import {
 	type SendouRouteHandle,
-	parseRequestFormData,
+	parseRequestPayload,
 	validate,
 } from "~/utils/remix";
 import { makeTitle } from "~/utils/strings";
@@ -101,7 +101,7 @@ const validateCanJoinQ = async (user: { id: number; discordId: string }) => {
 
 export const action: ActionFunction = async ({ request }) => {
 	const user = await requireUser(request);
-	const data = await parseRequestFormData({
+	const data = await parseRequestPayload({
 		request,
 		schema: frontPageSchema,
 	});
@@ -136,6 +136,7 @@ export const action: ActionFunction = async ({ request }) => {
 				addMember({
 					groupId: groupInvitedTo.id,
 					userId: user.id,
+					role: "MANAGER",
 				});
 				deleteLikesByGroupId(groupInvitedTo.id);
 
@@ -225,7 +226,9 @@ export default function QPage() {
 					<ActiveSeasonInfo season={data.season} />
 				) : data.upcomingSeason ? (
 					<UpcomingSeasonInfo season={data.upcomingSeason} />
-				) : null}
+				) : (
+					<NoUpcomingSeasonInfo />
+				)}
 				<Clocks />
 			</div>
 			{data.season ? (
@@ -574,6 +577,18 @@ function UpcomingSeasonInfo({
 				nth: season.nth,
 				date: dateToString(starts),
 			})}
+		</div>
+	);
+}
+
+function NoUpcomingSeasonInfo() {
+	const { t } = useTranslation(["q"]);
+
+	return (
+		<div className="font-semi-bold text-center text-sm">
+			{t("q:front.upcomingSeason.header")}
+			<br />
+			{t("q:front.noUpcomingSeason")}
 		</div>
 	);
 }

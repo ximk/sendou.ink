@@ -12,6 +12,7 @@ import { Flipped, Flipper } from "react-flip-toolkit";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Alert } from "~/components/Alert";
+import { Avatar } from "~/components/Avatar";
 import { LinkButton } from "~/components/Button";
 import { Divider } from "~/components/Divider";
 import { Label } from "~/components/Label";
@@ -41,6 +42,7 @@ import {
 	calendarReportWinnersPage,
 	navIconUrl,
 	resolveBaseUrl,
+	tournamentOrganizationPage,
 	tournamentPage,
 	userSubmittedImage,
 } from "~/utils/urls";
@@ -426,7 +428,9 @@ function EventsList({
 									if (!calendarEvent.tournamentSettings) return undefined;
 									if (!currentSeason(startTimeDate)) return undefined;
 
-									return calendarEvent.tournamentSettings.isRanked
+									return calendarEvent.tournamentSettings.isRanked &&
+										(!calendarEvent.tournamentSettings.minMembersPerTeam ||
+											calendarEvent.tournamentSettings.minMembersPerTeam === 4)
 										? "RANKED"
 										: "UNRANKED";
 								};
@@ -449,11 +453,32 @@ function EventsList({
 														minute: "numeric",
 													})}
 												</time>
-												<div className="calendar__event__author">
-													{t("from", {
-														author: calendarEvent.username,
-													})}
-												</div>
+												{calendarEvent.organization ? (
+													<Link
+														to={tournamentOrganizationPage({
+															organizationSlug: calendarEvent.organization.slug,
+														})}
+														className="stack horizontal sm items-center text-xs text-main-forced"
+													>
+														<Avatar
+															url={
+																calendarEvent.organization.avatarUrl
+																	? userSubmittedImage(
+																			calendarEvent.organization.avatarUrl,
+																		)
+																	: undefined
+															}
+															size="xxs"
+														/>
+														{calendarEvent.organization.name}
+													</Link>
+												) : (
+													<div className="calendar__event__author">
+														{t("from", {
+															author: calendarEvent.username,
+														})}
+													</div>
+												)}
 												{sectionWeekday !== eventWeekday ? (
 													<div className="text-xxs font-bold text-theme-secondary ml-auto">
 														{eventWeekday}

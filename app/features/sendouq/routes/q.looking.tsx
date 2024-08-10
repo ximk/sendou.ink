@@ -29,7 +29,7 @@ import { useWindowSize } from "~/hooks/useWindowSize";
 import invariant from "~/utils/invariant";
 import {
 	type SendouRouteHandle,
-	parseRequestFormData,
+	parseRequestPayload,
 	validate,
 } from "~/utils/remix";
 import { errorIsSqliteForeignKeyConstraintFailure } from "~/utils/sql";
@@ -55,6 +55,7 @@ import {
 	addSkillRangeToGroups,
 	addSkillsToGroups,
 	censorGroups,
+	censorGroupsIfOwnExpired,
 	divideGroups,
 	groupExpiryStatus,
 	membersNeededForFull,
@@ -103,7 +104,7 @@ export const meta: MetaFunction = () => {
 // and when we return null we just force a refresh
 export const action: ActionFunction = async ({ request }) => {
 	const user = await requireUser(request);
-	const data = await parseRequestFormData({
+	const data = await parseRequestPayload({
 		request,
 		schema: lookingSchema,
 	});
@@ -416,10 +417,11 @@ export const action: ActionFunction = async ({ request }) => {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const user = await getUser(request);
 
-	const isPreview =
+	const isPreview = Boolean(
 		new URL(request.url).searchParams.get("preview") === "true" &&
-		user &&
-		isAtLeastFiveDollarTierPatreon(user);
+			user &&
+			isAtLeastFiveDollarTierPatreon(user),
+	);
 
 	const currentGroup =
 		user && !isPreview ? findCurrentGroupByUserId(user.id) : undefined;
@@ -491,6 +493,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const rangedGroups = addSkillRangeToGroups({
 		groups: censoredGroups,
 		hasLeviathan: isAccurateTiers,
+		isPreview,
 	});
 
 	const sortedGroups = sortGroupsBySkillAndSentiment({
@@ -500,8 +503,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 		userId: user?.id,
 	});
 
+	const expiryStatus = groupExpiryStatus(currentGroup);
+
 	return {
-		groups: sortedGroups,
+		groups: censorGroupsIfOwnExpired({
+			groups: sortedGroups,
+			ownGroupExpiryStatus: expiryStatus,
+		}),
 		role: currentGroup ? currentGroup.role : ("PREVIEWER" as const),
 		chatCode: currentGroup?.chatCode,
 		lastUpdated: new Date().getTime(),

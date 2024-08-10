@@ -32,7 +32,7 @@ import {
 import { atOrError } from "~/utils/arrays";
 import {
 	badRequestIfFalsy,
-	parseRequestFormData,
+	parseRequestPayload,
 	validate,
 } from "~/utils/remix";
 import { plusSuggestionPage } from "~/utils/urls";
@@ -55,7 +55,7 @@ const commentActionSchema = z.object({
 });
 
 export const action: ActionFunction = async ({ request }) => {
-	const data = await parseRequestFormData({
+	const data = await parseRequestPayload({
 		request,
 		schema: commentActionSchema,
 	});
@@ -66,7 +66,9 @@ export const action: ActionFunction = async ({ request }) => {
 
 	const user = await requireUser(request);
 
-	const votingMonthYear = rangeToMonthYear(nextNonCompletedVoting(new Date()));
+	const votingMonthYear = rangeToMonthYear(
+		badRequestIfFalsy(nextNonCompletedVoting(new Date())),
+	);
 	const suggestions =
 		await PlusSuggestionRepository.findAllByMonth(votingMonthYear);
 

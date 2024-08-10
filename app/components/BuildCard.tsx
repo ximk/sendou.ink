@@ -8,7 +8,7 @@ import type {
 	UserWithPlusTier,
 } from "~/db/types";
 import { useUser } from "~/features/auth/core/user";
-import type { BuildWeaponWithTop500Info } from "~/features/builds";
+import type { BuildWeaponWithTop500Info } from "~/features/builds/queries/buildsBy.server";
 import { useIsMounted } from "~/hooks/useIsMounted";
 import type {
 	Ability as AbilityType,
@@ -80,6 +80,10 @@ export function BuildCard({ build, owner, canEdit = false }: BuildProps) {
 		modes,
 		weapons,
 	} = build;
+
+	const isNoGear = [headGearSplId, clothesGearSplId, shoesGearSplId].some(
+		(id) => id === -1,
+	);
 
 	return (
 		<div
@@ -159,7 +163,11 @@ export function BuildCard({ build, owner, canEdit = false }: BuildProps) {
 					</div>
 				)}
 			</div>
-			<div className="build__gear-abilities">
+			<div
+				className={clsx("build__gear-abilities", {
+					"build__gear-abilities__no-gear": isNoGear,
+				})}
+			>
 				<AbilitiesRowWithGear
 					gearType="HEAD"
 					abilities={abilities[0]}
@@ -284,14 +292,16 @@ function AbilitiesRowWithGear({
 
 	return (
 		<>
-			<Image
-				height={64}
-				width={64}
-				alt={translatedGearName}
-				title={translatedGearName}
-				path={gearImageUrl(gearType, gearId)}
-				className="build__gear"
-			/>
+			{gearId !== -1 ? (
+				<Image
+					height={64}
+					width={64}
+					alt={translatedGearName}
+					title={translatedGearName}
+					path={gearImageUrl(gearType, gearId)}
+					className="build__gear"
+				/>
+			) : null}
 			{abilities.map((ability, i) => (
 				<Ability key={i} ability={ability} size={i === 0 ? "MAIN" : "SUB"} />
 			))}

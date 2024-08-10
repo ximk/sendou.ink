@@ -31,7 +31,11 @@ import {
 } from "~/permissions";
 import { databaseTimestampToDate } from "~/utils/dates";
 import invariant from "~/utils/invariant";
-import { parseRequestFormData, validate } from "~/utils/remix";
+import {
+	badRequestIfFalsy,
+	parseRequestPayload,
+	validate,
+} from "~/utils/remix";
 import { makeTitle } from "~/utils/strings";
 import { assertUnreachable } from "~/utils/types";
 import { userPage } from "~/utils/urls";
@@ -65,13 +69,15 @@ const suggestionActionSchema = z.union([
 ]);
 
 export const action: ActionFunction = async ({ request }) => {
-	const data = await parseRequestFormData({
+	const data = await parseRequestPayload({
 		request,
 		schema: suggestionActionSchema,
 	});
 	const user = await requireUser(request);
 
-	const votingMonthYear = rangeToMonthYear(nextNonCompletedVoting(new Date()));
+	const votingMonthYear = rangeToMonthYear(
+		badRequestIfFalsy(nextNonCompletedVoting(new Date())),
+	);
 
 	switch (data._action) {
 		case "DELETE_COMMENT": {
@@ -144,9 +150,15 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({ formMethod }) => {
 };
 
 export const loader = async () => {
+	const nextVotingRange = nextNonCompletedVoting(new Date());
+
+	if (!nextVotingRange) {
+		return { suggestions: [] };
+	}
+
 	return {
 		suggestions: await PlusSuggestionRepository.findAllByMonth(
-			rangeToMonthYear(nextNonCompletedVoting(new Date())),
+			rangeToMonthYear(nextVotingRange),
 		),
 	};
 };
@@ -164,6 +176,14 @@ export default function PlusSuggestionsPage() {
 	const visibleSuggestions = data.suggestions.filter(
 		(suggestion) => suggestion.tier === tierVisible,
 	);
+
+	if (!nextNonCompletedVoting(new Date())) {
+		return (
+			<div className="text-center text-lighter text-sm">
+				Suggestions can't be made till next voting date is announced
+			</div>
+		);
+	}
 
 	return (
 		<>

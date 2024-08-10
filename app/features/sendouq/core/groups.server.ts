@@ -14,6 +14,7 @@ import { FULL_GROUP_SIZE } from "../q-constants";
 import type {
 	DividedGroups,
 	DividedGroupsUncensored,
+	GroupExpiryStatus,
 	LookingGroup,
 	LookingGroupWithInviteCode,
 } from "../q-types";
@@ -322,8 +323,20 @@ export function sortGroupsBySkillAndSentiment({
 				return aDiff - bDiff;
 			}
 
-			const aTier = a.tier?.name;
-			const bTier = b.tier?.name;
+			const aTier =
+				a.tier?.name ??
+				resolveGroupSkill({
+					group: a as LookingGroupWithInviteCode,
+					userSkills,
+					intervals,
+				})?.name;
+			const bTier =
+				b.tier?.name ??
+				resolveGroupSkill({
+					group: b as LookingGroupWithInviteCode,
+					userSkills,
+					intervals,
+				})?.name;
 
 			const aTierDiff = tierDiff(aTier);
 			const bTierDiff = tierDiff(bTier);
@@ -375,9 +388,24 @@ const FALLBACK_TIER = { isPlus: false, name: "IRON" } as const;
 export function addSkillRangeToGroups({
 	groups,
 	hasLeviathan,
-}: { groups: DividedGroups; hasLeviathan: boolean }) {
+	isPreview,
+}: { groups: DividedGroups; hasLeviathan: boolean; isPreview: boolean }) {
 	const addRange = (group: LookingGroup) => {
 		if (group.members && group.members.length !== FULL_GROUP_SIZE) return group;
+
+		if (isPreview) {
+			return {
+				...group,
+				tierRange: {
+					range: [
+						{ name: "IRON", isPlus: false },
+						{ name: "LEVIATHAN", isPlus: true },
+					] as [TieredSkill["tier"], TieredSkill["tier"]],
+					diff: 0,
+				},
+				tier: undefined,
+			};
+		}
 
 		const range = tierDifferenceToRangeOrExact({
 			ourTier: groups.own?.tier ?? FALLBACK_TIER,
@@ -414,6 +442,8 @@ function resolveGroupSkill({
 	userSkills: Record<string, TieredSkill>;
 	intervals: SkillTierInterval[];
 }): TieredSkill["tier"] | undefined {
+	if (!group.members) return;
+
 	const skills = group.members.map(
 		(m) => userSkills[String(m.id)] ?? { ordinal: defaultOrdinal() },
 	);
@@ -430,7 +460,7 @@ function resolveGroupSkill({
 
 export function groupExpiryStatus(
 	group?: Pick<Group, "latestActionAt">,
-): null | "EXPIRING_SOON" | "EXPIRED" {
+): null | GroupExpiryStatus {
 	if (!group) return null;
 
 	// group expires in 30min without actions performed
@@ -450,6 +480,22 @@ export function groupExpiryStatus(
 	}
 
 	return null;
+}
+
+export function censorGroupsIfOwnExpired({
+	groups,
+	ownGroupExpiryStatus,
+}: {
+	groups: DividedGroups;
+	ownGroupExpiryStatus: GroupExpiryStatus | null;
+}): DividedGroups {
+	if (ownGroupExpiryStatus !== "EXPIRED") return groups;
+
+	return {
+		own: groups.own,
+		likesReceived: [],
+		neutral: [],
+	};
 }
 
 const allTiersOrdered = TIERS.flatMap((tier) => [
