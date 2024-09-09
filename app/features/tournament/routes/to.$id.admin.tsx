@@ -1,5 +1,6 @@
 import type { ActionFunction } from "@remix-run/node";
 import { useFetcher } from "@remix-run/react";
+import clsx from "clsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "~/components/Avatar";
@@ -9,6 +10,7 @@ import { FormMessage } from "~/components/FormMessage";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { Input } from "~/components/Input";
 import { Label } from "~/components/Label";
+import { containerClassName } from "~/components/Main";
 import { Redirect } from "~/components/Redirect";
 import { SubmitButton } from "~/components/SubmitButton";
 import { UserSearch } from "~/components/UserSearch";
@@ -109,7 +111,6 @@ export const action: ActionFunction = async ({ request, params }) => {
 		}
 		case "CHANGE_TEAM_NAME": {
 			validateIsTournamentOrganizer();
-			validate(!tournament.hasStarted, "Tournament started");
 			const team = tournament.teamById(data.teamId);
 			validate(team, "Invalid team id");
 
@@ -346,7 +347,7 @@ export default function TournamentAdminPage() {
 	}
 
 	return (
-		<div className="stack lg">
+		<div className={clsx("stack lg", containerClassName("normal"))}>
 			{tournament.isAdmin(user) && !tournament.hasStarted ? (
 				<div className="stack horizontal items-end">
 					<LinkButton
@@ -409,7 +410,7 @@ const actions = [
 	{
 		type: "CHANGE_TEAM_NAME",
 		inputs: ["REGISTERED_TEAM", "TEAM_NAME"] as InputType[],
-		when: ["TOURNAMENT_BEFORE_START"],
+		when: [],
 	},
 	{
 		type: "CHANGE_TEAM_OWNER",

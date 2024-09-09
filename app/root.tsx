@@ -101,6 +101,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 						patronTier: user.patronTier,
 						isArtist: user.isArtist,
 						isVideoAdder: user.isVideoAdder,
+						isTournamentOrganizer: user.isTournamentOrganizer,
 						inGameName: user.inGameName,
 						friendCode: user.friendCode,
 						languages: user.languages ? user.languages.split(",") : [],
@@ -148,6 +149,7 @@ function Document({
 					content="black-translucent"
 				/>
 				<meta name="apple-mobile-web-app-capable" content="yes" />
+				<meta name="mobile-web-app-capable" content="yes" />
 				<meta name="theme-color" content="#010115" />
 				<Meta />
 				<Links />

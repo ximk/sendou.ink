@@ -96,12 +96,19 @@ export function findLayoutDataByIdentifier(
 				.as("buildsCount"),
 			eb
 				.selectFrom("VideoMatchPlayer")
-				.select(({ fn }) => fn.countAll<number>().as("count"))
+				.innerJoin(
+					"VideoMatch",
+					"VideoMatch.id",
+					"VideoMatchPlayer.videoMatchId",
+				)
+				.select(({ fn }) =>
+					fn.count<number>("VideoMatch.videoId").distinct().as("count"),
+				)
 				.whereRef("VideoMatchPlayer.playerUserId", "=", "User.id")
 				.as("vodsCount"),
 			eb
 				.selectFrom("Art")
-				.innerJoin("ArtUserMetadata", "ArtUserMetadata.artId", "Art.id")
+				.leftJoin("ArtUserMetadata", "ArtUserMetadata.artId", "Art.id")
 				.innerJoin("UserSubmittedImage", "UserSubmittedImage.id", "Art.imgId")
 				.select(({ fn }) => fn.count<number>("Art.id").distinct().as("count"))
 				.where((innerEb) =>
@@ -244,6 +251,7 @@ export function findLeanById(id: number) {
 			...COMMON_USER_FIELDS,
 			"User.isArtist",
 			"User.isVideoAdder",
+			"User.isTournamentOrganizer",
 			"User.patronTier",
 			"User.favoriteBadgeId",
 			"User.languages",
@@ -379,6 +387,7 @@ export function findResultsByUserId(userId: number) {
 				.where("TournamentResult.userId", "=", userId),
 		)
 		.orderBy("startTime", "desc")
+		.$narrowType<{ startTime: NotNull }>()
 		.execute();
 }
 

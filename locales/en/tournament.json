@@ -5,6 +5,7 @@
 	"tabs.register": "Register",
 	"tabs.brackets": "Brackets",
 	"tabs.seeds": "Seeds",
+	"tabs.results": "Results",
 	"tabs.streams": "Streams ({{count}})",
 	"tabs.subs": "Subs ({{count}})",
 
@@ -133,6 +134,7 @@
 	"subs.canPlay": "Can play",
 	"subs.canVC": "Can VC",
 	"subs.noVC": "No VC",
+	"subs.listenOnlyVC": "Listen only",
 	"subs.editPost": "Edit sub post",
 	"subs.addPost": "Add yourself as sub",
 	"subs.vc.header": "Can you voice chat?",

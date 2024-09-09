@@ -14,6 +14,11 @@ export default defineConfig(() => {
 			remix({
 				ignoredRouteFiles: ["**/.*", "**/*.json", "**/components/*"],
 				serverModuleFormat: "esm",
+				future: {
+					v3_fetcherPersist: true,
+					v3_relativeSplatPath: true,
+					v3_throwAbortReason: true,
+				},
 				routes: (defineRoutes) => {
 					return defineRoutes((route) => {
 						route("/", "features/front-page/routes/index.tsx");
@@ -135,6 +140,10 @@ export default defineConfig(() => {
 							route(
 								"/to/:id/seeds",
 								"features/tournament/routes/to.$id.seeds.tsx",
+							);
+							route(
+								"/to/:id/results",
+								"features/tournament/routes/to.$id.results.tsx",
 							);
 							route(
 								"/to/:id/streams",

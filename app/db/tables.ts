@@ -591,6 +591,7 @@ export interface TournamentStage {
 
 export interface TournamentSub {
 	bestWeapons: string;
+	/** 0 = no, 1 = yes, 2 = listen only */
 	canVc: number;
 	createdAt: Generated<number>;
 	message: string | null;
@@ -753,6 +754,7 @@ export interface User {
 	inGameName: string | null;
 	isArtist: Generated<number | null>;
 	isVideoAdder: Generated<number | null>;
+	isTournamentOrganizer: Generated<number | null>;
 	languages: string | null;
 	motionSens: number | null;
 	patronSince: number | null;

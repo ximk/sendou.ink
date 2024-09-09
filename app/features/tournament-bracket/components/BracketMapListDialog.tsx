@@ -543,10 +543,15 @@ function teamCountAdjustedBracketData({
 	teamCount,
 }: { bracket: Bracket; tournament: Tournament; teamCount: number }) {
 	switch (bracket.type) {
-		// RR & swiss are different because for those the amount of participants won't affect the amount of rounds
-		case "round_robin":
 		case "swiss":
+			// always has the same amount of rounds even if 0 participants
 			return bracket.data;
+		case "round_robin":
+			// 10 to ensure a full bracket gets generated even if registration is underway
+			return tournament.generateMatchesData(
+				nullFilledArray(10).map((_, i) => i + 1),
+				bracket.type,
+			);
 		case "single_elimination":
 			return tournament.generateMatchesData(
 				nullFilledArray(teamCount).map((_, i) => i + 1),
@@ -611,6 +616,7 @@ function GlobalMapCountInput({
 				onChange={(e) => onSetCount(Number(e.target.value))}
 				defaultValue={defaultValue}
 			>
+				<option value="1">1</option>
 				<option value="3">3</option>
 				<option value="5">5</option>
 				<option value="7">7</option>
@@ -712,7 +718,7 @@ function RoundMapList({
 			</h3>
 			{editing && includeRoundSpecificSelections ? (
 				<div className="stack xs horizontal">
-					{[3, 5, 7].map((count) => (
+					{[1, 3, 5, 7].map((count) => (
 						<div key={count}>
 							<Label htmlFor={`bo-${count}-${id}`}>Bo{count}</Label>
 							<input

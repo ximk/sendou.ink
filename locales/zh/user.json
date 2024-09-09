@@ -26,7 +26,6 @@
 	"results.placing": "排名",
 	"results.team": "队伍",
 	"results.tournament": "比赛",
-	"results.participants": "参加者",
 	"results.date": "日期",
 	"results.mates": "队友",
 	"results.highlights": "高光成绩",
@@ -47,7 +46,6 @@
 	"search.noResults": "没有符合 '{{query}}' 的用户",
 
 	"seasons": "赛季",
-	"seasons.noQ": "该用户本赛季还未参加SendouQ或排名比赛",
 	"seasons.tabs.weapons": "武器",
 	"seasons.tabs.stages": "地图",
 	"seasons.tabs.self": "自己",

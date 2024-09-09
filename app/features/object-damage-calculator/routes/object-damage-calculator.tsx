@@ -22,7 +22,10 @@ import {
 	TORPEDO_ID,
 	WAVE_BREAKER_ID,
 } from "~/modules/in-game-lists";
-import { SUPER_CHUMP_ID } from "~/modules/in-game-lists/weapon-ids";
+import {
+	SUPER_CHUMP_ID,
+	TRIPLE_SPLASHDOWN_ID,
+} from "~/modules/in-game-lists/weapon-ids";
 import { damageTypeTranslationString } from "~/utils/i18next";
 import type { SendouRouteHandle } from "~/utils/remix";
 import {
@@ -38,7 +41,7 @@ import type { DamageReceiver } from "../calculator-types";
 
 import "../calculator.css";
 
-export const CURRENT_PATCH = "8.1";
+export const CURRENT_PATCH = "9.0";
 
 export const shouldRevalidate: ShouldRevalidateFunction = () => false;
 
@@ -209,6 +212,7 @@ const damageReceiverImages: Record<DamageReceiver, string> = {
 	BulletUmbrellaCanopyCompact: mainWeaponImageUrl(6020),
 	BulletShelterCanopyFocus: mainWeaponImageUrl(6030),
 	Firework: specialWeaponImageUrl(SUPER_CHUMP_ID),
+	BulletPogo: specialWeaponImageUrl(TRIPLE_SPLASHDOWN_ID),
 };
 
 const damageReceiverAp: Partial<Record<DamageReceiver, JSX.Element>> = {
