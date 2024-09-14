@@ -732,7 +732,7 @@ function calendarEvents() {
 				description: faker.lorem.paragraph(),
 				discordInviteCode: faker.lorem.word(),
 				bracketUrl: faker.internet.url(),
-				authorId: id === 1 ? NZAP_TEST_ID : userIds.pop() ?? null,
+				authorId: id === 1 ? NZAP_TEST_ID : (userIds.pop() ?? null),
 				tags:
 					Math.random() > 0.2
 						? shuffledTags
@@ -1545,9 +1545,12 @@ function otherTeams() {
 	);
 
 	for (let i = 3; i < 50; i++) {
-		const teamName = `${capitalize(faker.word.adjective())} ${capitalize(
-			faker.word.noun(),
-		)}`;
+		const teamName =
+			i === 3
+				? "Team Olive"
+				: `${capitalize(faker.word.adjective())} ${capitalize(
+						faker.word.noun(),
+					)}`;
 		const teamCustomUrl = mySlugify(teamName);
 
 		sql
@@ -1866,7 +1869,7 @@ function arts() {
 				) {
 					addArtUserMetadataStm.run({
 						artId: addedArt.id,
-						userId: i === 0 ? NZAP_TEST_ID : allUsers.pop() ?? null,
+						userId: i === 0 ? NZAP_TEST_ID : (allUsers.pop() ?? null),
 					});
 				}
 			}
