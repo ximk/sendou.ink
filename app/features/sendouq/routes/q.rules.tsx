@@ -102,7 +102,11 @@ export default function SendouqRules() {
 
 			<h2 className="text-lg mt-4">Unsportsmanlike conduct</h2>
 			<div>
-				It&apos;s not allowed to spawncamp the enemy without pushing the
+				Examples include, but are not limited to:
+        
+        Intentionally cancelling matches all players can play out to avoid losing SP. 
+        
+        Spawncamping the enemy without pushing the
 				objective provided it can&apos;t be considered a viable strategy taking
 				in account the game situation.
 			</div>
