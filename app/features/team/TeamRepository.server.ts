@@ -1,24 +1,34 @@
-import type { Transaction } from "kysely";
+import type { Insertable, Transaction } from "kysely";
 import { jsonArrayFrom } from "kysely/helpers/sqlite";
+import { nanoid } from "nanoid";
+import { INVITE_CODE_LENGTH } from "~/constants";
 import { db } from "~/db/sql";
-import type { DB } from "~/db/tables";
+import type { DB, Tables } from "~/db/tables";
 import { databaseTimestampNow } from "~/utils/dates";
 import invariant from "~/utils/invariant";
 import { COMMON_USER_FIELDS } from "~/utils/kysely.server";
 
-export function findMainByUserId(userId: number) {
+export function findAllUndisbanded() {
 	return db
-		.selectFrom("TeamMember")
-		.innerJoin("Team", "Team.id", "TeamMember.teamId")
-		.leftJoin("UserSubmittedImage", "UserSubmittedImage.id", "Team.avatarImgId")
-		.select([
-			"Team.id",
+		.selectFrom("Team")
+		.select(({ eb }) => [
 			"Team.customUrl",
 			"Team.name",
-			"UserSubmittedImage.url as logoUrl",
+			eb
+				.selectFrom("UserSubmittedImage")
+				.whereRef("UserSubmittedImage.id", "=", "Team.avatarImgId")
+				.select("UserSubmittedImage.url")
+				.as("avatarSrc"),
+			jsonArrayFrom(
+				eb
+					.selectFrom("TeamMemberWithSecondary")
+					.innerJoin("User", "User.id", "TeamMemberWithSecondary.userId")
+					.leftJoin("PlusTier", "PlusTier.userId", "User.id")
+					.select(["User.id", "User.username", "PlusTier.tier as plusTier"])
+					.whereRef("TeamMemberWithSecondary.teamId", "=", "Team.id"),
+			).as("members"),
 		])
-		.where("TeamMember.userId", "=", userId)
-		.executeTakeFirst();
+		.execute();
 }
 
 export function findAllMemberOfByUserId(userId: number) {
@@ -57,6 +67,7 @@ export function findByCustomUrl(customUrl: string) {
 			"Team.id",
 			"Team.name",
 			"Team.twitter",
+			"Team.bsky",
 			"Team.bio",
 			"Team.customUrl",
 			"Team.css",
@@ -99,6 +110,62 @@ export async function teamsByMemberUserId(
 		])
 		.where("userId", "=", userId)
 		.execute();
+}
+
+export async function create(
+	args: Pick<Insertable<Tables["Team"]>, "name" | "customUrl"> & {
+		ownerUserId: number;
+		isMainTeam: boolean;
+	},
+) {
+	return db.transaction().execute(async (trx) => {
+		const team = await trx
+			.insertInto("AllTeam")
+			.values({
+				name: args.name,
+				customUrl: args.customUrl,
+				inviteCode: nanoid(INVITE_CODE_LENGTH),
+			})
+			.returning("id")
+			.executeTakeFirstOrThrow();
+
+		await trx
+			.insertInto("AllTeamMember")
+			.values({
+				userId: args.ownerUserId,
+				teamId: team.id,
+				isOwner: 1,
+				isMainTeam: Number(args.isMainTeam),
+			})
+			.execute();
+	});
+}
+
+export async function update({
+	id,
+	name,
+	customUrl,
+	bio,
+	twitter,
+	bsky,
+	css,
+}: Pick<
+	Insertable<Tables["Team"]>,
+	"id" | "name" | "customUrl" | "bio" | "twitter" | "bsky"
+> & { css: string | null }) {
+	return db
+		.updateTable("AllTeam")
+		.set({
+			name,
+			customUrl,
+			bio,
+			twitter,
+			bsky,
+			css,
+		})
+		.where("id", "=", id)
+		.returningAll()
+		.executeTakeFirstOrThrow();
 }
 
 export function switchMainTeam({

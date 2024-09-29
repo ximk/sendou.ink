@@ -37,7 +37,6 @@ import {
 } from "~/utils/urls";
 import * as TeamRepository from "../TeamRepository.server";
 import { deleteTeam } from "../queries/deleteTeam.server";
-import { edit } from "../queries/edit.server";
 import { TEAM } from "../team-constants";
 import { editTeamSchema, teamParamsSchema } from "../team-schemas.server";
 import { canAddCustomizedColors, isTeamOwner } from "../team-utils";
@@ -106,7 +105,7 @@ export const action: ActionFunction = async ({ request, params }) => {
 				};
 			}
 
-			const editedTeam = edit({
+			const editedTeam = await TeamRepository.update({
 				id: team.id,
 				customUrl: newCustomUrl,
 				...data,
@@ -158,6 +157,7 @@ export default function EditTeamPage() {
 				) : null}
 				<NameInput />
 				<TwitterInput />
+				<BlueskyInput />
 				<BioTextarea />
 				<SubmitButton
 					className="mt-4"
@@ -174,17 +174,29 @@ export default function EditTeamPage() {
 
 function ImageUploadLinks() {
 	const { t } = useTranslation(["team"]);
+	const { team } = useLoaderData<typeof loader>();
+
 	return (
 		<div>
 			<Label>{t("team:forms.fields.uploadImages")}</Label>
 			<ol className="team__image-links-list">
 				<li>
-					<Link to={uploadImagePage({ type: "team-pfp" })}>
+					<Link
+						to={uploadImagePage({
+							type: "team-pfp",
+							teamCustomUrl: team.customUrl,
+						})}
+					>
 						{t("team:forms.fields.uploadImages.pfp")}
 					</Link>
 				</li>
 				<li>
-					<Link to={uploadImagePage({ type: "team-banner" })}>
+					<Link
+						to={uploadImagePage({
+							type: "team-banner",
+							teamCustomUrl: team.customUrl,
+						})}
+					>
 						{t("team:forms.fields.uploadImages.banner")}
 					</Link>
 				</li>
@@ -232,6 +244,26 @@ function TwitterInput() {
 				value={value}
 				onChange={(e) => setValue(pathnameFromPotentialURL(e.target.value))}
 				testId="twitter-input"
+			/>
+		</div>
+	);
+}
+
+function BlueskyInput() {
+	const { t } = useTranslation(["team"]);
+	const { team } = useLoaderData<typeof loader>();
+	const [value, setValue] = React.useState(team.bsky ?? "");
+
+	return (
+		<div>
+			<Label htmlFor="bsky">{t("team:forms.fields.teamBsky")}</Label>
+			<Input
+				leftAddon="https://bsky.app/profile/"
+				id="bsky"
+				name="bsky"
+				maxLength={TEAM.BSKY_MAX_LENGTH}
+				value={value}
+				onChange={(e) => setValue(e.target.value)}
 			/>
 		</div>
 	);

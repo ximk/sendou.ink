@@ -39,6 +39,9 @@ const staticAssetsUrl = ({
 
 export const SENDOU_INK_BASE_URL = "https://sendou.ink";
 
+export const BADGES_DOC_LINK =
+	"https://github.com/Sendouc/sendou.ink/blob/rewrite/docs/badges.md";
+
 const USER_SUBMITTED_IMAGE_ROOT =
 	"https://sendou.nyc3.cdn.digitaloceanspaces.com";
 export const userSubmittedImage = (fileName: string) =>
@@ -58,7 +61,6 @@ export const PATREON_HOW_TO_CONNECT_DISCORD_URL =
 export const SENDOU_INK_GITHUB_URL = "https://github.com/Sendouc/sendou.ink";
 export const GITHUB_CONTRIBUTORS_URL =
 	"https://github.com/Sendouc/sendou.ink/graphs/contributors";
-export const TLDRAW_URL = "https://www.tldraw.com/";
 export const BORZOIC_TWITTER = "https://twitter.com/borzoic_";
 export const LEAN_TWITTER = "https://twitter.com/LeanYoshi";
 export const UBERU_TWITTER = "https://twitter.com/uberu5";
@@ -74,6 +76,8 @@ export const SPR_INFO_URL =
 
 export const twitterUrl = (accountName: string) =>
 	`https://twitter.com/${accountName}`;
+export const bskyUrl = (accountName: string) =>
+	`https://bsky.app/profile/${accountName}`;
 export const twitchUrl = (accountName: string) =>
 	`https://twitch.tv/${accountName}`;
 
@@ -347,12 +351,12 @@ export const objectDamageCalculatorPage = (weaponId?: MainWeaponId) =>
 
 export const uploadImagePage = (
 	args:
-		| { type: "team-pfp" | "team-banner" }
+		| { type: "team-pfp" | "team-banner"; teamCustomUrl: string }
 		| { type: "org-pfp"; slug: string },
 ) =>
 	args.type === "org-pfp"
 		? `/upload?type=${args.type}&slug=${args.slug}`
-		: `/upload?type=${args.type}`;
+		: `/upload?type=${args.type}&team=${args.teamCustomUrl}`;
 
 export const vodVideoPage = (videoId: number) => `${VODS_PAGE}/${videoId}`;
 
