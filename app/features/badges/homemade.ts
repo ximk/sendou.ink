@@ -41,12 +41,47 @@ export const homemadeBadges: BadgeInfo[] = [
 	},
 	{
 		displayName: "Original Message Deleted",
-		fileName: "OriginalMessageDeleted",
+		fileName: "original-message-deleted",
 		authorDiscordId: "751912670403362836",
 	},
 	{
 		displayName: "Shiny Wooper Achievement",
 		fileName: "shinywooper",
 		authorDiscordId: "528851510222782474",
+	},
+	{
+		displayName: "OCE Open",
+		fileName: "ausflag",
+		authorDiscordId: "1170249805373657093",
+	},
+	{
+		displayName: "TableTurf: RISE",
+		fileName: "tableturf-rise",
+		authorDiscordId: "528851510222782474",
+	},
+	{
+		displayName: "A Special Tournament",
+		fileName: "chara_special",
+		authorDiscordId: "1081428018666422313",
+	},
+	{
+		displayName: "Dolphin Showdown",
+		fileName: "dolphin",
+		authorDiscordId: "528851510222782474",
+	},
+	{
+		displayName: "Raid Weekend",
+		fileName: "raid-weekend",
+		authorDiscordId: "354880982890971136",
+	},
+	{
+		displayName: "It's Dangerous To Go Alone Master Bracket",
+		fileName: "idtgamb",
+		authorDiscordId: "354880982890971136",
+	},
+	{
+		displayName: "Lone Sailor",
+		fileName: "lone_sailor",
+		authorDiscordId: "354880982890971136",
 	},
 ];
