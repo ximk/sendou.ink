@@ -564,6 +564,13 @@ dialog::backdrop {
 	border-bottom: 2px solid var(--border);
 }
 
+.tab__buttons-container svg {
+	--icon-size: 16px;
+	width: var(--icon-size);
+	height: var(--icon-size);
+	margin-inline-end: var(--s-1-5);
+}
+
 .tab__button {
 	background-color: transparent;
 	border: none;
@@ -831,10 +838,10 @@ dialog::backdrop {
 	font-size: var(--fonts-sm);
 	font-weight: var(--semi-bold);
 	gap: var(--s-2);
-	line-height: 1.4;
 	margin-inline: auto;
 	padding-block: var(--s-1-5);
 	padding-inline: var(--s-3) var(--s-4);
+	text-align: center;
 }
 
 .alert.tiny {
@@ -1308,8 +1315,7 @@ dialog::backdrop {
 }
 
 .top-leaderboard {
-	min-height: 110px;
-	margin-block-start: var(--leaderboard-top-spacing);
+	min-height: 140px;
 }
 
 .youtube__container {
@@ -1368,6 +1374,10 @@ dialog::backdrop {
 	align-items: flex-start;
 }
 
+.menu__items-container__opens-left {
+	right: 0;
+}
+
 .menu-container__scrolling {
 	max-height: 300px;
 	overflow-y: auto;
@@ -1414,6 +1424,11 @@ dialog::backdrop {
 
 .menu__item__icon {
 	width: 18px;
+}
+
+.menu__item__img {
+	min-width: 24px;
+	min-height: 24px;
 }
 
 .discord-icon {
@@ -1894,4 +1909,16 @@ html[dir="rtl"] .fix-rtl {
 	color: var(--theme-vibrant);
 	font-size: var(--fonts-xxxs);
 	font-weight: var(--bold);
+}
+
+.format-selector__count {
+	color: var(--theme);
+	font-size: var(--fonts-sm);
+	white-space: nowrap;
+}
+
+.format-selector__divider {
+	background-color: var(--theme-transparent);
+	width: 2px;
+	align-self: stretch;
 }

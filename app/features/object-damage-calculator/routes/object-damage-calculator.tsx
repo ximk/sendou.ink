@@ -27,7 +27,7 @@ import {
 	TRIPLE_SPLASHDOWN_ID,
 } from "~/modules/in-game-lists/weapon-ids";
 import { damageTypeTranslationString } from "~/utils/i18next";
-import type { SendouRouteHandle } from "~/utils/remix";
+import type { SendouRouteHandle } from "~/utils/remix.server";
 import {
 	OBJECT_DAMAGE_CALCULATOR_URL,
 	mainWeaponImageUrl,
@@ -41,7 +41,7 @@ import type { DamageReceiver } from "../calculator-types";
 
 import "../calculator.css";
 
-export const CURRENT_PATCH = "9.0";
+export const CURRENT_PATCH = "9.2";
 
 export const shouldRevalidate: ShouldRevalidateFunction = () => false;
 

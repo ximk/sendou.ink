@@ -14,15 +14,18 @@ import {
 	useLoaderData,
 	useMatches,
 	useNavigation,
+	useRevalidator,
 } from "@remix-run/react";
 import generalI18next from "i18next";
 import NProgress from "nprogress";
 import * as React from "react";
+import { ErrorBoundary as ClientErrorBoundary } from "react-error-boundary";
 import { useTranslation } from "react-i18next";
 import { useChangeLanguage } from "remix-i18next/react";
-import type { SendouRouteHandle } from "~/utils/remix";
+import type { SendouRouteHandle } from "~/utils/remix.server";
 import { Catcher } from "./components/Catcher";
 import { Layout } from "./components/layout";
+import { Ramp } from "./components/ramp/Ramp";
 import { CUSTOMIZED_CSS_VARS_NAME } from "./constants";
 import { getUser } from "./features/auth/core/user.server";
 import { userIsBanned } from "./features/ban/core/banned.server";
@@ -47,10 +50,14 @@ import "~/styles/layout.css";
 import "~/styles/reset.css";
 import "~/styles/utils.css";
 import "~/styles/vars.css";
+import { useVisibilityChange } from "./hooks/useVisibilityChange";
+import { isRevalidation } from "./utils/remix";
 
-export const shouldRevalidate: ShouldRevalidateFunction = ({ nextUrl }) => {
+export const shouldRevalidate: ShouldRevalidateFunction = (args) => {
+	if (isRevalidation(args)) return true;
+
 	// // reload on language change so the selected language gets set into the cookie
-	const lang = nextUrl.searchParams.get("lng");
+	const lang = args.nextUrl.searchParams.get("lng");
 
 	return Boolean(lang);
 };
@@ -131,6 +138,8 @@ function Document({
 	const { i18n } = useTranslation();
 	const locale = data?.locale ?? DEFAULT_LANGUAGE;
 
+	// TODO: re-enable after testing if it causes bug where JS is not loading on revisit
+	// useRevalidateOnRevisit();
 	useChangeLanguage(locale);
 	usePreloadTranslation();
 	useLoadingIndicator();
@@ -203,6 +212,7 @@ export const namespaceJsonsToPreloadObj: Record<Namespace, boolean> = {
 	q: true,
 	lfg: true,
 	org: true,
+	front: true,
 };
 const namespaceJsonsToPreload = Object.keys(namespaceJsonsToPreloadObj);
 
@@ -210,6 +220,29 @@ function usePreloadTranslation() {
 	React.useEffect(() => {
 		void generalI18next.loadNamespaces(namespaceJsonsToPreload);
 	}, []);
+}
+
+// @ts-expect-error to be used in the future
+function useRevalidateOnRevisit() {
+	const visibility = useVisibilityChange();
+	const { revalidate } = useRevalidator();
+	const [lastUpdated, setLastUpdated] = React.useState<Date>();
+
+	React.useEffect(() => {
+		setLastUpdated(new Date());
+	}, []);
+
+	React.useEffect(() => {
+		if (visibility !== "visible" || !lastUpdated) return;
+
+		const sinceLastUpdated = new Date().getTime() - lastUpdated.getTime();
+
+		// 15 minutes
+		if (sinceLastUpdated < 1000 * 60 * 15) return;
+
+		setLastUpdated(new Date());
+		revalidate();
+	}, [visibility, revalidate, lastUpdated]);
 }
 
 function useCustomizedCSSVars() {
@@ -461,22 +494,14 @@ function PWALinks() {
 	);
 }
 
-const Ramp = React.lazy(() => import("./components/ramp/Ramp"));
 function MyRamp({ data }: { data: RootLoaderData | undefined }) {
-	if (
-		!data ||
-		data.user?.patronTier ||
-		!import.meta.env.VITE_PLAYWIRE_PUBLISHER_ID ||
-		!import.meta.env.VITE_PLAYWIRE_WEBSITE_ID ||
-		typeof window === "undefined"
-	) {
+	if (!data || data.user?.patronTier) {
 		return null;
 	}
 
 	return (
-		<Ramp
-			publisherId={import.meta.env.VITE_PLAYWIRE_PUBLISHER_ID}
-			id={import.meta.env.VITE_PLAYWIRE_WEBSITE_ID}
-		/>
+		<ClientErrorBoundary fallback={null}>
+			<Ramp />
+		</ClientErrorBoundary>
 	);
 }

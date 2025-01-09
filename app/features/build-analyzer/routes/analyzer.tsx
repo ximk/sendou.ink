@@ -38,7 +38,7 @@ import {
 import { atOrError, nullFilledArray, removeDuplicates } from "~/utils/arrays";
 import { damageTypeTranslationString } from "~/utils/i18next";
 import invariant from "~/utils/invariant";
-import type { SendouRouteHandle } from "~/utils/remix";
+import type { SendouRouteHandle } from "~/utils/remix.server";
 import { makeTitle } from "~/utils/strings";
 import {
 	ANALYZER_URL,
@@ -82,7 +82,7 @@ import {
 
 import "../analyzer.css";
 
-export const CURRENT_PATCH = "9.0";
+export const CURRENT_PATCH = "9.2";
 
 export const meta: MetaFunction = () => {
 	return [
@@ -968,10 +968,15 @@ interface StatChartProps {
 }
 
 function StatChartPopover(props: StatChartProps) {
+	const { t } = useTranslation(["analyzer"]);
+
 	return (
 		<Popover
 			buttonChildren={
-				<BeakerIcon className="analyzer__stat-popover-trigger__icon" />
+				<BeakerIcon
+					className="analyzer__stat-popover-trigger__icon"
+					title={t("analyzer:button.showChart")}
+				/>
 			}
 			contentClassName="analyzer__stat-popover"
 			triggerClassName={

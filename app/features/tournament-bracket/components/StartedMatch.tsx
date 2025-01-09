@@ -556,6 +556,10 @@ function StartedMatchTabs({
 		return Object.fromEntries(
 			[
 				...data.match.players.map((p) => ({ ...p, title: undefined })),
+				...(tournament.ctx.organization?.members ?? []).map((m) => ({
+					...m,
+					title: m.role === "STREAMER" ? "Stream" : "TO",
+				})),
 				...tournament.ctx.staff.map((s) => ({
 					...s,
 					title: s.role === "STREAMER" ? "Stream" : "TO",
@@ -626,7 +630,9 @@ function StartedMatchTabs({
 				teams[1],
 				tournament.minMembersPerTeam,
 			),
-			result?.participantIds,
+			result?.participants
+				.map((p) => `${p.userId}-${p.tournamentTeamId}`)
+				.join(","),
 			result?.opponentOnePoints,
 			result?.opponentTwoPoints,
 		].join("-");
@@ -663,7 +669,7 @@ function StartedMatchTabs({
 										chat={chat}
 										onMount={onChatMount}
 										onUnmount={onChatUnmount}
-										missingUserName="TO"
+										missingUserName="???"
 									/>
 								) : null}
 							</>

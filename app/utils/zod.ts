@@ -2,6 +2,7 @@ import type { ZodType } from "zod";
 import { z } from "zod";
 import type { abilitiesShort } from "~/modules/in-game-lists";
 import { abilities, mainWeaponIds, stageIds } from "~/modules/in-game-lists";
+import { FRIEND_CODE_REGEXP } from "../features/sendouq/q-constants";
 import type { Unpacked } from "./types";
 import { assertType } from "./types";
 
@@ -32,6 +33,22 @@ export const shoesMainSlotAbility = z
 export const stackableAbility = z
 	.string()
 	.refine((val) => abilityNameToType(val) === "STACKABLE");
+
+export const normalizeFriendCode = (value: string) => {
+	const onlyNumbers = value.replace(/\D/g, "");
+
+	const withDashes = onlyNumbers
+		.split(/(\d{4})/)
+		.filter(Boolean)
+		.join("-");
+
+	return withDashes;
+};
+
+export const friendCode = z
+	.string()
+	.regex(FRIEND_CODE_REGEXP)
+	.transform(normalizeFriendCode);
 
 export const ability = z.enum([
 	"ISM",
@@ -96,6 +113,21 @@ export function safeJSONParse(value: unknown): unknown {
 		return undefined;
 	}
 }
+
+/**
+ * Safely splits a string by a specified delimiter as Zod preprocess function.
+ *
+ * @param splitBy - The delimiter to split the string by. Defaults to a comma (",").
+ * @returns A function that takes a value and returns the split string if the value is a string,
+ *          otherwise returns the original value.
+ */
+export const safeSplit =
+	(splitBy = ",") =>
+	(value: unknown): unknown => {
+		if (typeof value !== "string") return value;
+
+		return value.split(splitBy);
+	};
 
 export function falsyToNull(value: unknown): unknown {
 	if (value) return value;

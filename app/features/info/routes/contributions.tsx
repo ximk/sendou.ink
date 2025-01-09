@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Main } from "~/components/Main";
 import { useSetTitle } from "~/hooks/useSetTitle";
 import { languages } from "~/modules/i18n/config";
-import type { SendouRouteHandle } from "~/utils/remix";
+import type { SendouRouteHandle } from "~/utils/remix.server";
 import { makeTitle } from "~/utils/strings";
 import {
 	ANTARISKA_TWITTER,
@@ -49,6 +49,7 @@ const TRANSLATORS: Array<{
 		translators: [
 			{ name: "NoAim™bUrn", twitter: "noaim_brn" },
 			{ name: "Alice", twitter: "Aloschus" },
+			"jgiefer",
 		],
 		language: "de",
 	},

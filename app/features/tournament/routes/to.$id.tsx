@@ -18,9 +18,10 @@ import { getUser } from "~/features/auth/core/user.server";
 import { Tournament } from "~/features/tournament-bracket/core/Tournament";
 import { tournamentDataCached } from "~/features/tournament-bracket/core/Tournament.server";
 import * as TournamentRepository from "~/features/tournament/TournamentRepository.server";
+import { useIsMounted } from "~/hooks/useIsMounted";
 import { isAdmin } from "~/permissions";
 import { databaseTimestampToDate } from "~/utils/dates";
-import type { SendouRouteHandle } from "~/utils/remix";
+import type { SendouRouteHandle } from "~/utils/remix.server";
 import { makeTitle } from "~/utils/strings";
 import { assertUnreachable } from "~/utils/types";
 import {
@@ -54,6 +55,18 @@ export const meta: MetaFunction = (args) => {
 
 	const title = makeTitle(data.tournament.ctx.name);
 
+	const ogImage = () => {
+		if (
+			!data.tournament.ctx.logoSrc ||
+			data.tournament.ctx.logoSrc.startsWith("https")
+		) {
+			return data.tournament.ctx.logoSrc;
+		}
+
+		// opengraph does not support relative urls
+		return `${import.meta.env.VITE_SITE_DOMAIN}${data.tournament.ctx.logoSrc}`;
+	};
+
 	return [
 		{ title },
 		{
@@ -70,7 +83,7 @@ export const meta: MetaFunction = (args) => {
 		},
 		{
 			property: "og:image",
-			content: data.tournament.ctx.logoSrc,
+			content: ogImage(),
 		},
 		// Twitter special snowflake tags, see https://developer.x.com/en/docs/twitter-for-websites/cards/overview/summary
 		{
@@ -173,7 +186,23 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 
 const TournamentContext = React.createContext<Tournament>(null!);
 
-export default function TournamentLayout() {
+export default function TournamentLayoutShell() {
+	const isMounted = useIsMounted();
+
+	// tournaments are something that people like to refresh a lot
+	// which can cause spikes that are hard for the server to handle
+	// this is just making sure the SSR for this page is as fast as possible in prod
+	if (!isMounted)
+		return (
+			<Main bigger>
+				<div className="tournament__placeholder" />
+			</Main>
+		);
+
+	return <TournamentLayout />;
+}
+
+export function TournamentLayout() {
 	const { t } = useTranslation(["tournament"]);
 	const user = useUser();
 	const data = useLoaderData<typeof loader>();
@@ -222,7 +251,12 @@ export default function TournamentLayout() {
 				<SubNavLink to="brackets" data-testid="brackets-tab" prefetch="render">
 					{t("tournament:tabs.brackets")}
 				</SubNavLink>
-				<SubNavLink to="teams" end={false} prefetch="render">
+				<SubNavLink
+					to="teams"
+					end={false}
+					prefetch="render"
+					data-testid="teams-tab"
+				>
 					{t("tournament:tabs.teams", { count: tournament.ctx.teams.length })}
 				</SubNavLink>
 				{!tournament.everyBracketOver && tournament.subsFeatureEnabled && (

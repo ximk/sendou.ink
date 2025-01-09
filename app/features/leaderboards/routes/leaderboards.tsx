@@ -28,7 +28,7 @@ import {
 } from "~/modules/in-game-lists";
 import { rankedModesShort } from "~/modules/in-game-lists/modes";
 import { cache, ttl } from "~/utils/cache.server";
-import type { SendouRouteHandle } from "~/utils/remix";
+import type { SendouRouteHandle } from "~/utils/remix.server";
 import { makeTitle } from "~/utils/strings";
 import {
 	LEADERBOARDS_PAGE,
@@ -39,6 +39,7 @@ import {
 	userSeasonsPage,
 	userSubmittedImage,
 } from "~/utils/urls";
+import { InfoPopover } from "../../../components/InfoPopover";
 import { TopTenPlayer } from "../components/TopTenPlayer";
 import {
 	cachedFullUserLeaderboard,
@@ -509,6 +510,9 @@ function TeamTable({
 						{i === 11 && showQualificationDividers ? (
 							<div className="placements__table__row placements__table__row__qualification">
 								{t("common:leaderboard.qualification")}
+								<InfoPopover tiny>
+									{t("common:leaderboard.qualification.info")}
+								</InfoPopover>
 							</div>
 						) : null}
 					</React.Fragment>

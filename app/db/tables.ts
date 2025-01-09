@@ -7,6 +7,7 @@ import type {
 } from "kysely";
 import type { TieredSkill } from "~/features/mmr/tiered.server";
 import type { TEAM_MEMBER_ROLES } from "~/features/team";
+import type * as Progression from "~/features/tournament-bracket/core/Progression";
 import type { ParticipantResult } from "~/modules/brackets-model";
 import type {
 	Ability,
@@ -131,6 +132,7 @@ export interface CalendarEvent {
 	tournamentId: number | null;
 	organizationId: number | null;
 	avatarImgId: number | null;
+	// TODO: remove in migration
 	avatarMetadata: ColumnType<
 		CalendarEventAvatarMetadata | null,
 		string | null,
@@ -364,8 +366,8 @@ export interface Skill {
 	matchesCount: number;
 	mu: number;
 	ordinal: number;
-	season: number;
 	sigma: number;
+	season: number;
 	tournamentId: number | null;
 	userId: number | null;
 }
@@ -373,6 +375,14 @@ export interface Skill {
 export interface SkillTeamUser {
 	skillId: number;
 	userId: number;
+}
+
+export interface SeedingSkill {
+	mu: number;
+	ordinal: number;
+	sigma: number;
+	userId: number;
+	type: "RANKED" | "UNRANKED";
 }
 
 export interface SplatoonPlayer {
@@ -396,25 +406,16 @@ type TournamentMapPickingStyle =
 	| "AUTO_RM"
 	| "AUTO_CB";
 
-export type TournamentBracketProgression = {
-	type: TournamentStage["type"];
-	name: string;
-	/** Where do the teams come from? If missing then it means the source is the full registered teams list. */
-	sources?: {
-		/** Index of the bracket where the teams come from */
-		bracketIdx: number;
-		/** Team placements that join this bracket. E.g. [1, 2] would mean top 1 & 2 teams. [-1] would mean the last placing teams. */
-		placements: number[];
-	}[];
-}[];
-
 export interface TournamentSettings {
-	bracketProgression: TournamentBracketProgression;
+	bracketProgression: Progression.ParsedBracket[];
+	/** @deprecated use bracketProgression instead */
 	teamsPerGroup?: number;
+	/** @deprecated use bracketProgression instead */
 	thirdPlaceMatch?: boolean;
 	isRanked?: boolean;
-	autoCheckInAll?: boolean;
 	enableNoScreenToggle?: boolean;
+	/** Enable the subs tab, default true */
+	enableSubs?: boolean;
 	deadlines?: "STRICT" | "DEFAULT";
 	requireInGameNames?: boolean;
 	isInvitational?: boolean;
@@ -422,6 +423,7 @@ export interface TournamentSettings {
 	autonomousSubs?: boolean;
 	/** Timestamp (SQLite format) when reg closes, if missing then means closes at start time */
 	regClosesAt?: number;
+	/** @deprecated use bracketProgression instead */
 	swiss?: {
 		groupCount: number;
 		roundCount: number;
@@ -528,6 +530,8 @@ export interface TournamentMatchGameResult {
 export interface TournamentMatchGameResultParticipant {
 	matchGameResultId: number;
 	userId: number;
+	// it only started mattering when we added the possibility to join many teams in a tournament, null for legacy events
+	tournamentTeamId: number | null;
 }
 
 export interface TournamentResult {
@@ -561,6 +565,24 @@ export interface TournamentRound {
 	maps: ColumnType<TournamentRoundMaps | null, string | null, string | null>;
 }
 
+export interface TournamentStageSettings {
+	// SE
+	thirdPlaceMatch?: boolean;
+	// RR
+	teamsPerGroup?: number;
+	// SWISS
+	groupCount?: number;
+	// SWISS
+	roundCount?: number;
+}
+
+export const TOURNAMENT_STAGE_TYPES = [
+	"single_elimination",
+	"double_elimination",
+	"round_robin",
+	"swiss",
+] as const;
+
 /** A stage is an intermediate phase in a tournament. In essence a bracket. */
 export interface TournamentStage {
 	id: GeneratedAlways<number>;
@@ -568,7 +590,7 @@ export interface TournamentStage {
 	number: number;
 	settings: string;
 	tournamentId: number;
-	type: "double_elimination" | "single_elimination" | "round_robin" | "swiss";
+	type: (typeof TOURNAMENT_STAGE_TYPES)[number];
 	// not Generated<> because SQLite doesn't allow altering tables to add columns with default values :(
 	createdAt: number | null;
 }
@@ -600,6 +622,8 @@ export interface TournamentTeam {
 	noScreen: Generated<number>;
 	droppedOut: Generated<number>;
 	seed: number | null;
+	/** For formats that have many starting brackets, where should the team start? */
+	startingBracketIdx: number | null;
 	activeRosterUserIds: ColumnType<
 		number[] | null,
 		string | null,
@@ -615,6 +639,8 @@ export interface TournamentTeamCheckIn {
 	/** Which bracket checked in for. If missing is check in for the whole event. */
 	bracketIdx: number | null;
 	tournamentTeamId: number;
+	/** Indicates that this bracket defaults to checked in and this team has been explicitly checked out from it */
+	isCheckOut: Generated<number>;
 }
 
 export interface TournamentTeamMember {
@@ -664,9 +690,17 @@ export interface TournamentOrganizationSeries {
 	showLeaderboard: Generated<number>;
 }
 
+export interface TournamentBracketProgressionOverride {
+	sourceBracketIdx: number;
+	destinationBracketIdx: number;
+	tournamentTeamId: number;
+	tournamentId: number;
+}
+
 export interface TrustRelationship {
 	trustGiverUserId: number;
 	trustReceiverUserId: number;
+	lastUsedAt: number;
 }
 
 export interface UnvalidatedUserSubmittedImage {
@@ -865,7 +899,6 @@ export interface DB {
 	LFGPost: LFGPost;
 	MapPoolMap: MapPoolMap;
 	MapResult: MapResult;
-	migrations: Migrations;
 	PlayerResult: PlayerResult;
 	PlusSuggestion: PlusSuggestion;
 	PlusTier: PlusTier;
@@ -874,6 +907,7 @@ export interface DB {
 	ReportedWeapon: ReportedWeapon;
 	Skill: Skill;
 	SkillTeamUser: SkillTeamUser;
+	SeedingSkill: SeedingSkill;
 	SplatoonPlayer: SplatoonPlayer;
 	TaggedArt: TaggedArt;
 	Team: Team;
@@ -898,6 +932,7 @@ export interface DB {
 	TournamentOrganizationMember: TournamentOrganizationMember;
 	TournamentOrganizationBadge: TournamentOrganizationBadge;
 	TournamentOrganizationSeries: TournamentOrganizationSeries;
+	TournamentBracketProgressionOverride: TournamentBracketProgressionOverride;
 	TrustRelationship: TrustRelationship;
 	UnvalidatedUserSubmittedImage: UnvalidatedUserSubmittedImage;
 	UnvalidatedVideo: UnvalidatedVideo;

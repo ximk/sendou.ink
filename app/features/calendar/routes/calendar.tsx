@@ -3,10 +3,9 @@ import type {
 	MetaFunction,
 	SerializeFrom,
 } from "@remix-run/node";
-import { json } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
+import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import clsx from "clsx";
-import { addDays, addMonths, subDays, subMonths } from "date-fns";
+import { addMonths, subMonths } from "date-fns";
 import React from "react";
 import { Flipped, Flipper } from "react-flip-toolkit";
 import { useTranslation } from "react-i18next";
@@ -15,11 +14,8 @@ import { Alert } from "~/components/Alert";
 import { Avatar } from "~/components/Avatar";
 import { LinkButton } from "~/components/Button";
 import { Divider } from "~/components/Divider";
-import { Label } from "~/components/Label";
 import { Main } from "~/components/Main";
-import { Toggle } from "~/components/Toggle";
 import { UsersIcon } from "~/components/icons/Users";
-import { useUser } from "~/features/auth/core/user";
 import { getUserId } from "~/features/auth/core/user.server";
 import { currentSeason } from "~/features/mmr/season";
 import { HACKY_resolvePicture } from "~/features/tournament/tournament-utils";
@@ -29,12 +25,13 @@ import { joinListToNaturalString } from "~/utils/arrays";
 import {
 	databaseTimestampToDate,
 	dateToThisWeeksMonday,
+	dateToThisWeeksSunday,
 	dateToWeekNumber,
 	dayToWeekStartsAtMondayDay,
 	getWeekStartsAtMondayDay,
 	weekNumberToDate,
 } from "~/utils/dates";
-import type { SendouRouteHandle } from "~/utils/remix";
+import type { SendouRouteHandle } from "~/utils/remix.server";
 import { makeTitle } from "~/utils/strings";
 import type { Unpacked } from "~/utils/types";
 import {
@@ -46,9 +43,17 @@ import {
 	tournamentPage,
 	userSubmittedImage,
 } from "~/utils/urls";
-import { actualNumber } from "~/utils/zod";
+import { actualNumber, safeSplit } from "~/utils/zod";
+import { Label } from "../../../components/Label";
+import { Toggle } from "../../../components/Toggle";
+import type {
+	CalendarEventTag,
+	PersistedCalendarEventTag,
+} from "../../../db/types";
 import * as CalendarRepository from "../CalendarRepository.server";
-import { canAddNewEvent } from "../calendar-utils";
+import { calendarEventTagSchema } from "../actions/calendar.new.server";
+import { CALENDAR_EVENT } from "../calendar-constants";
+import { closeByWeeks } from "../calendar-utils";
 import { Tags } from "../components/Tags";
 
 import "~/styles/calendar.css";
@@ -80,31 +85,57 @@ export const handle: SendouRouteHandle = {
 	}),
 };
 
-const loaderSearchParamsSchema = z.object({
+const loaderWeekSearchParamsSchema = z.object({
 	week: z.preprocess(actualNumber, z.number().int().min(1).max(53)),
 	year: z.preprocess(actualNumber, z.number().int()),
+});
+
+const loaderFilterSearchParamsSchema = z.object({
+	tags: z.preprocess(safeSplit(), z.array(calendarEventTagSchema)),
+});
+
+const loaderTournamentsOnlySearchParamsSchema = z.object({
+	tournaments: z.literal("true").nullish(),
 });
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const user = await getUserId(request);
 	const t = await i18next.getFixedT(request);
 	const url = new URL(request.url);
-	const parsedParams = loaderSearchParamsSchema.safeParse({
+
+	// separate from tags parse so they can fail independently
+	const parsedWeekParams = loaderWeekSearchParamsSchema.safeParse({
 		year: url.searchParams.get("year"),
 		week: url.searchParams.get("week"),
 	});
+	const parsedFilterParams = loaderFilterSearchParamsSchema.safeParse({
+		tags: url.searchParams.get("tags"),
+	});
+	const parsedTournamentsOnlyParams =
+		loaderTournamentsOnlySearchParamsSchema.safeParse({
+			tournaments: url.searchParams.get("tournaments"),
+		});
 
 	const mondayDate = dateToThisWeeksMonday(new Date());
+	const sundayDate = dateToThisWeeksSunday(new Date());
 	const currentWeek = dateToWeekNumber(mondayDate);
 
-	const displayedWeek = parsedParams.success
-		? parsedParams.data.week
+	const displayedWeek = parsedWeekParams.success
+		? parsedWeekParams.data.week
 		: currentWeek;
-	const displayedYear = parsedParams.success
-		? parsedParams.data.year
-		: mondayDate.getFullYear();
+	const displayedYear = parsedWeekParams.success
+		? parsedWeekParams.data.year
+		: currentWeek === 1 // handle first week of the year special case
+			? sundayDate.getFullYear()
+			: mondayDate.getFullYear();
+	const tagsToFilterBy = parsedFilterParams.success
+		? (parsedFilterParams.data.tags as PersistedCalendarEventTag[])
+		: [];
+	const onlyTournaments = parsedTournamentsOnlyParams.success
+		? Boolean(parsedTournamentsOnlyParams.data.tournaments)
+		: false;
 
-	return json({
+	return {
 		currentWeek,
 		displayedWeek,
 		currentDay: new Date().getDay(),
@@ -117,36 +148,29 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 				weekNumberToDate({ week: displayedWeek, year: displayedYear }),
 				1,
 			),
+			tagsToFilterBy,
+			onlyTournaments,
 		}),
 		weeks: closeByWeeks({ week: displayedWeek, year: displayedYear }),
 		events: await fetchEventsOfWeek({
 			week: displayedWeek,
 			year: displayedYear,
+			tagsToFilterBy,
+			onlyTournaments,
 		}),
 		eventsToReport: user
 			? await CalendarRepository.eventsToReport(user.id)
 			: [],
 		title: makeTitle([`Week ${displayedWeek}`, t("pages.calendar")]),
-	});
+	};
 };
 
-function closeByWeeks(args: { week: number; year: number }) {
-	const dateFromWeekNumber = weekNumberToDate(args);
-
-	return [-4, -3, -2, -1, 0, 1, 2, 3, 4].map((week) => {
-		const date =
-			week < 0
-				? subDays(dateFromWeekNumber, Math.abs(week) * 7)
-				: addDays(dateFromWeekNumber, week * 7);
-
-		return {
-			number: dateToWeekNumber(date),
-			year: date.getFullYear(),
-		};
-	});
-}
-
-function fetchEventsOfWeek(args: { week: number; year: number }) {
+function fetchEventsOfWeek(args: {
+	week: number;
+	year: number;
+	tagsToFilterBy: PersistedCalendarEventTag[];
+	onlyTournaments: boolean;
+}) {
 	const startTime = weekNumberToDate(args);
 
 	const endTime = new Date(startTime);
@@ -156,53 +180,38 @@ function fetchEventsOfWeek(args: { week: number; year: number }) {
 	startTime.setHours(startTime.getHours() - 12);
 	endTime.setHours(endTime.getHours() + 12);
 
-	return CalendarRepository.findAllBetweenTwoTimestamps({ startTime, endTime });
+	return CalendarRepository.findAllBetweenTwoTimestamps({
+		startTime,
+		endTime,
+		tagsToFilterBy: args.tagsToFilterBy,
+		onlyTournaments: args.onlyTournaments,
+	});
 }
 
 export default function CalendarPage() {
 	const { t } = useTranslation("calendar");
 	const data = useLoaderData<typeof loader>();
-	const user = useUser();
 	const isMounted = useIsMounted();
-	const [onlySendouInkEvents, setOnlySendouInkEvents] = React.useState(false);
-
-	const filteredEvents = onlySendouInkEvents
-		? data.events.filter((event) => event.tournamentId)
-		: data.events;
 
 	// we don't know which events are starting in user's time zone on server
 	// so that's why this calculation is not in the loader
 	const thisWeeksEvents = isMounted
-		? filteredEvents.filter(
+		? data.events.filter(
 				(event) =>
 					dateToWeekNumber(
 						dateToSixHoursAgo(databaseTimestampToDate(event.startTime)),
 					) === data.displayedWeek,
 			)
-		: filteredEvents;
+		: data.events;
 
 	return (
 		<Main classNameOverwrite="stack lg main layout__main">
 			<WeekLinks />
 			<EventsToReport />
-			<div className="stack md">
+			<div>
 				<div className="stack horizontal justify-between">
-					<div className="stack horizontal sm items-center">
-						<Toggle
-							id="onlySendouInk"
-							tiny
-							checked={onlySendouInkEvents}
-							setChecked={setOnlySendouInkEvents}
-						/>
-						<Label spaced={false} htmlFor="onlySendouInk">
-							Only sendou.ink events
-						</Label>
-					</div>
-					{user && canAddNewEvent(user) && (
-						<LinkButton to="new" size="tiny" className="w-max">
-							{t("addNew")}
-						</LinkButton>
-					)}
+					<TagsFilter />
+					<OnSendouInkToggle />
 				</div>
 				{isMounted ? (
 					<>
@@ -229,10 +238,19 @@ export default function CalendarPage() {
 function WeekLinks() {
 	const data = useLoaderData<typeof loader>();
 	const isMounted = useIsMounted();
+	const [searchParams] = useSearchParams();
 
 	const eventCounts = isMounted
 		? getEventsCountPerWeek(data.nearbyStartTimes)
 		: null;
+
+	const linkTo = (args: { week: number; year: number }) => {
+		const params = new URLSearchParams(searchParams);
+		params.set("week", String(args.week));
+		params.set("year", String(args.year));
+
+		return `?${params.toString()}`;
+	};
 
 	return (
 		<Flipper flipKey={data.weeks.map(({ number }) => number).join("")}>
@@ -251,7 +269,7 @@ function WeekLinks() {
 						return (
 							<Flipped key={week.number} flipId={week.number}>
 								<Link
-									to={`?week=${week.number}&year=${week.year}`}
+									to={linkTo({ week: week.number, year: week.year })}
 									className={clsx("calendar__week", { invisible: hidden })}
 									aria-hidden={hidden}
 									tabIndex={hidden || isCurrentWeek ? -1 : 0}
@@ -363,6 +381,98 @@ function EventsToReport() {
 	);
 }
 
+function TagsFilter() {
+	const { t } = useTranslation(["calendar", "common"]);
+	const id = React.useId();
+	const [searchParams, setSearchParams] = useSearchParams();
+
+	const tagsToFilterBy = (searchParams
+		.get("tags")
+		?.split(",")
+		.filter((tag) => CALENDAR_EVENT.TAGS.includes(tag as CalendarEventTag)) ??
+		[]) as CalendarEventTag[];
+	const setTagsToFilterBy = (tags: CalendarEventTag[]) => {
+		setSearchParams((params) => {
+			if (tags.length === 0) {
+				params.delete("tags");
+				return params;
+			}
+
+			params.set("tags", tags.join(","));
+			return params;
+		});
+	};
+
+	const tagsForSelect = CALENDAR_EVENT.PERSISTED_TAGS.filter(
+		(tag) => !tagsToFilterBy.includes(tag),
+	);
+
+	return (
+		<div className="stack sm">
+			<div>
+				<label htmlFor={id}>{t("calendar:tag.filter.label")}</label>
+				<select
+					id={id}
+					className="w-max"
+					onChange={(e) =>
+						setTagsToFilterBy([
+							...tagsToFilterBy,
+							e.target.value as CalendarEventTag,
+						])
+					}
+				>
+					<option value="">—</option>
+					{tagsForSelect.map((tag) => (
+						<option key={tag} value={tag}>
+							{t(`common:tag.name.${tag}`)}
+						</option>
+					))}
+				</select>
+			</div>
+			<Tags
+				tags={tagsToFilterBy}
+				onDelete={(tagToDelete) =>
+					setTagsToFilterBy(tagsToFilterBy.filter((tag) => tag !== tagToDelete))
+				}
+			/>
+		</div>
+	);
+}
+
+function OnSendouInkToggle() {
+	const { t } = useTranslation(["calendar"]);
+	const [searchParams, setSearchParams] = useSearchParams();
+
+	const onlyTournaments = searchParams.get("tournaments") === "true";
+
+	const setOnlyTournaments = (value: boolean) => {
+		setSearchParams((params) => {
+			if (value) {
+				params.set("tournaments", "true");
+			} else {
+				params.delete("tournaments");
+			}
+
+			return params;
+		});
+	};
+
+	return (
+		<div className="stack horizontal justify-end">
+			<div className="stack items-end">
+				<Label htmlFor="onlyTournaments">
+					{t("calendar:tournament.filter.label")}
+				</Label>
+				<Toggle
+					id="onlyTournaments"
+					checked={onlyTournaments}
+					setChecked={setOnlyTournaments}
+				/>
+			</div>
+		</div>
+	);
+}
+
 function EventsList({
 	events,
 }: {
@@ -394,7 +504,7 @@ function EventsList({
 				}
 
 				const sectionWeekday = daysDate.toLocaleString(i18n.language, {
-					weekday: "long",
+					weekday: "short",
 				});
 
 				return (
@@ -405,7 +515,7 @@ function EventsList({
 									{t("pastEvents.dividerText")}
 								</Divider>
 							) : null}
-							<div className="calendar__event__date main">
+							<div className="calendar__event__date">
 								{daysDate.toLocaleDateString(i18n.language, {
 									weekday: "long",
 									day: "numeric",
@@ -418,8 +528,11 @@ function EventsList({
 								const eventWeekday = databaseTimestampToDate(
 									calendarEvent.startTime,
 								).toLocaleString(i18n.language, {
-									weekday: "long",
+									weekday: "short",
 								});
+
+								const isOneVsOne =
+									calendarEvent.tournamentSettings?.minMembersPerTeam === 1;
 
 								const startTimeDate = databaseTimestampToDate(
 									calendarEvent.startTime,
@@ -438,7 +551,7 @@ function EventsList({
 								return (
 									<section
 										key={calendarEvent.eventDateId}
-										className="calendar__event main stack md"
+										className="calendar__event stack md"
 									>
 										<div className="stack sm">
 											<div className="calendar__event__top-info-container">
@@ -458,7 +571,7 @@ function EventsList({
 														to={tournamentOrganizationPage({
 															organizationSlug: calendarEvent.organization.slug,
 														})}
-														className="stack horizontal sm items-center text-xs text-main-forced"
+														className="stack horizontal xs items-center text-xs text-main-forced"
 													>
 														<Avatar
 															url={
@@ -525,10 +638,15 @@ function EventsList({
 														calendarEvent.participantCounts.teams > 0 ? (
 															<div className="calendar__event__participant-counts">
 																<UsersIcon />{" "}
-																{t("count.teams", {
-																	count: calendarEvent.participantCounts.teams,
-																})}{" "}
-																/{" "}
+																{!isOneVsOne ? (
+																	<>
+																		{t("count.teams", {
+																			count:
+																				calendarEvent.participantCounts.teams,
+																		})}{" "}
+																		/{" "}
+																	</>
+																) : null}
 																{t("count.players", {
 																	count:
 																		calendarEvent.participantCounts.players,

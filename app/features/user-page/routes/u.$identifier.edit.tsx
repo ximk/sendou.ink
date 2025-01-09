@@ -33,7 +33,10 @@ import type { MainWeaponId } from "~/modules/in-game-lists";
 import { canAddCustomizedColorsToUserProfile } from "~/permissions";
 import { translatedCountry } from "~/utils/i18n.server";
 import invariant from "~/utils/invariant";
-import { notFoundIfFalsy, safeParseRequestFormData } from "~/utils/remix";
+import {
+	notFoundIfFalsy,
+	safeParseRequestFormData,
+} from "~/utils/remix.server";
 import { errorIsSqliteUniqueConstraintFailure } from "~/utils/sql";
 import { rawSensToString } from "~/utils/strings";
 import { FAQ_PAGE, isCustomUrl, userPage } from "~/utils/urls";
@@ -85,7 +88,12 @@ const userEditActionSchema = z
 		),
 		customName: z.preprocess(
 			falsyToNull,
-			z.string().trim().max(USER.CUSTOM_NAME_MAX_LENGTH).nullable(),
+			z
+				.string()
+				.trim()
+				.regex(USER.CUSTOM_NAME_REGEXP)
+				.max(USER.CUSTOM_NAME_MAX_LENGTH)
+				.nullable(),
 		),
 		battlefy: z.preprocess(
 			falsyToNull,
@@ -313,6 +321,7 @@ function CustomUrlInput({
 				maxLength={USER.CUSTOM_URL_MAX_LENGTH}
 				defaultValue={parentRouteData.user.customUrl ?? undefined}
 			/>
+			<FormMessage type="info">{t("user:forms.info.customUrl")}</FormMessage>
 		</div>
 	);
 }
