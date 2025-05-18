@@ -35,6 +35,25 @@ export const cleanUp = () => {
 
 export function migrate(args: { newUserId: number; oldUserId: number }) {
 	return db.transaction().execute(async (trx) => {
+		// delete some limited data from the target user
+		// idea is to make the migration a bit more smooth
+		// since it won't fail if some small thing has been added
+		// but for bigger things (e.g. has played tournaments)
+		// it will still fail
+		await trx
+			.deleteFrom("UserWeapon")
+			.where("userId", "=", args.newUserId)
+			.execute();
+		await trx
+			.deleteFrom("UserFriendCode")
+			.where("userId", "=", args.newUserId)
+			.execute();
+		await trx
+			.updateTable("GroupMember")
+			.where("userId", "=", args.newUserId)
+			.set({ userId: args.oldUserId })
+			.execute();
+
 		const deletedUser = await trx
 			.deleteFrom("User")
 			.where("User.id", "=", args.newUserId)
@@ -50,22 +69,19 @@ export function migrate(args: { newUserId: number; oldUserId: number }) {
 }
 
 export function replacePlusTiers(
-	plusTiers: Array<{ userId: number; tier: number }>,
+	plusTiers: Array<{ userId: number; plusTier: number }>,
 ) {
 	invariant(plusTiers.length > 0, "plusTiers must not be empty");
 
 	return db.transaction().execute(async (trx) => {
 		await trx.deleteFrom("PlusTier").execute();
-		await trx.insertInto("PlusTier").values(plusTiers).execute();
+		await trx
+			.insertInto("PlusTier")
+			.values(
+				plusTiers.map(({ plusTier, userId }) => ({ userId, tier: plusTier })),
+			)
+			.execute();
 	});
-}
-
-export function allPlusTiersFromLatestVoting() {
-	return db
-		.selectFrom("FreshPlusTier")
-		.select(["FreshPlusTier.userId", "FreshPlusTier.tier"])
-		.where("FreshPlusTier.tier", "is not", null)
-		.execute() as Promise<{ userId: number; tier: number }[]>;
 }
 
 export function makeVideoAdderByUserId(userId: number) {

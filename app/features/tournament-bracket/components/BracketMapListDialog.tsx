@@ -3,13 +3,14 @@ import clsx from "clsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "~/components/Button";
-import { Dialog } from "~/components/Dialog";
 import { ModeImage, StageImage } from "~/components/Image";
 import { Label } from "~/components/Label";
 import { SubmitButton } from "~/components/SubmitButton";
-import { Toggle } from "~/components/Toggle";
+import { SendouDialog } from "~/components/elements/Dialog";
+import { SendouSwitch } from "~/components/elements/Switch";
 import { RefreshArrowsIcon } from "~/components/icons/RefreshArrows";
 import type { TournamentRoundMaps } from "~/db/tables";
+import * as PickBan from "~/features/tournament-bracket/core/PickBan";
 import {
 	useTournament,
 	useTournamentPreparedMaps,
@@ -22,6 +23,10 @@ import { databaseTimestampToDate } from "~/utils/dates";
 import invariant from "~/utils/invariant";
 import { assertUnreachable } from "~/utils/types";
 import { calendarEditPage } from "~/utils/urls";
+import { SendouButton } from "../../../components/elements/Button";
+import { LinkIcon } from "../../../components/icons/Link";
+import { UnlinkIcon } from "../../../components/icons/Unlink";
+import { logger } from "../../../utils/logger";
 import type { Bracket } from "../core/Bracket";
 import * as PreparedMaps from "../core/PreparedMaps";
 import type { Tournament } from "../core/Tournament";
@@ -51,7 +56,7 @@ export function BracketMapListDialog({
 
 	useCloseModalOnSubmit(fetcher, close);
 
-	const bracketTeamsCount = bracket.participantTournamentTeamIds.length;
+	const bracketTeamsCount = bracket.tournamentTeamIds.length;
 
 	const preparedMaps =
 		!isPreparing &&
@@ -66,22 +71,61 @@ export function BracketMapListDialog({
 			: untrimmedPreparedMaps;
 
 	const [szFirst, setSzFirst] = React.useState(false);
-	const [eliminationTeamCount, setEliminationTeamCount] = React.useState(() => {
+	const [eliminationTeamCount, setEliminationTeamCount] = React.useState<
+		number | null
+	>(() => {
 		if (preparedMaps?.eliminationTeamCount) {
 			return preparedMaps.eliminationTeamCount;
 		}
 
-		// at least 8 for somewhat reasonable default
-		return Math.max(
-			PreparedMaps.eliminationTeamCountOptions(bracketTeamsCount)[0].max,
-			PreparedMaps.eliminationTeamCountOptions(0)[2].max,
-		);
+		if (isPreparing) {
+			return null;
+		}
+
+		return PreparedMaps.eliminationTeamCountOptions(bracketTeamsCount)[0].max;
 	});
+	const [thirdPlaceMatchLinked, setThirdPlaceMatchLinked] = React.useState(
+		() => {
+			if (
+				!tournament.bracketManagerSettings(
+					bracket.settings,
+					bracket.type,
+					eliminationTeamCount ?? 2,
+				).consolationFinal
+			) {
+				return true; // default to true if not applicable or elimination team count not yet set (initial state)
+			}
+
+			if (!preparedMaps?.maps) {
+				return true;
+			}
+
+			// if maps were set before infer default from whether finals and third place match have different maps or not
+
+			const finalsMaps = preparedMaps.maps
+				.filter((map) => map.groupId === 0)
+				.sort((a, b) => b.roundId - a.roundId)[0];
+			const thirdPlaceMaps = preparedMaps.maps.find((map) => map.groupId === 1);
+
+			if (!finalsMaps?.list || !thirdPlaceMaps?.list) {
+				logger.error(
+					"Expected both finals and third place match maps to be defined",
+				);
+				return true;
+			}
+
+			return finalsMaps.list.every(
+				(map, i) =>
+					map.mode === thirdPlaceMaps.list![i].mode &&
+					map.stageId === thirdPlaceMaps.list![i].stageId,
+			);
+		},
+	);
 
 	const bracketData = isPreparing
 		? teamCountAdjustedBracketData({
 				bracket,
-				teamCount: eliminationTeamCount,
+				teamCount: eliminationTeamCount ?? 2,
 			})
 		: bracket.data;
 	const rounds = bracketData.round;
@@ -143,11 +187,26 @@ export function BracketMapListDialog({
 		}
 
 		if (bracket.type === "single_elimination") {
-			return getRounds({ type: "single", bracketData });
+			const rounds = getRounds({ type: "single", bracketData });
+
+			const hasThirdPlaceMatch = rounds.some((round) => round.group_id === 1);
+
+			if (!thirdPlaceMatchLinked || !hasThirdPlaceMatch) return rounds;
+
+			return rounds
+				.filter((round) => round.group_id !== 1)
+				.map((round) =>
+					round.name === "Finals"
+						? {
+								...round,
+								name: TOURNAMENT.ROUND_NAMES.FINALS_THIRD_PLACE_MATCH_UNIFIED,
+							}
+						: round,
+				);
 		}
 
 		assertUnreachable(bracket.type);
-	}, [bracketData, maps, bracket.type]);
+	}, [bracketData, maps, bracket.type, thirdPlaceMatchLinked]);
 
 	const mapCountsWithGlobalCount = (newCount: number) => {
 		const newMap = new Map(defaultRoundBestOfs);
@@ -206,10 +265,25 @@ export function BracketMapListDialog({
 	const globalSelections =
 		bracket.type === "round_robin" || bracket.type === "swiss";
 
+	const needsToPickEliminationTeamCount =
+		(bracket.type === "single_elimination" ||
+			bracket.type === "double_elimination") &&
+		!eliminationTeamCount;
+
 	return (
-		<Dialog isOpen={isOpen} close={close} className="w-full">
+		<SendouDialog
+			heading={`Maplist selection (${bracket.name})`}
+			isOpen={isOpen}
+			onClose={close}
+			isFullScreen
+		>
 			<fetcher.Form method="post" className="map-list-dialog__container">
 				<input type="hidden" name="bracketIdx" value={bracketIdx} />
+				<input
+					type="hidden"
+					name="thirdPlaceMatchLinked"
+					value={thirdPlaceMatchLinked ? "on" : "off"}
+				/>
 				<input
 					type="hidden"
 					name="maps"
@@ -228,11 +302,10 @@ export function BracketMapListDialog({
 					<input
 						type="hidden"
 						name="eliminationTeamCount"
-						value={eliminationTeamCount}
+						value={eliminationTeamCount ?? -1}
 					/>
 				) : null}
 				<div>
-					<h2 className="text-lg text-center">{bracket.name}</h2>
 					{preparedMaps ? (
 						<div
 							className="text-xs text-center text-lighter"
@@ -258,6 +331,7 @@ export function BracketMapListDialog({
 							<div className="stack horizontal lg flex-wrap">
 								<PickBanSelect
 									pickBanStyle={pickBanStyle}
+									isOneModeOnly={tournament.modesIncluded.length === 1}
 									onPickBanStyleChange={(pickBanStyle) => {
 										let newRoundsWithPickBan = roundsWithPickBan;
 										if (globalSelections) {
@@ -286,6 +360,11 @@ export function BracketMapListDialog({
 										count={eliminationTeamCount}
 										realCount={bracketTeamsCount}
 										setCount={(newCount) => {
+											if (!newCount) {
+												setEliminationTeamCount(null);
+												return;
+											}
+
 											const newBracketData = teamCountAdjustedBracketData({
 												bracket,
 												teamCount: newCount,
@@ -378,111 +457,155 @@ export function BracketMapListDialog({
 								</Button>
 							) : null}
 						</div>
-						<div className="stack horizontal md flex-wrap justify-center">
-							{roundsWithNames.map((round) => {
-								const roundMaps = maps.get(round.id);
-								invariant(roundMaps, "Expected maps to be defined");
-
-								return (
-									<RoundMapList
-										key={round.id}
-										name={round.name}
-										maps={roundMaps}
-										onHoverMap={setHoveredMap}
-										hoveredMap={hoveredMap}
-										includeRoundSpecificSelections={
-											bracket.type !== "round_robin"
-										}
-										onCountChange={(newCount) => {
-											const newMapCounts = new Map(mapCounts);
-											const bracketRound = rounds.find(
-												(r) => r.id === round.id,
-											);
-											invariant(bracketRound, "Expected round to be defined");
-
-											const groupInfo = newMapCounts.get(bracketRound.group_id);
-											invariant(groupInfo, "Expected group info to be defined");
-											const oldMapInfo = newMapCounts
-												.get(bracketRound.group_id)
-												?.get(bracketRound.number);
-											invariant(oldMapInfo, "Expected map info to be defined");
-
-											groupInfo.set(bracketRound.number, {
-												...oldMapInfo,
-												count: newCount,
-											});
-
-											const newMaps = generateTournamentRoundMaplist({
-												mapCounts: newMapCounts,
-												pool: tournament.ctx.toSetMapPool,
-												rounds,
-												type: bracket.type,
-												roundsWithPickBan,
-												pickBanStyle,
-												flavor,
-											});
-											setMaps(newMaps);
-										}}
-										onPickBanChange={
-											pickBanStyle
-												? (hasPickBan) => {
-														const newRoundsWithPickBan = new Set(
-															roundsWithPickBan,
-														);
-														if (hasPickBan) {
-															newRoundsWithPickBan.add(round.id);
-														} else {
-															newRoundsWithPickBan.delete(round.id);
-														}
-
-														setMaps(
-															generateTournamentRoundMaplist({
-																mapCounts,
-																pool: tournament.ctx.toSetMapPool,
-																rounds,
-																type: bracket.type,
-																roundsWithPickBan: newRoundsWithPickBan,
-																pickBanStyle,
-																flavor,
-															}),
-														);
-													}
-												: undefined
-										}
-										onRoundMapListChange={(newRoundMaps) => {
-											const newMaps = new Map(maps);
-											newMaps.set(round.id, newRoundMaps);
-
-											setMaps(newMaps);
-										}}
-									/>
-								);
-							})}
-						</div>
-						{!validateNoDecreasingCount() ? (
-							<div className="text-warning text-center">
-								Invalid selection: tournament progression decreases in map count
-							</div>
-						) : pickBanStyle && roundsWithPickBan.size === 0 ? (
-							<div className="text-warning text-center">
-								Invalid selection: pick/ban style selected but no rounds have it
-								enabled
+						{needsToPickEliminationTeamCount ? (
+							<div className="text-center text-lg font-bold my-24">
+								Pick the expected teams count above to prepare maps
+								<div className="text-lighter text-sm">
+									For SE/DE formats team count affects the amount of rounds
+									played
+								</div>
 							</div>
 						) : (
-							<SubmitButton
-								variant="outlined"
-								size="tiny"
-								testId="confirm-finalize-bracket-button"
-								_action={isPreparing ? "PREPARE_MAPS" : "START_BRACKET"}
-								className="mx-auto"
-							>
-								{isPreparing ? "Save the maps" : "Start the bracket"}
-							</SubmitButton>
+							<>
+								<div className="stack horizontal md flex-wrap justify-center">
+									{roundsWithNames.map((round) => {
+										const roundMaps = maps.get(round.id);
+										invariant(roundMaps, "Expected maps to be defined");
+
+										const showUnlinkButton =
+											bracket.type === "single_elimination" &&
+											thirdPlaceMatchLinked === true &&
+											round.name ===
+												TOURNAMENT.ROUND_NAMES.FINALS_THIRD_PLACE_MATCH_UNIFIED;
+										const showLinkButton =
+											bracket.type === "single_elimination" &&
+											thirdPlaceMatchLinked === false &&
+											round.name === TOURNAMENT.ROUND_NAMES.THIRD_PLACE_MATCH;
+
+										return (
+											<RoundMapList
+												key={round.id}
+												name={round.name}
+												maps={roundMaps}
+												onHoverMap={setHoveredMap}
+												unlink={
+													showUnlinkButton
+														? () => setThirdPlaceMatchLinked(false)
+														: undefined
+												}
+												link={
+													showLinkButton
+														? () => setThirdPlaceMatchLinked(true)
+														: undefined
+												}
+												hoveredMap={hoveredMap}
+												includeRoundSpecificSelections={
+													bracket.type !== "round_robin"
+												}
+												onCountChange={(newCount) => {
+													const newMapCounts = new Map(mapCounts);
+													const bracketRound = rounds.find(
+														(r) => r.id === round.id,
+													);
+													invariant(
+														bracketRound,
+														"Expected round to be defined",
+													);
+
+													const groupInfo = newMapCounts.get(
+														bracketRound.group_id,
+													);
+													invariant(
+														groupInfo,
+														"Expected group info to be defined",
+													);
+													const oldMapInfo = newMapCounts
+														.get(bracketRound.group_id)
+														?.get(bracketRound.number);
+													invariant(
+														oldMapInfo,
+														"Expected map info to be defined",
+													);
+
+													groupInfo.set(bracketRound.number, {
+														...oldMapInfo,
+														count: newCount,
+													});
+
+													const newMaps = generateTournamentRoundMaplist({
+														mapCounts: newMapCounts,
+														pool: tournament.ctx.toSetMapPool,
+														rounds,
+														type: bracket.type,
+														roundsWithPickBan,
+														pickBanStyle,
+														flavor,
+													});
+													setMaps(newMaps);
+												}}
+												onPickBanChange={
+													pickBanStyle
+														? (hasPickBan) => {
+																const newRoundsWithPickBan = new Set(
+																	roundsWithPickBan,
+																);
+																if (hasPickBan) {
+																	newRoundsWithPickBan.add(round.id);
+																} else {
+																	newRoundsWithPickBan.delete(round.id);
+																}
+
+																setMaps(
+																	generateTournamentRoundMaplist({
+																		mapCounts,
+																		pool: tournament.ctx.toSetMapPool,
+																		rounds,
+																		type: bracket.type,
+																		roundsWithPickBan: newRoundsWithPickBan,
+																		pickBanStyle,
+																		flavor,
+																	}),
+																);
+															}
+														: undefined
+												}
+												onRoundMapListChange={(newRoundMaps) => {
+													const newMaps = new Map(maps);
+													newMaps.set(round.id, newRoundMaps);
+
+													setMaps(newMaps);
+												}}
+											/>
+										);
+									})}
+								</div>
+								{!validateNoDecreasingCount() ? (
+									<div className="text-warning text-center">
+										Invalid selection: tournament progression decreases in map
+										count
+									</div>
+								) : pickBanStyle && roundsWithPickBan.size === 0 ? (
+									<div className="text-warning text-center">
+										Invalid selection: pick/ban style selected but no rounds
+										have it enabled
+									</div>
+								) : (
+									<SubmitButton
+										variant="outlined"
+										size="tiny"
+										testId="confirm-finalize-bracket-button"
+										_action={isPreparing ? "PREPARE_MAPS" : "START_BRACKET"}
+										className="mx-auto"
+									>
+										{isPreparing ? "Save the maps" : "Start the bracket"}
+									</SubmitButton>
+								)}
+							</>
 						)}
 					</>
 				)}
 			</fetcher.Form>
-		</Dialog>
+		</SendouDialog>
 	);
 }
 
@@ -577,7 +700,7 @@ function teamCountAdjustedBracketData({
 			return bracket.generateMatchesData(
 				nullFilledArray(
 					bracket.settings?.teamsPerGroup ??
-						TOURNAMENT.DEFAULT_TEAM_COUNT_PER_RR_GROUP,
+						TOURNAMENT.RR_DEFAULT_TEAM_COUNT_PER_GROUP,
 				).map((_, i) => i + 1),
 			);
 		case "single_elimination":
@@ -593,18 +716,21 @@ function EliminationTeamCountSelect({
 	realCount,
 	setCount,
 }: {
-	count: number;
+	count: number | null;
 	realCount: number;
-	setCount: (count: number) => void;
+	setCount: (count: number | null) => void;
 }) {
 	return (
 		<div>
 			<Label htmlFor="elimination-team-count">Expected teams</Label>
 			<select
 				id="elimination-team-count"
-				onChange={(e) => setCount(Number(e.target.value))}
-				defaultValue={count}
+				onChange={(e) =>
+					setCount(e.target.value === "" ? null : Number(e.target.value))
+				}
+				defaultValue={count ?? ""}
 			>
+				<option value="">Select count</option>
 				{PreparedMaps.eliminationTeamCountOptions(realCount).map(
 					(teamCountRange) => {
 						const label =
@@ -639,10 +765,11 @@ function GlobalMapCountInput({
 				onChange={(e) => onSetCount(Number(e.target.value))}
 				defaultValue={defaultValue}
 			>
-				<option value="1">1</option>
-				<option value="3">3</option>
-				<option value="5">5</option>
-				<option value="7">7</option>
+				{TOURNAMENT.AVAILABLE_BEST_OF.map((count) => (
+					<option key={count} value={count}>
+						{count}
+					</option>
+				))}
 			</select>
 		</div>
 	);
@@ -674,15 +801,24 @@ function GlobalCountTypeSelect({
 
 function PickBanSelect({
 	pickBanStyle,
+	isOneModeOnly,
 	onPickBanStyleChange,
 }: {
 	pickBanStyle: TournamentRoundMaps["pickBan"];
+	isOneModeOnly: boolean;
 	onPickBanStyleChange: (pickBanStyle: TournamentRoundMaps["pickBan"]) => void;
 }) {
+	const pickBanSelectText: Record<PickBan.Type, string> = {
+		COUNTERPICK: "Counterpick",
+		COUNTERPICK_MODE_REPEAT_OK: "Counterpick (mode repeat allowed)",
+		BAN_2: "Ban 2",
+	};
+
 	return (
 		<div>
 			<Label htmlFor="pick-ban-style">Pick/ban</Label>
 			<select
+				className="map-list-dialog__pick-ban-select"
 				id="pick-ban-style"
 				value={pickBanStyle ?? "NONE"}
 				onChange={(e) =>
@@ -694,8 +830,15 @@ function PickBanSelect({
 				}
 			>
 				<option value="NONE">None</option>
-				<option value="COUNTERPICK">Counterpick</option>
-				<option value="BAN_2">Ban 2</option>
+				{PickBan.types
+					.filter(
+						(type) => !isOneModeOnly || type !== "COUNTERPICK_MODE_REPEAT_OK",
+					)
+					.map((type) => (
+						<option key={type} value={type}>
+							{pickBanSelectText[type]}
+						</option>
+					))}
 			</select>
 		</div>
 	);
@@ -711,7 +854,7 @@ function SZFirstToggle({
 	return (
 		<div className="stack items-center">
 			<Label htmlFor="sz-first">SZ first</Label>
-			<Toggle id="sz-first" checked={szFirst} setChecked={setSzFirst} />
+			<SendouSwitch id="sz-first" isSelected={szFirst} onChange={setSzFirst} />
 		</div>
 	);
 }
@@ -727,6 +870,8 @@ function RoundMapList({
 	onHoverMap,
 	onCountChange,
 	onPickBanChange,
+	unlink,
+	link,
 	hoveredMap,
 	includeRoundSpecificSelections,
 }: {
@@ -736,6 +881,8 @@ function RoundMapList({
 	onHoverMap: (map: string | null) => void;
 	onCountChange: (count: number) => void;
 	onPickBanChange?: (hasPickBan: boolean) => void;
+	unlink?: () => void;
+	link?: () => void;
 	hoveredMap: string | null;
 	includeRoundSpecificSelections: boolean;
 }) {
@@ -755,9 +902,31 @@ function RoundMapList({
 					{editing ? "Save" : "Edit"}
 				</Button>
 			</h3>
+			{unlink ? (
+				<SendouButton
+					size="miniscule"
+					variant="outlined"
+					className="mt-1"
+					icon={<UnlinkIcon />}
+					onPress={unlink}
+				>
+					Unlink
+				</SendouButton>
+			) : null}
+			{link ? (
+				<SendouButton
+					size="miniscule"
+					variant="outlined"
+					className="mt-1"
+					icon={<LinkIcon />}
+					onPress={link}
+				>
+					Link
+				</SendouButton>
+			) : null}
 			{editing && includeRoundSpecificSelections ? (
 				<div className="stack xs horizontal">
-					{[1, 3, 5, 7].map((count) => (
+					{TOURNAMENT.AVAILABLE_BEST_OF.map((count) => (
 						<div key={count}>
 							<Label htmlFor={`bo-${count}-${id}`}>Bo{count}</Label>
 							<input
@@ -772,10 +941,10 @@ function RoundMapList({
 					{onPickBanChange ? (
 						<div>
 							<Label htmlFor={`pick-ban-${id}`}>Pick/ban</Label>
-							<Toggle
-								tiny
-								checked={Boolean(maps.pickBan)}
-								setChecked={onPickBanChange}
+							<SendouSwitch
+								size="small"
+								isSelected={Boolean(maps.pickBan)}
+								onChange={onPickBanChange}
 								id={`pick-ban-${id}`}
 							/>
 						</div>

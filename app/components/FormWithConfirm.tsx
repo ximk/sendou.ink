@@ -2,18 +2,17 @@ import { type FetcherWithComponents, useFetcher } from "@remix-run/react";
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { SendouDialog } from "~/components/elements/Dialog";
 import { useIsMounted } from "~/hooks/useIsMounted";
 import invariant from "~/utils/invariant";
-import { Button, type ButtonProps } from "./Button";
-import { Dialog } from "./Dialog";
+import type { ButtonProps } from "./Button";
 import { SubmitButton } from "./SubmitButton";
 
 export function FormWithConfirm({
 	fields,
 	children,
 	dialogHeading,
-	deleteButtonText,
-	cancelButtonText,
+	submitButtonText,
 	action,
 	submitButtonTestId = "submit-button",
 	submitButtonVariant = "destructive",
@@ -25,8 +24,7 @@ export function FormWithConfirm({
 	)[];
 	children: React.ReactNode;
 	dialogHeading: string;
-	deleteButtonText?: string;
-	cancelButtonText?: string;
+	submitButtonText?: string;
 	action?: string;
 	submitButtonTestId?: string;
 	submitButtonVariant?: ButtonProps["variant"];
@@ -71,26 +69,29 @@ export function FormWithConfirm({
 						document.body,
 					)
 				: null}
-			<Dialog isOpen={dialogOpen} close={closeDialog} className="text-center">
+			<SendouDialog
+				isOpen={dialogOpen}
+				onClose={closeDialog}
+				onOpenChange={closeDialog}
+				isDismissable
+			>
 				<div className="stack md">
-					<h2 className="text-sm">{dialogHeading}</h2>
-					<div className="stack horizontal md justify-center">
+					<h2 className="text-md text-center">{dialogHeading}</h2>
+					<div className="stack horizontal md justify-center mt-2">
 						<SubmitButton
 							form={id}
 							variant={submitButtonVariant}
 							testId={dialogOpen ? "confirm-button" : submitButtonTestId}
 						>
-							{deleteButtonText ?? t("common:actions.delete")}
+							{submitButtonText ?? t("common:actions.delete")}
 						</SubmitButton>
-						<Button onClick={closeDialog}>
-							{cancelButtonText ?? t("common:actions.cancel")}
-						</Button>
 					</div>
 				</div>
-			</Dialog>
+			</SendouDialog>
 			{React.cloneElement(children, {
 				// @ts-expect-error broke with @types/react upgrade. TODO: figure out narrower type than React.ReactNode
-				onClick: openDialog,
+				onClick: openDialog, // TODO: when SendouButton has overtaken Button, this line can be removed
+				onPress: openDialog,
 				type: "button",
 			})}
 		</>

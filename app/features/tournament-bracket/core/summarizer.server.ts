@@ -1,18 +1,11 @@
-import shuffle from "just-shuffle";
 import type { Rating } from "node_modules/openskill/dist/types";
 import { ordinal } from "openskill";
-import type {
-	MapResult,
-	PlayerResult,
-	Skill,
-	TournamentResult,
-} from "~/db/types";
+import * as R from "remeda";
 import {
 	identifierToUserIds,
 	rate,
 	userIdsToIdentifier,
 } from "~/features/mmr/mmr-utils";
-import { removeDuplicates } from "~/utils/arrays";
 import invariant from "~/utils/invariant";
 import type { Tables } from "../../../db/tables";
 import type { AllMatchResult } from "../queries/allMatchResultsByTournamentId.server";
@@ -21,13 +14,16 @@ import type { Standing } from "./Bracket";
 
 export interface TournamentSummary {
 	skills: Omit<
-		Skill,
+		Tables["Skill"],
 		"tournamentId" | "id" | "ordinal" | "season" | "groupMatchId"
 	>[];
 	seedingSkills: Tables["SeedingSkill"][];
-	mapResultDeltas: Omit<MapResult, "season">[];
-	playerResultDeltas: Omit<PlayerResult, "season">[];
-	tournamentResults: Omit<TournamentResult, "tournamentId" | "isHighlight">[];
+	mapResultDeltas: Omit<Tables["MapResult"], "season">[];
+	playerResultDeltas: Omit<Tables["PlayerResult"], "season">[];
+	tournamentResults: Omit<
+		Tables["TournamentResult"],
+		"tournamentId" | "isHighlight"
+	>[];
 }
 
 type UserIdToTeamId = Record<number, number>;
@@ -137,12 +133,12 @@ export function calculateIndividualPlayerSkills({
 				: match.opponentTwo.id;
 
 		const participants = match.maps.flatMap((m) => m.participants);
-		const winnerUserIds = removeDuplicates(
+		const winnerUserIds = R.unique(
 			participants
 				.filter((p) => p.tournamentTeamId === winnerTeamId)
 				.map((p) => p.userId),
 		);
-		const loserUserIds = removeDuplicates(
+		const loserUserIds = R.unique(
 			participants
 				.filter((p) => p.tournamentTeamId !== winnerTeamId)
 				.map((p) => p.userId),
@@ -285,7 +281,7 @@ function selectMostPopular<T>(items: T[]): T {
 		return mostPopularItems[0][0];
 	}
 
-	return shuffle(mostPopularItems)[0][0];
+	return R.shuffle(mostPopularItems)[0][0];
 }
 
 function mapResultDeltas(
@@ -294,7 +290,7 @@ function mapResultDeltas(
 	const result: TournamentSummary["mapResultDeltas"] = [];
 
 	const addMapResult = (
-		mapResult: Pick<MapResult, "stageId" | "mode" | "userId"> & {
+		mapResult: Pick<Tables["MapResult"], "stageId" | "mode" | "userId"> & {
 			type: "win" | "loss";
 		},
 	) => {

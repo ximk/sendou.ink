@@ -1,10 +1,10 @@
+import type { Tables } from "~/db/tables";
+import { isAdmin } from "~/modules/permissions/utils";
+import { allTruthy } from "~/utils/arrays";
+import { databaseTimestampToDate } from "~/utils/dates";
 import { logger } from "~/utils/logger";
 import { assertUnreachable } from "~/utils/types";
-import { userDiscordIdIsAged } from "~/utils/users";
 import type { RegClosesAtOption } from "./calendar-constants";
-
-export const canAddNewEvent = (user: { discordId: string }) =>
-	userDiscordIdIsAged(user);
 
 export const calendarEventMinDate = () => new Date(Date.UTC(2015, 4, 28));
 export const calendarEventMaxDate = () => {
@@ -43,6 +43,8 @@ export function regClosesAtDate({
 			return new Date(startTime.getTime() - 360 * 60 * 1000);
 		case "12h":
 			return new Date(startTime.getTime() - 720 * 60 * 1000);
+		case "18h":
+			return new Date(startTime.getTime() - 1080 * 60 * 1000);
 		case "24h":
 			return new Date(startTime.getTime() - 1440 * 60 * 1000);
 		case "48h":
@@ -78,6 +80,8 @@ export function regClosesAtToDisplayName(closesAt: RegClosesAtOption) {
 			return "6 hours";
 		case "12h":
 			return "12 hours";
+		case "18h":
+			return "18 hours";
 		case "24h":
 			return "24 hours";
 		case "48h":
@@ -108,6 +112,7 @@ export function datesToRegClosesAt({
 	if (diff === 180 * 60 * 1000) return "3h";
 	if (diff === 360 * 60 * 1000) return "6h";
 	if (diff === 720 * 60 * 1000) return "12h";
+	if (diff === 1080 * 60 * 1000) return "18h";
 	if (diff === 1440 * 60 * 1000) return "24h";
 	if (diff === 2880 * 60 * 1000) return "48h";
 	if (diff === 4320 * 60 * 1000) return "72h";
@@ -138,4 +143,52 @@ export function closeByWeeks(args: { week: number; year: number }) {
 			year,
 		};
 	});
+}
+
+interface CanEditCalendarEventArgs {
+	user?: Pick<Tables["User"], "id">;
+	event: Pick<Tables["CalendarEvent"], "authorId">;
+}
+export function canEditCalendarEvent({
+	user,
+	event,
+}: CanEditCalendarEventArgs) {
+	if (isAdmin(user)) return true;
+
+	return user?.id === event.authorId;
+}
+
+export function canDeleteCalendarEvent({
+	user,
+	event,
+	startTime,
+}: CanEditCalendarEventArgs & { startTime: Date }) {
+	if (isAdmin(user)) return true;
+
+	return user?.id === event.authorId && startTime > new Date();
+}
+
+interface CanReportCalendarEventWinnersArgs {
+	user?: Pick<Tables["User"], "id">;
+	event: Pick<Tables["CalendarEvent"], "authorId">;
+	startTimes: number[];
+}
+export function canReportCalendarEventWinners({
+	user,
+	event,
+	startTimes,
+}: CanReportCalendarEventWinnersArgs) {
+	return allTruthy([
+		canEditCalendarEvent({ user, event }),
+		eventStartedInThePast(startTimes),
+	]);
+}
+
+function eventStartedInThePast(
+	startTimes: CanReportCalendarEventWinnersArgs["startTimes"],
+) {
+	return startTimes.every(
+		(startTime) =>
+			databaseTimestampToDate(startTime).getTime() < new Date().getTime(),
+	);
 }

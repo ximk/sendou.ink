@@ -1,12 +1,13 @@
 import { sub } from "date-fns";
+import * as R from "remeda";
 import type { Tables, TournamentStageSettings } from "~/db/tables";
-import { TOURNAMENT } from "~/features/tournament";
+import { TOURNAMENT } from "~/features/tournament/tournament-constants";
 import type { TournamentManagerDataSet } from "~/modules/brackets-manager/types";
 import type { Round } from "~/modules/brackets-model";
-import { removeDuplicates } from "~/utils/arrays";
 import invariant from "~/utils/invariant";
 import { logger } from "~/utils/logger";
 import { assertUnreachable } from "~/utils/types";
+import { cutToNDecimalPlaces } from "../../../utils/number";
 import { fillWithNullTillPowerOfTwo } from "../tournament-bracket-utils";
 import * as Progression from "./Progression";
 import type { OptionalIdObject, Tournament } from "./Tournament";
@@ -30,7 +31,7 @@ interface CreateBracketArgs {
 		bracketIdx: number;
 		placements: number[];
 	}[];
-	seeding?: number[];
+	seeding?: (number | null)[];
 	settings: TournamentStageSettings | null;
 	requiresCheckIn: boolean;
 	startTime: Date | null;
@@ -50,9 +51,14 @@ export interface Standing {
 		winsAgainstTied: number;
 		// first tiebreaker in swiss
 		lossesAgainstTied?: number;
-		buchholzSets?: number;
-		buchholzMaps?: number;
+		opponentSetWinPercentage?: number;
+		opponentMapWinPercentage?: number;
 	};
+}
+
+interface TeamTrackRecord {
+	wins: number;
+	losses: number;
 }
 
 export abstract class Bracket {
@@ -63,11 +69,15 @@ export abstract class Bracket {
 	simulatedData: TournamentManagerDataSet | undefined;
 	canBeStarted;
 	name;
+	/** Array of tournament team ids that could participate in this bracket but still need to check-in. */
 	teamsPendingCheckIn;
 	tournament;
 	sources;
 	createdAt;
-	seeding;
+	/** Seeding potentially including null values to include BYEs. To get a list of tournament teams use `tournamentTeamIds` or `teamsPendingCheckIn` instead.  */
+	seedingForBracketCreation;
+	/** Array of tournament team ids participating in this bracket. Excluding teams who still need to check-in. */
+	tournamentTeamIds;
 	settings;
 	requiresCheckIn;
 	startTime;
@@ -95,10 +105,10 @@ export abstract class Bracket {
 		this.id = id;
 		this.idx = idx;
 		this.preview = preview;
-		this.seeding = seeding;
+		this.seedingForBracketCreation = seeding;
 		this.tournament = tournament;
 		this.settings = settings;
-		this.data = data ?? this.generateMatchesData(this.seeding!);
+		this.data = data ?? this.generateMatchesData(seeding!);
 		this.canBeStarted = canBeStarted;
 		this.name = name;
 		this.teamsPendingCheckIn = teamsPendingCheckIn;
@@ -106,6 +116,7 @@ export abstract class Bracket {
 		this.createdAt = createdAt;
 		this.requiresCheckIn = requiresCheckIn;
 		this.startTime = startTime;
+		this.tournamentTeamIds = this.resolveTournamentTeamIds();
 
 		if (this.tournament.simulateBrackets) {
 			this.createdSimulation();
@@ -252,12 +263,18 @@ export abstract class Bracket {
 		throw new Error("not implemented");
 	}
 
-	get participantTournamentTeamIds() {
-		return removeDuplicates(
+	private resolveTournamentTeamIds() {
+		if (this.seedingForBracketCreation) {
+			return this.seedingForBracketCreation.filter(
+				(teamId) => typeof teamId === "number",
+			);
+		}
+
+		return R.unique(
 			this.data.match
 				.flatMap((match) => [match.opponent1?.id, match.opponent2?.id])
-				.filter(Boolean),
-		) as number[];
+				.filter((teamId) => typeof teamId === "number"),
+		);
 	}
 
 	currentStandings(_includeUnfinishedGroups: boolean) {
@@ -282,7 +299,7 @@ export abstract class Bracket {
 		});
 	}
 
-	generateMatchesData(teams: number[]) {
+	generateMatchesData(teams: (number | null)[]) {
 		const manager = getTournamentManager();
 
 		// we need some number but does not matter what it is as the manager only contains one tournament
@@ -342,10 +359,7 @@ export abstract class Bracket {
 	}
 
 	get enoughTeams() {
-		return (
-			this.participantTournamentTeamIds.length >=
-			TOURNAMENT.ENOUGH_TEAMS_TO_START
-		);
+		return this.tournamentTeamIds.length >= TOURNAMENT.ENOUGH_TEAMS_TO_START;
 	}
 
 	canCheckIn(user: OptionalIdObject) {
@@ -466,7 +480,7 @@ class SingleEliminationBracket extends Bracket {
 	}
 
 	private hasThirdPlaceMatch() {
-		return removeDuplicates(this.data.match.map((m) => m.group_id)).length > 1;
+		return R.unique(this.data.match.map((m) => m.group_id)).length > 1;
 	}
 
 	get standings(): Standing[] {
@@ -502,10 +516,10 @@ class SingleEliminationBracket extends Bracket {
 		}
 
 		const teamCountWhoDidntLoseYet =
-			this.participantTournamentTeamIds.length - teams.length;
+			this.tournamentTeamIds.length - teams.length;
 
 		const result: Standing[] = [];
-		for (const roundId of removeDuplicates(teams.map((team) => team.lostAt))) {
+		for (const roundId of R.unique(teams.map((team) => team.lostAt))) {
 			const teamsLostThisRound: { id: number }[] = [];
 			while (teams.length && teams[0].lostAt === roundId) {
 				teamsLostThisRound.push(teams.shift()!);
@@ -525,7 +539,7 @@ class SingleEliminationBracket extends Bracket {
 		}
 
 		if (teamCountWhoDidntLoseYet === 1) {
-			const winnerId = this.participantTournamentTeamIds.find((participantId) =>
+			const winnerId = this.tournamentTeamIds.find((participantId) =>
 				result.every(({ team }) => team.id !== participantId),
 			);
 			invariant(winnerId, "No winner identified");
@@ -660,10 +674,10 @@ class DoubleEliminationBracket extends Bracket {
 		}
 
 		const teamCountWhoDidntLoseInLosersYet =
-			this.participantTournamentTeamIds.length - teams.length;
+			this.tournamentTeamIds.length - teams.length;
 
 		const result: Standing[] = [];
-		for (const roundId of removeDuplicates(teams.map((team) => team.lostAt))) {
+		for (const roundId of R.unique(teams.map((team) => team.lostAt))) {
 			const teamsLostThisRound: { id: number }[] = [];
 			while (teams.length && teams[0].lostAt === roundId) {
 				teamsLostThisRound.push(teams.shift()!);
@@ -884,11 +898,9 @@ class RoundRobinBracket extends Bracket {
 		}
 		const standings = this.standings;
 		const relevantMatchesFinished =
-			standings.length === this.participantTournamentTeamIds.length;
+			standings.length === this.tournamentTeamIds.length;
 
-		const uniquePlacements = removeDuplicates(
-			standings.map((s) => s.placement),
-		);
+		const uniquePlacements = R.unique(standings.map((s) => s.placement));
 
 		// 1,3,5 -> 1,2,3 e.g.
 		const placementNormalized = (p: number) => {
@@ -1059,6 +1071,9 @@ class RoundRobinBracket extends Bracket {
 						if (a.mapWins > b.mapWins) return -1;
 						if (a.mapWins < b.mapWins) return 1;
 
+						if (a.mapLosses < b.mapLosses) return -1;
+						if (a.mapLosses > b.mapLosses) return 1;
+
 						if (a.points > b.points) return -1;
 						if (a.points < b.points) return 1;
 
@@ -1173,9 +1188,7 @@ class SwissBracket extends Bracket {
 			});
 		});
 
-		const uniquePlacements = removeDuplicates(
-			standings.map((s) => s.placement),
-		);
+		const uniquePlacements = R.unique(standings.map((s) => s.placement));
 
 		// 1,3,5 -> 1,2,3 e.g.
 		const placementNormalized = (p: number) => {
@@ -1223,8 +1236,8 @@ class SwissBracket extends Bracket {
 				mapLosses: number;
 				winsAgainstTied: number;
 				lossesAgainstTied: number;
-				buchholzSets: number;
-				buchholzMaps: number;
+				opponentSets: TeamTrackRecord;
+				opponentMaps: TeamTrackRecord;
 			}[] = [];
 
 			const updateTeam = ({
@@ -1233,16 +1246,16 @@ class SwissBracket extends Bracket {
 				setLosses = 0,
 				mapWins = 0,
 				mapLosses = 0,
-				buchholzSets = 0,
-				buchholzMaps = 0,
+				opponentSets = { wins: 0, losses: 0 },
+				opponentMaps = { wins: 0, losses: 0 },
 			}: {
 				teamId: number;
 				setWins?: number;
 				setLosses?: number;
 				mapWins?: number;
 				mapLosses?: number;
-				buchholzSets?: number;
-				buchholzMaps?: number;
+				opponentSets?: TeamTrackRecord;
+				opponentMaps?: TeamTrackRecord;
 			}) => {
 				const team = teams.find((team) => team.id === teamId);
 				if (team) {
@@ -1250,8 +1263,11 @@ class SwissBracket extends Bracket {
 					team.setLosses += setLosses;
 					team.mapWins += mapWins;
 					team.mapLosses += mapLosses;
-					team.buchholzSets += buchholzSets;
-					team.buchholzMaps += buchholzMaps;
+
+					team.opponentSets.wins += opponentSets.wins;
+					team.opponentSets.losses += opponentSets.losses;
+					team.opponentMaps.wins += opponentMaps.wins;
+					team.opponentMaps.losses += opponentMaps.losses;
 				} else {
 					teams.push({
 						id: teamId,
@@ -1261,8 +1277,8 @@ class SwissBracket extends Bracket {
 						mapLosses,
 						winsAgainstTied: 0,
 						lossesAgainstTied: 0,
-						buchholzMaps,
-						buchholzSets,
+						opponentMaps,
+						opponentSets,
 					});
 				}
 			};
@@ -1357,12 +1373,18 @@ class SwissBracket extends Bracket {
 				});
 			}
 
-			// buchholz
+			// opponent win %
 			for (const team of teams) {
 				const teamsWhoPlayedAgainst = matchUps.get(team.id) ?? [];
 
-				let buchholzSets = 0;
-				let buchholzMaps = 0;
+				const opponentSets = {
+					wins: 0,
+					losses: 0,
+				};
+				const opponentMaps = {
+					wins: 0,
+					losses: 0,
+				};
 
 				for (const teamId of teamsWhoPlayedAgainst) {
 					const opponent = teams.find((t) => t.id === teamId);
@@ -1373,14 +1395,17 @@ class SwissBracket extends Bracket {
 						continue;
 					}
 
-					buchholzSets += opponent.setWins;
-					buchholzMaps += opponent.mapWins;
+					opponentSets.wins += opponent.setWins;
+					opponentSets.losses += opponent.setLosses;
+
+					opponentMaps.wins += opponent.mapWins;
+					opponentMaps.losses += opponent.mapLosses;
 				}
 
 				updateTeam({
 					teamId: team.id,
-					buchholzSets,
-					buchholzMaps,
+					opponentSets,
+					opponentMaps,
 				});
 			}
 
@@ -1398,15 +1423,19 @@ class SwissBracket extends Bracket {
 
 					// they are different teams and are tied, let's check who won
 
-					const finishedMatchBetweenTeams = matches.find(
-						(match) =>
+					const finishedMatchBetweenTeams = matches.find((match) => {
+						const isBetweenTeams =
 							(match.opponent1?.id === team.id &&
 								match.opponent2?.id === team2.id) ||
 							(match.opponent1?.id === team2.id &&
-								match.opponent2?.id === team.id &&
-								(match.opponent1?.result === "win" ||
-									match.opponent2?.result === "win")),
-					);
+								match.opponent2?.id === team.id);
+
+						const isFinished =
+							match.opponent1?.result === "win" ||
+							match.opponent2?.result === "win";
+
+						return isBetweenTeams && isFinished;
+					});
 
 					// they did not play each other
 					if (!finishedMatchBetweenTeams) continue;
@@ -1443,14 +1472,35 @@ class SwissBracket extends Bracket {
 						if (a.lossesAgainstTied > b.lossesAgainstTied) return 1;
 						if (a.lossesAgainstTied < b.lossesAgainstTied) return -1;
 
+						const aOpponentSetWinPercentage = this.trackRecordToWinPercentage(
+							a.opponentSets,
+						);
+						const bOpponentSetWinPercentage = this.trackRecordToWinPercentage(
+							b.opponentSets,
+						);
+
+						if (aOpponentSetWinPercentage > bOpponentSetWinPercentage) {
+							return -1;
+						}
+						if (aOpponentSetWinPercentage < bOpponentSetWinPercentage) return 1;
+
+						const aOpponentMapWinPercentage = this.trackRecordToWinPercentage(
+							a.opponentMaps,
+						);
+						const bOpponentMapWinPercentage = this.trackRecordToWinPercentage(
+							b.opponentMaps,
+						);
+
+						if (aOpponentMapWinPercentage > bOpponentMapWinPercentage) {
+							return -1;
+						}
+						if (aOpponentMapWinPercentage < bOpponentMapWinPercentage) return 1;
+
 						if (a.mapWins > b.mapWins) return -1;
 						if (a.mapWins < b.mapWins) return 1;
 
-						if (a.buchholzSets > b.buchholzSets) return -1;
-						if (a.buchholzSets < b.buchholzSets) return 1;
-
-						if (a.buchholzMaps > b.buchholzMaps) return -1;
-						if (a.buchholzMaps < b.buchholzMaps) return 1;
+						if (a.mapLosses < b.mapLosses) return -1;
+						if (a.mapLosses > b.mapLosses) return 1;
 
 						const aSeed = Number(this.tournament.teamById(a.id)?.seed);
 						const bSeed = Number(this.tournament.teamById(b.id)?.seed);
@@ -1472,8 +1522,12 @@ class SwissBracket extends Bracket {
 								mapLosses: team.mapLosses,
 								winsAgainstTied: team.winsAgainstTied,
 								lossesAgainstTied: team.lossesAgainstTied,
-								buchholzSets: team.buchholzSets,
-								buchholzMaps: team.buchholzMaps,
+								opponentSetWinPercentage: this.trackRecordToWinPercentage(
+									team.opponentSets,
+								),
+								opponentMapWinPercentage: this.trackRecordToWinPercentage(
+									team.opponentMaps,
+								),
 								points: 0,
 							},
 						};
@@ -1507,6 +1561,13 @@ class SwissBracket extends Bracket {
 					stats: team.stats,
 				};
 			}),
+		);
+	}
+
+	private trackRecordToWinPercentage(trackRecord: TeamTrackRecord) {
+		return cutToNDecimalPlaces(
+			(trackRecord.wins / (trackRecord.wins + trackRecord.losses)) * 100,
+			2,
 		);
 	}
 

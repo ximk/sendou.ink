@@ -1,8 +1,4 @@
-import type {
-	LoaderFunctionArgs,
-	MetaFunction,
-	SerializeFrom,
-} from "@remix-run/node";
+import type { MetaFunction } from "@remix-run/node";
 import type { ShouldRevalidateFunction } from "@remix-run/react";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import * as React from "react";
@@ -12,16 +8,13 @@ import { Button } from "~/components/Button";
 import { Label } from "~/components/Label";
 import { Main } from "~/components/Main";
 import { MapPoolSelector, MapPoolStages } from "~/components/MapPoolSelector";
-import { Toggle } from "~/components/Toggle";
+import { SendouSwitch } from "~/components/elements/Switch";
 import { EditIcon } from "~/components/icons/Edit";
-import type { CalendarEvent } from "~/db/types";
-import { getUserId } from "~/features/auth/core/user.server";
-import * as CalendarRepository from "~/features/calendar/CalendarRepository.server";
-import { i18next } from "~/modules/i18n/i18next.server";
+import type { Tables } from "~/db/tables";
 import { type ModeWithStage, stageIds } from "~/modules/in-game-lists";
 import invariant from "~/utils/invariant";
+import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
-import { makeTitle } from "~/utils/strings";
 import {
 	MAPS_URL,
 	calendarEventPage,
@@ -33,7 +26,10 @@ import { modesOrder } from "../core/map-list-generator/modes";
 import { mapPoolToNonEmptyModes } from "../core/map-list-generator/utils";
 import { MapPool } from "../core/map-pool";
 
-import "~/styles/maps.css";
+import styles from "./maps.module.css";
+
+import { loader } from "../loaders/maps.server";
+export { loader };
 
 const AMOUNT_OF_MAPS_IN_MAP_LIST = stageIds.length * 2;
 
@@ -45,11 +41,13 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({ nextUrl }) => {
 };
 
 export const meta: MetaFunction = (args) => {
-	const data = args.data as SerializeFrom<typeof loader> | null;
-
-	if (!data) return [];
-
-	return [{ title: data.title }];
+	return metaTags({
+		title: "Map List Generator",
+		ogTitle: "Splatoon 3 map list generator",
+		description:
+			"Generate a map list based on maps you choose or a tournament's map pool.",
+		location: args.location,
+	});
 };
 
 export const handle: SendouRouteHandle = {
@@ -61,34 +59,6 @@ export const handle: SendouRouteHandle = {
 	}),
 };
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const user = await getUserId(request);
-	const url = new URL(request.url);
-	const calendarEventId = url.searchParams.get("eventId");
-	const t = await i18next.getFixedT(request);
-
-	const event = calendarEventId
-		? await CalendarRepository.findById({
-				id: Number(calendarEventId),
-				includeMapPool: true,
-			})
-		: undefined;
-
-	return {
-		calendarEvent: event
-			? {
-					id: event.eventId,
-					name: event.name,
-					mapPool: event.mapPool,
-				}
-			: undefined,
-		recentEventsWithMapPools: user
-			? await CalendarRepository.findRecentMapPoolsByAuthorId(user.id)
-			: undefined,
-		title: makeTitle([t("pages.maps")]),
-	};
-};
-
 export default function MapListPage() {
 	const { t } = useTranslation(["common"]);
 	const data = useLoaderData<typeof loader>();
@@ -97,16 +67,14 @@ export default function MapListPage() {
 		useSearchParamPersistedMapPool();
 
 	return (
-		<Main className="maps__container stack lg">
+		<Main className={`${styles.container} stack lg`}>
 			{searchParams.has("readonly") && data.calendarEvent && (
-				<div className="maps__pool-meta">
-					<div className="maps__pool-info">
+				<div className={styles.poolMeta}>
+					<div className={styles.poolInfo}>
 						{t("common:maps.mapPool")}:{" "}
-						{
-							<Link to={calendarEventPage(data.calendarEvent.id)}>
-								{data.calendarEvent.name}
-							</Link>
-						}
+						<Link to={calendarEventPage(data.calendarEvent.id)}>
+							{data.calendarEvent.name}
+						</Link>
 					</div>
 					<Button
 						variant="outlined"
@@ -127,14 +95,14 @@ export default function MapListPage() {
 					recentEvents={data.recentEventsWithMapPools}
 					initialEvent={data.calendarEvent}
 					allowBulkEdit
-					className="maps__pool-selector"
+					className={styles.poolSelector}
 				/>
 			)}
 			<a
 				href={ipLabsMaps(mapPool.serialized)}
 				target="_blank"
 				rel="noreferrer"
-				className="maps__tournament-map-list-link"
+				className={styles.tournamentMapListLink}
 			>
 				{t("common:maps.tournamentMaplist")}
 			</a>
@@ -143,7 +111,7 @@ export default function MapListPage() {
 	);
 }
 
-function useSearchParamPersistedMapPool() {
+export function useSearchParamPersistedMapPool() {
 	const data = useLoaderData<typeof loader>();
 	const [searchParams, setSearchParams] = useSearchParams();
 
@@ -161,7 +129,7 @@ function useSearchParamPersistedMapPool() {
 
 	const handleMapPoolChange = (
 		newMapPool: MapPool,
-		event?: Pick<CalendarEvent, "id" | "name">,
+		event?: Pick<Tables["CalendarEvent"], "id" | "name">,
 	) => {
 		setMapPool(newMapPool);
 		setSearchParams(
@@ -216,21 +184,25 @@ function MapListCreator({ mapPool }: { mapPool: MapPool }) {
 		mapPool.isEmpty() || (szEveryOther && !mapPool.hasMode("SZ"));
 
 	return (
-		<div className="maps__map-list-creator">
-			<div className="maps__toggle-container">
+		<div className={styles.mapListCreator}>
+			<div className={styles.toggleContainer}>
 				<Label>{t("common:maps.halfSz")}</Label>
-				<Toggle checked={szEveryOther} setChecked={setSzEveryOther} tiny />
+				<SendouSwitch
+					isSelected={szEveryOther}
+					onChange={setSzEveryOther}
+					size="small"
+				/>
 			</div>
 			<Button onClick={handleCreateMaplist} disabled={disabled}>
 				{t("common:maps.createMapList")}
 			</Button>
 			{mapList && (
 				<>
-					<ol className="maps__map-list">
+					<ol className={styles.mapList}>
 						{mapList.map(({ mode, stageId }, i) => (
 							<li key={i}>
 								<abbr
-									className="maps__mode-abbr"
+									className={styles.modeAbbr}
 									title={t(`game-misc:MODE_LONG_${mode}`)}
 								>
 									{t(`game-misc:MODE_SHORT_${mode}`)}

@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import * as React from "react";
-import type { User } from "~/db/types";
+import type { Tables } from "~/db/tables";
 import { BLANK_IMAGE_URL, discordAvatarUrl } from "~/utils/urls";
 
 const dimensions = {
@@ -13,7 +13,7 @@ const dimensions = {
 	lg: 125,
 } as const;
 
-function _Avatar({
+export function Avatar({
 	user,
 	url,
 	size = "sm",
@@ -21,7 +21,7 @@ function _Avatar({
 	alt = "",
 	...rest
 }: {
-	user?: Pick<User, "discordId" | "discordAvatar">;
+	user?: Pick<Tables["User"], "discordId" | "discordAvatar">;
 	url?: string;
 	className?: string;
 	alt?: string;
@@ -60,5 +60,3 @@ function _Avatar({
 		/>
 	);
 }
-
-export const Avatar = React.memo(_Avatar);

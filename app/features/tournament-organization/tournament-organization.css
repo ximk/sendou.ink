@@ -106,7 +106,9 @@
 
 	.org__calendar__container {
 		position: sticky;
-		top: 47px;
+		/* TODO: uncomment when top nav is sticky again */
+		/* top: 47px; */
+		top: 0;
 	}
 }
 
@@ -176,10 +178,6 @@
 
 .org__social-link__icon-container.youtube svg {
 	fill: #f00;
-}
-
-.org__social-link__icon-container.twitter svg {
-	fill: #1da1f2;
 }
 
 .org__social-link__icon-container.bsky path {

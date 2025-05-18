@@ -1,8 +1,11 @@
 import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/sqlite";
 import { db } from "~/db/sql";
-import type { ParsedMemento, Tables } from "~/db/tables";
-import type { UserSkillDifference } from "~/db/types";
-import type { MainWeaponId } from "~/modules/in-game-lists";
+import type {
+	ParsedMemento,
+	QWeaponPool,
+	Tables,
+	UserSkillDifference,
+} from "~/db/tables";
 import { COMMON_USER_FIELDS, userChatNameColor } from "~/utils/kysely.server";
 
 export function findById(id: number) {
@@ -33,7 +36,7 @@ export function findById(id: number) {
 						"GroupMatchMap.winnerGroupId",
 					])
 					.where("GroupMatchMap.matchId", "=", id)
-					.orderBy("GroupMatchMap.index asc"),
+					.orderBy("GroupMatchMap.index", "asc"),
 			).as("mapList"),
 		])
 		.where("GroupMatch.id", "=", id)
@@ -58,7 +61,7 @@ export interface GroupForMatch {
 		role: Tables["GroupMember"]["role"];
 		customUrl: Tables["User"]["customUrl"];
 		inGameName: Tables["User"]["inGameName"];
-		weapons: Array<MainWeaponId>;
+		weapons: Array<QWeaponPool>;
 		chatNameColor: string | null;
 		vc: Tables["User"]["vc"];
 		languages: string[];
@@ -122,7 +125,7 @@ export async function findGroupById({
 							.selectFrom("UserFriendCode")
 							.select("UserFriendCode.friendCode")
 							.whereRef("UserFriendCode.userId", "=", "User.id")
-							.orderBy("UserFriendCode.createdAt desc")
+							.orderBy("UserFriendCode.createdAt", "desc")
 							.limit(1)
 							.as("friendCode"),
 						jsonObjectFrom(
@@ -139,7 +142,7 @@ export async function findGroupById({
 						userChatNameColor,
 					])
 					.where("GroupMember.groupId", "=", groupId)
-					.orderBy("GroupMember.userId asc"),
+					.orderBy("GroupMember.userId", "asc"),
 			).as("members"),
 		])
 		.where("Group.id", "=", groupId)

@@ -1,7 +1,7 @@
+import * as R from "remeda";
 import { sql } from "~/db/sql";
-import type { TournamentMatchGameResult, User } from "~/db/types";
+import type { Tables } from "~/db/tables";
 import type { ModeShort, StageId } from "~/modules/in-game-lists";
-import { removeDuplicatesByProperty } from "~/utils/arrays";
 import { parseDBArray } from "~/utils/sql";
 
 const stm = sql.prepare(/* sql */ `
@@ -89,12 +89,15 @@ export interface SetHistoryByTeamIdItem {
 	groupNumber: number;
 	matches: {
 		stageId: StageId;
-		source: TournamentMatchGameResult["source"];
+		source: Tables["TournamentMatchGameResult"]["source"];
 		mode: ModeShort;
 		wasWinner: number;
 	}[];
 	players: Array<
-		Pick<User, "id" | "username" | "discordAvatar" | "discordId" | "customUrl">
+		Pick<
+			Tables["User"],
+			"id" | "username" | "discordAvatar" | "discordId" | "customUrl"
+		>
 	>;
 }
 
@@ -108,10 +111,7 @@ export function setHistoryByTeamId(
 			...row,
 			matches: parseDBArray(row.matches),
 			// TODO: there is probably a way to do this in SQL
-			players: removeDuplicatesByProperty(
-				parseDBArray(row.players),
-				(u: Pick<User, "id">) => u.id,
-			),
+			players: R.uniqueBy(parseDBArray(row.players), (u) => u.id),
 		};
 	});
 }

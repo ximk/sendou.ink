@@ -1,8 +1,4 @@
-import type {
-	LoaderFunctionArgs,
-	MetaFunction,
-	SerializeFrom,
-} from "@remix-run/node";
+import type { MetaFunction, SerializeFrom } from "@remix-run/node";
 import {
 	Outlet,
 	type ShouldRevalidateFunction,
@@ -14,30 +10,25 @@ import { useTranslation } from "react-i18next";
 import { Main } from "~/components/Main";
 import { SubNav, SubNavLink } from "~/components/SubNav";
 import { useUser } from "~/features/auth/core/user";
-import { getUser } from "~/features/auth/core/user.server";
 import { Tournament } from "~/features/tournament-bracket/core/Tournament";
-import { tournamentDataCached } from "~/features/tournament-bracket/core/Tournament.server";
-import * as TournamentRepository from "~/features/tournament/TournamentRepository.server";
 import { useIsMounted } from "~/hooks/useIsMounted";
-import { isAdmin } from "~/permissions";
-import { databaseTimestampToDate } from "~/utils/dates";
 import type { SendouRouteHandle } from "~/utils/remix.server";
-import { makeTitle } from "~/utils/strings";
+import { removeMarkdown } from "~/utils/strings";
 import { assertUnreachable } from "~/utils/types";
 import {
+	tournamentDivisionsPage,
 	tournamentOrganizationPage,
 	tournamentPage,
+	tournamentRegisterPage,
 	userSubmittedImage,
 } from "~/utils/urls";
-import { streamsByTournamentId } from "../core/streams.server";
-import {
-	HACKY_resolvePicture,
-	tournamentIdFromParams,
-} from "../tournament-utils";
+import { metaTags } from "../../../utils/remix";
 
-import "../tournament.css";
-import "~/styles/maps.css";
+import { type TournamentLoaderData, loader } from "../loaders/to.$id.server";
+export { loader };
+
 import "~/styles/calendar-event.css";
+import "../tournament.css";
 
 export const shouldRevalidate: ShouldRevalidateFunction = (args) => {
 	const navigatedToMatchPage =
@@ -53,52 +44,18 @@ export const meta: MetaFunction = (args) => {
 
 	if (!data) return [];
 
-	const title = makeTitle(data.tournament.ctx.name);
-
-	const ogImage = () => {
-		if (
-			!data.tournament.ctx.logoSrc ||
-			data.tournament.ctx.logoSrc.startsWith("https")
-		) {
-			return data.tournament.ctx.logoSrc;
-		}
-
-		// opengraph does not support relative urls
-		return `${import.meta.env.VITE_SITE_DOMAIN}${data.tournament.ctx.logoSrc}`;
-	};
-
-	return [
-		{ title },
-		{
-			property: "og:title",
-			content: title,
+	return metaTags({
+		title: data.tournament.ctx.name,
+		description: data.tournament.ctx.description
+			? removeMarkdown(data.tournament.ctx.description)
+			: undefined,
+		image: {
+			url: data.tournament.ctx.logoSrc,
+			dimensions: { width: 124, height: 124 },
 		},
-		{
-			property: "og:description",
-			content: data.tournament.ctx.description,
-		},
-		{
-			property: "og:type",
-			content: "website",
-		},
-		{
-			property: "og:image",
-			content: ogImage(),
-		},
-		// Twitter special snowflake tags, see https://developer.x.com/en/docs/twitter-for-websites/cards/overview/summary
-		{
-			name: "twitter:card",
-			content: "summary",
-		},
-		{
-			name: "twitter:title",
-			content: title,
-		},
-		{
-			name: "twitter:site",
-			content: "@sendouink",
-		},
-	];
+		location: args.location,
+		url: tournamentPage(data.tournament.ctx.id),
+	});
 };
 
 export const handle: SendouRouteHandle = {
@@ -123,9 +80,7 @@ export const handle: SendouRouteHandle = {
 					}
 				: null,
 			{
-				imgPath: data.tournament.ctx.logoUrl
-					? userSubmittedImage(data.tournament.ctx.logoUrl)
-					: HACKY_resolvePicture(data.tournament.ctx),
+				imgPath: data.tournament.ctx.logoSrc,
 				href: tournamentPage(data.tournament.ctx.id),
 				type: "IMAGE" as const,
 				text: data.tournament.ctx.name,
@@ -133,55 +88,6 @@ export const handle: SendouRouteHandle = {
 			},
 		].filter((crumb) => crumb !== null);
 	},
-};
-
-export type TournamentLoaderData = SerializeFrom<typeof loader>;
-
-export const loader = async ({ params, request }: LoaderFunctionArgs) => {
-	const user = await getUser(request);
-	const tournamentId = tournamentIdFromParams(params);
-
-	const tournament = await tournamentDataCached({ tournamentId, user });
-
-	const streams =
-		tournament.data.stage.length > 0 && !tournament.ctx.isFinalized
-			? await streamsByTournamentId(tournament.ctx)
-			: [];
-
-	const tournamentStartedInTheLastMonth =
-		databaseTimestampToDate(tournament.ctx.startTime) >
-		new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-	const isTournamentAdmin =
-		tournament.ctx.author.id === user?.id ||
-		tournament.ctx.staff.some(
-			(s) => s.role === "ORGANIZER" && s.id === user?.id,
-		) ||
-		isAdmin(user) ||
-		tournament.ctx.organization?.members.some(
-			(m) => m.userId === user?.id && m.role === "ADMIN",
-		);
-	const isTournamentOrganizer =
-		isTournamentAdmin ||
-		tournament.ctx.staff.some(
-			(s) => s.role === "ORGANIZER" && s.id === user?.id,
-		) ||
-		tournament.ctx.organization?.members.some(
-			(m) => m.userId === user?.id && m.role === "ORGANIZER",
-		);
-	const showFriendCodes = tournamentStartedInTheLastMonth && isTournamentAdmin;
-
-	return {
-		tournament,
-		streamingParticipants: streams.flatMap((s) => (s.userId ? [s.userId] : [])),
-		streamsCount: streams.length,
-		friendCodes: showFriendCodes
-			? await TournamentRepository.friendCodesByTournamentId(tournamentId)
-			: undefined,
-		preparedMaps:
-			isTournamentOrganizer && !tournament.ctx.isFinalized
-				? await TournamentRepository.findPreparedMapsById(tournamentId)
-				: undefined,
-	};
 };
 
 const TournamentContext = React.createContext<Tournament>(null!);
@@ -245,12 +151,37 @@ export function TournamentLayout() {
 	return (
 		<Main bigger>
 			<SubNav>
-				<SubNavLink to="register" data-testid="register-tab" prefetch="intent">
-					{tournament.hasStarted ? "Info" : t("tournament:tabs.register")}
+				<SubNavLink
+					to={tournamentRegisterPage(
+						tournament.isLeagueDivision
+							? tournament.ctx.parentTournamentId!
+							: tournament.ctx.id,
+					)}
+					data-testid="register-tab"
+					prefetch="intent"
+				>
+					{tournament.hasStarted || tournament.isLeagueDivision
+						? "Info"
+						: t("tournament:tabs.register")}
 				</SubNavLink>
-				<SubNavLink to="brackets" data-testid="brackets-tab" prefetch="render">
-					{t("tournament:tabs.brackets")}
-				</SubNavLink>
+				{!tournament.isLeagueSignup ? (
+					<SubNavLink
+						to="brackets"
+						data-testid="brackets-tab"
+						prefetch="render"
+					>
+						{t("tournament:tabs.brackets")}
+					</SubNavLink>
+				) : null}
+				{tournament.isLeagueSignup || tournament.isLeagueDivision ? (
+					<SubNavLink
+						to={tournamentDivisionsPage(
+							tournament.ctx.parentTournamentId ?? tournament.ctx.id,
+						)}
+					>
+						Divisions
+					</SubNavLink>
+				) : null}
 				<SubNavLink
 					to="teams"
 					end={false}
@@ -276,9 +207,11 @@ export function TournamentLayout() {
 						{t("tournament:tabs.results")}
 					</SubNavLink>
 				) : null}
-				{tournament.isOrganizer(user) && !tournament.hasStarted && (
-					<SubNavLink to="seeds">{t("tournament:tabs.seeds")}</SubNavLink>
-				)}
+				{tournament.isOrganizer(user) &&
+					!tournament.hasStarted &&
+					!tournament.isLeagueSignup && (
+						<SubNavLink to="seeds">{t("tournament:tabs.seeds")}</SubNavLink>
+					)}
 				{tournament.isOrganizer(user) && !tournament.everyBracketOver && (
 					<SubNavLink to="admin" data-testid="admin-tab">
 						{t("tournament:tabs.admin")}

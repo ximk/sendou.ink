@@ -1,7 +1,10 @@
 import clsx from "clsx";
 import type { TournamentRoundMaps } from "~/db/tables";
+import { useTournament } from "~/features/tournament/routes/to.$id";
+import { resolveLeagueRoundStartDate } from "~/features/tournament/tournament-utils";
 import { useAutoRerender } from "~/hooks/useAutoRerender";
 import { useIsMounted } from "~/hooks/useIsMounted";
+import { TOURNAMENT } from "../../../tournament/tournament-constants";
 import { useDeadline } from "./useDeadline";
 
 export function RoundHeader({
@@ -17,12 +20,14 @@ export function RoundHeader({
 	showInfos?: boolean;
 	maps?: TournamentRoundMaps | null;
 }) {
+	const leagueRoundStartDate = useLeagueWeekStart(roundId);
+
 	const hasDeadline = ![
-		"WB Finals",
-		"Grand Finals",
-		"Bracket Reset",
-		"Finals",
-	].includes(name);
+		TOURNAMENT.ROUND_NAMES.WB_FINALS,
+		TOURNAMENT.ROUND_NAMES.GRAND_FINALS,
+		TOURNAMENT.ROUND_NAMES.BRACKET_RESET,
+		TOURNAMENT.ROUND_NAMES.FINALS,
+	].includes(name as any);
 
 	const countPrefix = maps?.type === "PLAY_ALL" ? "Play all " : "Bo";
 
@@ -36,7 +41,7 @@ export function RoundHeader({
 	return (
 		<div>
 			<div className="elim-bracket__round-header">{name}</div>
-			{showInfos && bestOf ? (
+			{showInfos && bestOf && !leagueRoundStartDate ? (
 				<div className="elim-bracket__round-header__infos">
 					<div>
 						{countPrefix}
@@ -44,6 +49,16 @@ export function RoundHeader({
 						{pickBanSuffix}
 					</div>
 					{hasDeadline ? <Deadline roundId={roundId} bestOf={bestOf} /> : null}
+				</div>
+			) : leagueRoundStartDate ? (
+				<div className="elim-bracket__round-header__infos">
+					<div>
+						{leagueRoundStartDate.toLocaleDateString("en-US", {
+							month: "short",
+							day: "numeric",
+						})}{" "}
+						→
+					</div>
 				</div>
 			) : (
 				<div className="elim-bracket__round-header__infos invisible">
@@ -74,4 +89,15 @@ function Deadline({ roundId, bestOf }: { roundId: number; bestOf: number }) {
 			})}
 		</div>
 	);
+}
+
+function useLeagueWeekStart(roundId: number) {
+	const tournament = useTournament();
+
+	const bracketIdx = tournament.brackets.findIndex((b) =>
+		b.data.round.some((r) => r.id === roundId),
+	);
+	if (bracketIdx !== 0) return null;
+
+	return resolveLeagueRoundStartDate(tournament, roundId);
 }

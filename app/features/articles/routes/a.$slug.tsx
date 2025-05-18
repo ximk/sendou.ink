@@ -1,23 +1,20 @@
-import type {
-	LoaderFunctionArgs,
-	MetaFunction,
-	SerializeFrom,
-} from "@remix-run/node";
+import type { MetaFunction, SerializeFrom } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import Markdown from "markdown-to-jsx";
 import * as React from "react";
 import { Main } from "~/components/Main";
 import invariant from "~/utils/invariant";
 import type { SendouRouteHandle } from "~/utils/remix.server";
-import { notFoundIfFalsy } from "~/utils/remix.server";
-import { makeTitle } from "~/utils/strings";
 import {
 	ARTICLES_MAIN_PAGE,
 	articlePage,
 	articlePreviewUrl,
 	navIconUrl,
 } from "~/utils/urls";
-import { articleBySlug } from "../core/bySlug.server";
+import { metaTags } from "../../../utils/remix";
+
+import { loader } from "../loaders/a.$slug.server";
+export { loader };
 
 export const handle: SendouRouteHandle = {
 	breadcrumb: ({ match }) => {
@@ -48,24 +45,14 @@ export const meta: MetaFunction = (args) => {
 
 	const description = data.content.trim().split("\n")[0];
 
-	return [
-		{ title: makeTitle(data.title) },
-		{ property: "og:title", content: data.title },
-		{ name: "description", content: description },
-		{ property: "og:description", content: description },
-		{ name: "twitter:card", content: "summary_large_image" },
-		{ property: "og:image", content: articlePreviewUrl(args.params.slug) },
-		{ property: "og:type", content: "article" },
-		{ property: "og:site_name", content: "sendou.ink" },
-	];
-};
-
-export const loader = ({ params }: LoaderFunctionArgs) => {
-	invariant(params.slug);
-
-	const article = notFoundIfFalsy(articleBySlug(params.slug));
-
-	return { ...article, slug: params.slug };
+	return metaTags({
+		title: data.title,
+		description,
+		image: {
+			url: articlePreviewUrl(args.params.slug),
+		},
+		location: args.location,
+	});
 };
 
 export default function ArticlePage() {

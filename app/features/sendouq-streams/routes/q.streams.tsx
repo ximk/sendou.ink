@@ -1,3 +1,4 @@
+import type { MetaFunction } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "~/components/Avatar";
@@ -8,9 +9,12 @@ import { useAutoRerender } from "~/hooks/useAutoRerender";
 import { useIsMounted } from "~/hooks/useIsMounted";
 import { twitchThumbnailUrlToSrc } from "~/modules/twitch/utils";
 import { databaseTimestampToDate } from "~/utils/dates";
+import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import { FAQ_PAGE, sendouQMatchPage, twitchUrl, userPage } from "~/utils/urls";
-import { cachedStreams } from "../core/streams.server";
+
+import { loader } from "../loaders/q.streams.server";
+export { loader };
 
 import "~/features/sendouq/q.css";
 
@@ -18,10 +22,12 @@ export const handle: SendouRouteHandle = {
 	i18n: ["q"],
 };
 
-export const loader = async () => {
-	return {
-		streams: await cachedStreams(),
-	};
+export const meta: MetaFunction = (args) => {
+	return metaTags({
+		title: "SendouQ - Streams",
+		description: "Streams of SendouQ matches in progress.",
+		location: args.location,
+	});
 };
 
 export default function SendouQStreamsPage() {

@@ -1,10 +1,15 @@
 import { vitePlugin as remix } from "@remix-run/dev";
 import { installGlobals } from "@remix-run/node";
 import { defineConfig } from "vite";
+import babel from "vite-plugin-babel";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { configDefaults } from "vitest/config";
 
 installGlobals();
+
+const ReactCompilerConfig = {
+	target: "18",
+};
 
 export default defineConfig(() => {
 	return {
@@ -20,6 +25,14 @@ export default defineConfig(() => {
 					v3_relativeSplatPath: true,
 					v3_throwAbortReason: true,
 					v3_routeConfig: true,
+					v3_lazyRouteDiscovery: true,
+				},
+			}),
+			babel({
+				filter: /\.[jt]sx?$/,
+				babelConfig: {
+					presets: ["@babel/preset-typescript"],
+					plugins: [["babel-plugin-react-compiler", ReactCompilerConfig]],
 				},
 			}),
 			tsconfigPaths(),

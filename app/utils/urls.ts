@@ -1,16 +1,5 @@
 import slugify from "slugify";
-import type navItems from "~/components/layout/nav-items.json";
-import type { Preference } from "~/db/tables";
-import type {
-	Art,
-	Badge,
-	CalendarEvent,
-	GearType,
-	GroupMatch,
-	MapPoolMap,
-	User,
-	XRankPlacement,
-} from "~/db/types";
+import type { GearType, Preference, Tables } from "~/db/tables";
 import type { ArtSource } from "~/features/art/art-types";
 import type { AuthErrorCode } from "~/features/auth/core/errors";
 import { serializeBuild } from "~/features/build-analyzer";
@@ -68,7 +57,6 @@ export const conditionalUserSubmittedImage = (fileName: string) =>
 
 export const PLUS_SERVER_DISCORD_URL = "https://discord.gg/FW4dKrY";
 export const SENDOU_INK_DISCORD_URL = "https://discord.gg/sendou";
-export const SENDOU_TWITTER_URL = "https://twitter.com/sendouc";
 export const SENDOU_INK_PATREON_URL = "https://patreon.com/sendou";
 export const NINTENDO_COMMUNITY_TOURNAMENTS_GUIDELINES_URL =
 	"https://en-americas-support.nintendo.com/app/answers/detail/a_id/63454";
@@ -77,11 +65,6 @@ export const PATREON_HOW_TO_CONNECT_DISCORD_URL =
 export const SENDOU_INK_GITHUB_URL = "https://github.com/Sendouc/sendou.ink";
 export const GITHUB_CONTRIBUTORS_URL =
 	"https://github.com/Sendouc/sendou.ink/graphs/contributors";
-export const BORZOIC_TWITTER = "https://twitter.com/borzoic_";
-export const LEAN_TWITTER = "https://twitter.com/LeanYoshi";
-export const UBERU_TWITTER = "https://twitter.com/uberu5";
-export const YAGA_TWITTER = "https://twitter.com/a_bog_hag";
-export const ANTARISKA_TWITTER = "https://twitter.com/antariska_spl";
 export const ipLabsMaps = (pool: string) =>
 	`https://maps.iplabs.ink/?3&pool=${pool}`;
 export const SPLATOON_3_INK = "https://splatoon3.ink/";
@@ -90,8 +73,6 @@ export const RHODESMAS_FREESOUND_PROFILE_URL =
 export const SPR_INFO_URL =
 	"https://www.pgstats.com/articles/introducing-spr-and-uf";
 
-export const twitterUrl = (accountName: string) =>
-	`https://twitter.com/${accountName}`;
 export const bskyUrl = (accountName: string) =>
 	`https://bsky.app/profile/${accountName}`;
 export const twitchUrl = (accountName: string) =>
@@ -135,6 +116,8 @@ export const TIERS_PAGE = "/tiers";
 export const SUSPENDED_PAGE = "/suspended";
 export const LFG_PAGE = "/lfg";
 export const SETTINGS_PAGE = "/settings";
+export const LUTI_PAGE = "/luti";
+export const PLUS_VOTING_PAGE = "/plus/voting";
 
 export const BLANK_IMAGE_URL = "/static-assets/img/blank.gif";
 export const COMMON_PREVIEW_IMAGE =
@@ -156,9 +139,12 @@ export const GET_ALL_EVENTS_WITH_MAP_POOLS_ROUTE = "/calendar/map-pool-events";
 export const GET_TRUSTERS_ROUTE = "/trusters";
 export const PATRONS_LIST_ROUTE = "/patrons-list";
 
+export const NOTIFICATIONS_URL = "/notifications";
+export const NOTIFICATIONS_MARK_AS_SEEN_ROUTE = "/notifications/seen";
+
 interface UserLinkArgs {
-	discordId: User["discordId"];
-	customUrl?: User["customUrl"];
+	discordId: Tables["User"]["discordId"];
+	customUrl?: Tables["User"]["customUrl"];
 }
 
 export const userPage = (user: UserLinkArgs) =>
@@ -185,9 +171,13 @@ export const newVodPage = (vodToEditId?: number) =>
 export const userResultsEditHighlightsPage = (user: UserLinkArgs) =>
 	`${userResultsPage(user)}/highlights`;
 export const artPage = (tag?: string) => `/art${tag ? `?tag=${tag}` : ""}`;
-export const userArtPage = (user: UserLinkArgs, source?: ArtSource) =>
-	`${userPage(user)}/art${source ? `?source=${source}` : ""}`;
-export const newArtPage = (artId?: Art["id"]) =>
+export const userArtPage = (
+	user: UserLinkArgs,
+	source?: ArtSource,
+	bigArtId?: number,
+) =>
+	`${userPage(user)}/art${source ? `?source=${source}` : ""}${bigArtId ? `?big=${bigArtId}` : ""}`;
+export const newArtPage = (artId?: Tables["Art"]["id"]) =>
 	`${artPage()}/new${artId ? `?art=${artId}` : ""}`;
 export const userNewBuildPage = (
 	user: UserLinkArgs,
@@ -221,7 +211,7 @@ export const topSearchPage = (args?: {
 	month: number;
 	year: number;
 	mode: ModeShort;
-	region: XRankPlacement["region"];
+	region: Tables["XRankPlacement"]["region"];
 }) =>
 	args
 		? `/xsearch?month=${args.month}&year=${args.year}&mode=${args.mode}&region=${args.region}`
@@ -314,6 +304,8 @@ export const tournamentBracketsPage = ({
 		query.size > 0 ? `?${query.toString()}` : ""
 	}`;
 };
+export const tournamentDivisionsPage = (tournamentId: number) =>
+	`/to/${tournamentId}/divisions`;
 export const tournamentResultsPage = (tournamentId: number) =>
 	`/to/${tournamentId}/results`;
 export const tournamentBracketsSubscribePage = (tournamentId: number) =>
@@ -357,8 +349,28 @@ export const tournamentOrganizationEditPage = (organizationSlug: string) =>
 export const sendouQInviteLink = (inviteCode: string) =>
 	`${SENDOUQ_PAGE}?${JOIN_CODE_SEARCH_PARAM_KEY}=${inviteCode}`;
 
-export const sendouQMatchPage = (id: GroupMatch["id"]) => {
+export const sendouQMatchPage = (id: Tables["GroupMatch"]["id"]) => {
 	return `${SENDOUQ_PAGE}/match/${id}`;
+};
+
+export const scrimsPage = () => {
+	return "/scrims";
+};
+
+export const scrimPage = (id: number) => {
+	return `${scrimsPage()}/${id}`;
+};
+
+export const newScrimPostPage = () => {
+	return "/scrims/new";
+};
+
+export const associationsPage = (inviteCode?: string) => {
+	return `/associations${inviteCode ? `?inviteCode=${inviteCode}` : ""}`;
+};
+
+export const newAssociationsPage = () => {
+	return "/associations/new";
 };
 
 export const getWeaponUsage = ({
@@ -375,9 +387,9 @@ export const getWeaponUsage = ({
 	return `/weapon-usage?userId=${userId}&season=${season}&modeShort=${modeShort}&stageId=${stageId}`;
 };
 
-export const mapsPage = (eventId?: MapPoolMap["calendarEventId"]) =>
+export const mapsPage = (eventId?: Tables["MapPoolMap"]["calendarEventId"]) =>
 	`/maps${eventId ? `?eventId=${eventId}` : ""}`;
-export const readonlyMapsPage = (eventId: CalendarEvent["id"]) =>
+export const readonlyMapsPage = (eventId: Tables["CalendarEvent"]["id"]) =>
 	`/maps?readonly&eventId=${eventId}`;
 export const articlePage = (slug: string) => `${ARTICLES_MAIN_PAGE}/${slug}`;
 export const analyzerPage = (args?: {
@@ -414,13 +426,13 @@ export const badgeUrl = ({
 	code,
 	extension,
 }: {
-	code: Badge["code"];
+	code: Tables["Badge"]["code"];
 	extension?: "gif";
 }) => `/static-assets/badges/${code}${extension ? `.${extension}` : ""}`;
 export const articlePreviewUrl = (slug: string) =>
 	`/static-assets/img/article-previews/${slug}.png`;
 
-export const navIconUrl = (navItem: (typeof navItems)[number]["name"]) =>
+export const navIconUrl = (navItem: string) =>
 	`/static-assets/img/layout/${navItem}`;
 export const gearImageUrl = (gearType: GearType, gearSplId: number) =>
 	`/static-assets/img/gear/${gearType.toLowerCase()}/${gearSplId}`;

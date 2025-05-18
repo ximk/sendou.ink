@@ -3,6 +3,7 @@ import { Link, useFetcher, useLoaderData } from "@remix-run/react";
 import clsx from "clsx";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import * as R from "remeda";
 import { Avatar } from "~/components/Avatar";
 import { Button, LinkButton } from "~/components/Button";
 import { Flag } from "~/components/Flag";
@@ -13,13 +14,9 @@ import { SubmitButton } from "~/components/SubmitButton";
 import { BskyIcon } from "~/components/icons/Bsky";
 import { EditIcon } from "~/components/icons/Edit";
 import { StarIcon } from "~/components/icons/Star";
-import { TwitterIcon } from "~/components/icons/Twitter";
 import { UsersIcon } from "~/components/icons/Users";
 import { useUser } from "~/features/auth/core/user";
-import { isAdmin } from "~/permissions";
-import { removeDuplicates } from "~/utils/arrays";
 import type { SendouRouteHandle } from "~/utils/remix.server";
-import { makeTitle } from "~/utils/strings";
 import {
 	TEAM_SEARCH_PAGE,
 	bskyUrl,
@@ -27,26 +24,41 @@ import {
 	manageTeamRosterPage,
 	navIconUrl,
 	teamPage,
-	twitterUrl,
 	userPage,
 	userSubmittedImage,
 } from "~/utils/urls";
 import type * as TeamRepository from "../TeamRepository.server";
-import { isTeamMember, isTeamOwner } from "../team-utils";
+import {
+	isTeamManager,
+	isTeamMember,
+	isTeamOwner,
+	resolveNewOwner,
+} from "../team-utils";
+import "../team.css";
+import { useHasRole } from "~/modules/permissions/hooks";
+import { metaTags } from "~/utils/remix";
 
 import { action } from "../actions/t.$customUrl.server";
 import { loader } from "../loaders/t.$customUrl.server";
 export { action, loader };
 
-import "../team.css";
+export const meta: MetaFunction<typeof loader> = (args) => {
+	if (!args.data) return [];
 
-export const meta: MetaFunction<typeof loader> = ({ data }) => {
-	if (!data) return [];
-
-	return [
-		{ title: makeTitle(data.team.name) },
-		{ name: "description", content: data.team.bio },
-	];
+	return metaTags({
+		title: args.data.team.name,
+		description: args.data.team.bio ?? undefined,
+		location: args.location,
+		image: args.data.team.avatarSrc
+			? {
+					url: userSubmittedImage(args.data.team.avatarSrc),
+					dimensions: {
+						width: 124,
+						height: 124,
+					},
+				}
+			: undefined,
+	});
 };
 
 export const handle: SendouRouteHandle = {
@@ -119,7 +131,7 @@ function TeamBanner() {
 					</div>
 				) : null}
 				<div className="team__banner__flags">
-					{removeDuplicates(
+					{R.unique(
 						team.members
 							.map((member) => member.country)
 							.filter((country) => country !== null),
@@ -128,7 +140,7 @@ function TeamBanner() {
 					})}
 				</div>
 				<div className="team__banner__name">
-					{team.name} <TwitterLink testId="twitter-link" /> <BskyLink />
+					{team.name} <BskyLink />
 				</div>
 			</div>
 			{team.avatarSrc ? <div className="team__banner__avatar__spacer" /> : null}
@@ -142,7 +154,7 @@ function MobileTeamNameCountry() {
 	return (
 		<div className="team__mobile-name-country">
 			<div className="stack horizontal sm">
-				{removeDuplicates(
+				{R.unique(
 					team.members
 						.map((member) => member.country)
 						.filter((country) => country !== null),
@@ -152,28 +164,9 @@ function MobileTeamNameCountry() {
 			</div>
 			<div className="team__mobile-team-name">
 				{team.name}
-				<TwitterLink />
 				<BskyLink />
 			</div>
 		</div>
-	);
-}
-
-function TwitterLink({ testId }: { testId?: string }) {
-	const { team } = useLoaderData<typeof loader>();
-
-	if (!team.twitter) return null;
-
-	return (
-		<a
-			className="team__twitter-link"
-			href={twitterUrl(team.twitter)}
-			target="_blank"
-			rel="noreferrer"
-			data-testid={testId}
-		>
-			<TwitterIcon />
-		</a>
 	);
 }
 
@@ -185,6 +178,7 @@ function BskyLink() {
 	return (
 		<a
 			className="team__bsky-link"
+			data-testid="bsky-link"
 			href={bskyUrl(team.bsky)}
 			target="_blank"
 			rel="noreferrer"
@@ -197,9 +191,10 @@ function BskyLink() {
 function ActionButtons() {
 	const { t } = useTranslation(["team"]);
 	const user = useUser();
+	const isAdmin = useHasRole("ADMIN");
 	const { team } = useLoaderData<typeof loader>();
 
-	if (!isTeamMember({ user, team }) && !isAdmin(user)) {
+	if (!isTeamMember({ user, team }) && !isAdmin) {
 		return null;
 	}
 
@@ -212,10 +207,18 @@ function ActionButtons() {
 			{isTeamMember({ user, team }) && !isMainTeam ? (
 				<ChangeMainTeamButton />
 			) : null}
-			{!isTeamOwner({ user, team }) && isTeamMember({ user, team }) ? (
+			{isTeamMember({ user, team }) ? (
 				<FormWithConfirm
-					dialogHeading={t("team:leaveTeam.header", { teamName: team.name })}
-					deleteButtonText={t("team:actionButtons.leaveTeam.confirm")}
+					dialogHeading={`${t(
+						isTeamOwner({ user, team })
+							? "team:leaveTeam.header.newOwner"
+							: "team:leaveTeam.header",
+						{
+							teamName: team.name,
+							newOwner: resolveNewOwner(team.members)?.username,
+						},
+					)}`}
+					submitButtonText={t("team:actionButtons.leaveTeam.confirm")}
 					fields={[["_action", "LEAVE_TEAM"]]}
 				>
 					<Button
@@ -227,7 +230,7 @@ function ActionButtons() {
 					</Button>
 				</FormWithConfirm>
 			) : null}
-			{isTeamOwner({ user, team }) || isAdmin(user) ? (
+			{isTeamManager({ user, team }) || isAdmin ? (
 				<LinkButton
 					size="tiny"
 					to={manageTeamRosterPage(team.customUrl)}
@@ -239,7 +242,7 @@ function ActionButtons() {
 					{t("team:actionButtons.manageRoster")}
 				</LinkButton>
 			) : null}
-			{isTeamOwner({ user, team }) || isAdmin(user) ? (
+			{isTeamManager({ user, team }) || isAdmin ? (
 				<LinkButton
 					size="tiny"
 					to={editTeamPage(team.customUrl)}

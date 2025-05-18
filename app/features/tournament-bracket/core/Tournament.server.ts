@@ -1,7 +1,7 @@
 import * as TournamentRepository from "~/features/tournament/TournamentRepository.server";
 import { HACKY_resolvePicture } from "~/features/tournament/tournament-utils";
 import type { TournamentManagerDataSet } from "~/modules/brackets-manager/types";
-import { isAdmin } from "~/permissions";
+import { isAdmin } from "~/modules/permissions/utils";
 import { notFoundIfFalsy } from "~/utils/remix.server";
 import type { Unwrapped } from "~/utils/types";
 import { Tournament } from "./Tournament";
@@ -88,6 +88,15 @@ export async function tournamentFromDB(args: {
 	tournamentId: number;
 }) {
 	const data = notFoundIfFalsy(await tournamentData(args));
+
+	return new Tournament({ ...data, simulateBrackets: false });
+}
+
+export async function tournamentFromDBCached(args: {
+	user: { id: number } | undefined;
+	tournamentId: number;
+}) {
+	const data = notFoundIfFalsy(await tournamentDataCached(args));
 
 	return new Tournament({ ...data, simulateBrackets: false });
 }

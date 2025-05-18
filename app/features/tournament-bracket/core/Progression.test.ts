@@ -146,6 +146,33 @@ describe("validatedSources - PLACEMENTS_PARSE_ERROR", () => {
 
 		expect(error.type).toBe("PLACEMENTS_PARSE_ERROR");
 	});
+
+	it("parsing fails if zero placement", () => {
+		const error = Progression.validatedBrackets([
+			{
+				id: "1",
+				name: "Bracket 1",
+				type: "double_elimination",
+				settings: {},
+				requiresCheckIn: false,
+			},
+			{
+				id: "2",
+				name: "Bracket 2",
+				type: "single_elimination",
+				settings: {},
+				requiresCheckIn: false,
+				sources: [
+					{
+						bracketId: "1",
+						placements: "0",
+					},
+				],
+			},
+		]) as Progression.ValidationError;
+
+		expect(error.type).toBe("PLACEMENTS_PARSE_ERROR");
+	});
 });
 
 const getValidatedBrackets = (
@@ -586,5 +613,43 @@ describe("destinationsFromBracketIdx", () => {
 		expect(
 			Progression.destinationsFromBracketIdx(0, progressions.singleElimination),
 		).toEqual([]);
+	});
+});
+
+describe("destinationByPlacement", () => {
+	it("returns correct destination for a given placement", () => {
+		const result = Progression.destinationByPlacement({
+			sourceBracketIdx: 0,
+			placement: 1,
+			progression: progressions.roundRobinToSingleElimination,
+		});
+		expect(result).toBe(1);
+	});
+
+	it("returns null if no destination for the given placement", () => {
+		const result = Progression.destinationByPlacement({
+			sourceBracketIdx: 0,
+			placement: 5,
+			progression: progressions.roundRobinToSingleElimination,
+		});
+		expect(result).toBeNull();
+	});
+
+	it("returns correct destination for negative placements", () => {
+		const result = Progression.destinationByPlacement({
+			sourceBracketIdx: 0,
+			placement: -1,
+			progression: progressions.doubleEliminationWithUnderground,
+		});
+		expect(result).toBe(1);
+	});
+
+	it("returns correct destination for many start brackets", () => {
+		const result = Progression.destinationByPlacement({
+			sourceBracketIdx: 1,
+			placement: 1,
+			progression: progressions.manyStartBrackets,
+		});
+		expect(result).toBe(3);
 	});
 });

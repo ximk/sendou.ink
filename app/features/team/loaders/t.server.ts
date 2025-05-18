@@ -1,14 +1,11 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import type { UserWithPlusTier } from "~/db/types";
+import * as R from "remeda";
+import type { UserWithPlusTier } from "~/db/tables";
 import { getUserId } from "~/features/auth/core/user.server";
-import { i18next } from "~/modules/i18n/i18next.server";
-import { sumArray } from "~/utils/number";
-import { makeTitle } from "~/utils/strings";
 import * as TeamRepository from "../TeamRepository.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const user = await getUserId(request);
-	const t = await i18next.getFixedT(request);
 
 	const unsortedTeams = await TeamRepository.findAllUndisbanded();
 
@@ -47,7 +44,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 	});
 
 	return {
-		title: makeTitle(t("pages.t")),
 		teams,
 		teamMemberOfCount: user
 			? teams.filter((team) => team.members.some((m) => m.id === user.id))
@@ -59,7 +55,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 const membersToCommonPlusTierRating = (
 	members: Pick<UserWithPlusTier, "plusTier">[],
 ) => {
-	return sumArray(
+	return R.sum(
 		members
 			.map((m) => m.plusTier ?? 100)
 			.sort((a, b) => a - b)

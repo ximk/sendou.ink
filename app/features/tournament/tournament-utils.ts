@@ -1,25 +1,20 @@
-import type { Params } from "@remix-run/react";
-import type { Tournament } from "~/db/types";
+import { INVITE_CODE_LENGTH } from "~/constants";
 import type { ModeShort, StageId } from "~/modules/in-game-lists";
 import { rankedModesShort } from "~/modules/in-game-lists/modes";
-import invariant from "~/utils/invariant";
+import { weekNumberToDate } from "~/utils/dates";
 import { tournamentLogoUrl } from "~/utils/urls";
+import type { Tables, TournamentStageSettings } from "../../db/tables";
+import { assertUnreachable } from "../../utils/types";
 import { MapPool } from "../map-list-generator/core/map-pool";
-import { currentSeason } from "../mmr/season";
+import * as Seasons from "../mmr/core/Seasons";
 import { BANNED_MAPS } from "../sendouq-settings/banned-maps";
+import type { Tournament as TournamentClass } from "../tournament-bracket/core/Tournament";
 import type { TournamentData } from "../tournament-bracket/core/Tournament.server";
 import type { PlayedSet } from "./core/sets.server";
-import { TOURNAMENT } from "./tournament-constants";
-
-export function tournamentIdFromParams(params: Params<string>) {
-	const result = Number(params.id);
-	invariant(!Number.isNaN(result), "id is not a number");
-
-	return result;
-}
+import { LEAGUES, TOURNAMENT } from "./tournament-constants";
 
 export function modesIncluded(
-	tournament: Pick<Tournament, "mapPickingStyle">,
+	tournament: Pick<Tables["Tournament"], "mapPickingStyle">,
 ): ModeShort[] {
 	switch (tournament.mapPickingStyle) {
 		case "AUTO_SZ": {
@@ -41,7 +36,7 @@ export function modesIncluded(
 }
 
 export function isOneModeTournamentOf(
-	tournament: Pick<Tournament, "mapPickingStyle">,
+	tournament: Pick<Tables["Tournament"], "mapPickingStyle">,
 ) {
 	return modesIncluded(tournament).length === 1
 		? modesIncluded(tournament)[0]
@@ -260,12 +255,118 @@ export function tournamentIsRanked({
 	isSetAsRanked,
 	startTime,
 	minMembersPerTeam,
-}: { isSetAsRanked?: boolean; startTime: Date; minMembersPerTeam: number }) {
-	const seasonIsActive = Boolean(currentSeason(startTime));
+	isTest,
+}: {
+	isSetAsRanked?: boolean;
+	startTime: Date;
+	minMembersPerTeam: number;
+	isTest: boolean;
+}) {
+	if (isTest) return false;
+
+	const seasonIsActive = Boolean(Seasons.current(startTime));
 	if (!seasonIsActive) return false;
 
 	// 1v1, 2v2 and 3v3 are always considered "gimmicky"
 	if (minMembersPerTeam !== 4) return false;
 
 	return isSetAsRanked ?? true;
+}
+
+export function resolveLeagueRoundStartDate(
+	tournament: TournamentClass,
+	roundId: number,
+) {
+	if (!tournament.isLeagueDivision) return null;
+
+	const league = Object.values(LEAGUES)
+		.flat()
+		.find(
+			(league) => league.tournamentId === tournament.ctx.parentTournamentId,
+		);
+	if (!league) return null;
+
+	const bracket = tournament.brackets.find((b) =>
+		b.data.round.some((r) => r.id === roundId),
+	);
+
+	const round = bracket?.data.round.find((r) => r.id === roundId);
+	const onlyRelevantRounds = bracket?.data.round.filter(
+		(r) => r.group_id === round?.group_id,
+	);
+
+	const roundIdx = onlyRelevantRounds?.findIndex((r) => r.id === roundId);
+	if (roundIdx === undefined) return null;
+
+	const week = league.weeks[roundIdx];
+	if (!week) return null;
+
+	const date = weekNumberToDate({
+		week: week.weekNumber,
+		year: week.year,
+	});
+
+	return date;
+}
+
+export function defaultBracketSettings(
+	type: Tables["TournamentStage"]["type"],
+): TournamentStageSettings {
+	switch (type) {
+		case "single_elimination": {
+			return {
+				thirdPlaceMatch: true,
+			};
+		}
+		case "double_elimination": {
+			return {};
+		}
+		case "round_robin": {
+			return {
+				teamsPerGroup: 4,
+			};
+		}
+		case "swiss": {
+			return {
+				roundCount: 5,
+				groupCount: 1,
+			};
+		}
+		default: {
+			assertUnreachable(type);
+		}
+	}
+}
+
+export function validateCanJoinTeam({
+	inviteCode,
+	teamToJoin,
+	userId,
+	maxTeamSize,
+}: {
+	inviteCode?: string | null;
+	teamToJoin?: { members: { userId: number }[] };
+	userId?: number;
+	maxTeamSize: number;
+}) {
+	if (typeof inviteCode !== "string") {
+		return "MISSING_CODE";
+	}
+	if (typeof userId !== "number") {
+		return "NOT_LOGGED_IN";
+	}
+	if (!teamToJoin && inviteCode.length !== INVITE_CODE_LENGTH) {
+		return "SHORT_CODE";
+	}
+	if (!teamToJoin) {
+		return "NO_TEAM_MATCHING_CODE";
+	}
+	if (teamToJoin.members.length >= maxTeamSize) {
+		return "TEAM_FULL";
+	}
+	if (teamToJoin.members.some((member) => member.userId === userId)) {
+		return "ALREADY_JOINED";
+	}
+
+	return "VALID";
 }

@@ -1,24 +1,17 @@
-import type { User } from "~/db/types";
-import { isAdmin } from "~/permissions";
+import { logger } from "./logger";
 import { isCustomUrl } from "./urls";
 
-export function isAtLeastFiveDollarTierPatreon(
-	user?: Pick<User, "patronTier" | "id">,
-) {
-	if (!user) return false;
-
-	return isAdmin(user) || (user.patronTier && user.patronTier >= 2);
-}
-
-const urlRegExp = /(https:\/\/)?sendou.ink\/u\/(.+)/;
+const longUrlRegExp = /(https:\/\/)?sendou.ink\/u\/(.+)/;
+const shortUrlRegExp = /(https:\/\/)?snd.ink\/(.+)/;
 const DISCORD_ID_MIN_LENGTH = 17;
 export function queryToUserIdentifier(
 	query: string,
 ): { id: number } | { discordId: string } | { customUrl: string } | null {
-	const match = query.match(urlRegExp);
+	const longUrlMatch = query.match(longUrlRegExp);
+	const shortUrlMatch = query.match(shortUrlRegExp);
 
-	if (match) {
-		const [, , identifier] = match;
+	if (longUrlMatch || shortUrlMatch) {
+		const [, , identifier] = (longUrlMatch ?? shortUrlMatch)!;
 
 		if (isCustomUrl(identifier)) {
 			return { customUrl: identifier };
@@ -52,13 +45,12 @@ function convertSnowflakeToDate(snowflake: string) {
 
 const AGED_CRITERIA = 1000 * 60 * 60 * 24 * 30 * 3; // 3 months
 export function userDiscordIdIsAged(user: { discordId: string }) {
-	// types should catch this but since this is a permission related
-	// code playing it safe
-	if (!user.discordId) {
-		throw new Error("No discord id");
-	}
-	if (user.discordId.length < DISCORD_ID_MIN_LENGTH) {
-		throw new Error("Not a valid discord id");
+	if (!user.discordId || user.discordId.length < DISCORD_ID_MIN_LENGTH) {
+		logger.error("Invalid or missing discord id", {
+			discordId: user.discordId,
+		});
+
+		return false;
 	}
 
 	const timestamp = convertSnowflakeToDate(user.discordId).getTime();

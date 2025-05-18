@@ -3,6 +3,7 @@ import { jsonArrayFrom } from "kysely/helpers/sqlite";
 import { cors } from "remix-utils/cors";
 import { z } from "zod";
 import { db } from "~/db/sql";
+import { tournamentFromDBCached } from "~/features/tournament-bracket/core/Tournament.server";
 import { resolveMapList } from "~/features/tournament-bracket/core/mapList.server";
 import * as TournamentRepository from "~/features/tournament/TournamentRepository.server";
 import i18next from "~/modules/i18n/i18next.server";
@@ -58,6 +59,8 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 							"TournamentMatchGameResult.mode",
 							"TournamentMatchGameResult.winnerTeamId",
 							"TournamentMatchGameResult.source",
+							"TournamentMatchGameResult.opponentOnePoints",
+							"TournamentMatchGameResult.opponentTwoPoints",
 							jsonArrayFrom(
 								innerEb
 									.selectFrom("TournamentMatchGameResultParticipant")
@@ -70,7 +73,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 							).as("participants"),
 						])
 						.where("TournamentMatchGameResult.matchId", "=", id)
-						.orderBy("TournamentMatchGameResult.number asc"),
+						.orderBy("TournamentMatchGameResult.number", "asc"),
 				).as("playedMapList"),
 			])
 			.where("TournamentMatch.id", "=", id)
@@ -96,17 +99,21 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 			match.opponentOne.result === "win" ||
 			match.opponentTwo.result === "win"
 		) {
-			return match.playedMapList.map((map) => ({
+			return match.playedMapList.map((playedMap) => ({
 				map: {
-					mode: map.mode,
+					mode: playedMap.mode,
 					stage: {
-						id: map.stageId,
-						name: t(`game-misc:STAGE_${map.stageId}`),
+						id: playedMap.stageId,
+						name: t(`game-misc:STAGE_${playedMap.stageId}`),
 					},
 				},
-				participatedUserIds: map.participants.map((p) => p.userId),
-				winnerTeamId: map.winnerTeamId,
-				source: parseSource(map.source),
+				participatedUserIds: playedMap.participants.map((p) => p.userId),
+				winnerTeamId: playedMap.winnerTeamId,
+				source: parseSource(playedMap.source),
+				points:
+					playedMap.opponentOnePoints && playedMap.opponentTwoPoints
+						? [playedMap.opponentOnePoints, playedMap.opponentTwoPoints]
+						: null,
 			}));
 		}
 
@@ -122,21 +129,29 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 			mapPickingStyle: match.mapPickingStyle,
 			maps: match.maps,
 			pickBanEvents,
-		}).map((map) => {
+		}).map((mapListMap) => {
 			return {
 				map: {
-					mode: map.mode,
+					mode: mapListMap.mode,
 					stage: {
-						id: map.stageId,
-						name: t(`game-misc:STAGE_${map.stageId}`),
+						id: mapListMap.stageId,
+						name: t(`game-misc:STAGE_${mapListMap.stageId}`),
 					},
 				},
 				participatedUserIds: null,
 				winnerTeamId: null,
-				source: map.source,
+				source: mapListMap.source,
+				points: null,
 			};
 		});
 	};
+
+	const { bracketName, roundNameWithoutMatchIdentifier } = (
+		await tournamentFromDBCached({
+			tournamentId: match.tournamentId,
+			user: undefined,
+		})
+	).matchNameById(id);
 
 	const result: GetTournamentMatchResponse = {
 		teamOne: match.opponentOne.id
@@ -153,6 +168,8 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 			: null,
 		url: `https://sendou.ink/to/${match.tournamentId}/matches/${id}`,
 		mapList: await mapList(),
+		bracketName: bracketName ?? null,
+		roundName: roundNameWithoutMatchIdentifier ?? null,
 	};
 
 	return await cors(request, json(result));

@@ -1,9 +1,10 @@
 import { cachified } from "@epic-web/cachified";
 import { HALF_HOUR_IN_MS } from "~/constants";
+import * as Seasons from "~/features/mmr/core/Seasons";
 import { USER_LEADERBOARD_MIN_ENTRIES_FOR_LEVIATHAN } from "~/features/mmr/mmr-constants";
 import { spToOrdinal } from "~/features/mmr/mmr-utils";
-import { currentOrPreviousSeason, currentSeason } from "~/features/mmr/season";
 import { freshUserSkills, userSkills } from "~/features/mmr/tiered.server";
+import * as UserRepository from "~/features/user-page/UserRepository.server";
 import type { MainWeaponId } from "~/modules/in-game-lists";
 import { weaponCategories } from "~/modules/in-game-lists";
 import { cache, ttl } from "~/utils/cache.server";
@@ -28,10 +29,14 @@ export async function cachedFullUserLeaderboard(season: number) {
 			const withTiers = addTiers(leaderboard, season);
 
 			const shouldAddPendingPlusTier =
-				season === currentSeason(new Date())?.nth &&
+				season === Seasons.current()?.nth &&
 				leaderboard.length >= USER_LEADERBOARD_MIN_ENTRIES_FOR_LEVIATHAN;
 			const withPendingPlusTiers = shouldAddPendingPlusTier
-				? addPendingPlusTiers(withTiers)
+				? addPendingPlusTiers(
+						withTiers,
+						await UserRepository.findAllPlusServerMembers(),
+						season,
+					)
 				: withTiers;
 
 			return addWeapons(withPendingPlusTiers, seasonPopularUsersWeapon(season));
@@ -70,6 +75,11 @@ const PLUS_TIER_QUOTA = {
 } as const;
 export function addPendingPlusTiers<T extends UserSPLeaderboardItem>(
 	entries: T[],
+	plusTiers: Array<{
+		userId: number;
+		plusTier: number;
+	}>,
+	seasonNth: number,
 ) {
 	const quota: { "+1": number; "+2": number; "+3": number } = {
 		...PLUS_TIER_QUOTA,
@@ -87,10 +97,10 @@ export function addPendingPlusTiers<T extends UserSPLeaderboardItem>(
 		const highestPlusTierWithSpace = resolveHighestPlusTierWithSpace();
 		if (!highestPlusTierWithSpace) break;
 
-		if (entry.plusTier && entry.plusTier <= highestPlusTierWithSpace) continue;
-		if (
-			entry.plusSkippedForSeasonNth === currentOrPreviousSeason(new Date())?.nth
-		) {
+		const plusTier = plusTiers.find((t) => t.userId === entry.id)?.plusTier;
+
+		if (plusTier && plusTier <= highestPlusTierWithSpace) continue;
+		if (entry.plusSkippedForSeasonNth === seasonNth) {
 			entry.plusSkippedForSeasonNth = null;
 			continue;
 		}

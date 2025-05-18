@@ -1,5 +1,5 @@
-import shuffle from "just-shuffle";
 import { type InferResult, sql } from "kysely";
+import * as R from "remeda";
 import { db } from "~/db/sql";
 import type { Tables, TablesInsertable } from "~/db/tables";
 import * as PlusSuggestionRepository from "~/features/plus-suggestions/PlusSuggestionRepository.server";
@@ -29,6 +29,14 @@ const resultsByMonthYearQuery = (args: MonthYear) =>
 type ResultsByMonthYearQueryReturnType = InferResult<
 	ReturnType<typeof resultsByMonthYearQuery>
 >;
+
+export function allPlusTiersFromLatestVoting() {
+	return db
+		.selectFrom("FreshPlusTier")
+		.select(["FreshPlusTier.userId", "FreshPlusTier.tier as plusTier"])
+		.where("FreshPlusTier.tier", "is not", null)
+		.execute() as Promise<{ userId: number; plusTier: number }[]>;
+}
 
 export type ResultsByMonthYearItem = Unwrapped<typeof resultsByMonthYear>;
 export async function resultsByMonthYear(args: MonthYear) {
@@ -118,7 +126,7 @@ export async function usersForVoting(loggedInUser: {
 		});
 	}
 
-	return shuffle(result.filter(({ user }) => user.id !== loggedInUser.id));
+	return R.shuffle(result.filter(({ user }) => user.id !== loggedInUser.id));
 }
 
 export async function hasVoted(args: {

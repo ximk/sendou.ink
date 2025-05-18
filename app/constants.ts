@@ -3,18 +3,11 @@ import type { BuildAbilitiesTupleWithUnknown } from "./modules/in-game-lists";
 export const TWEET_LENGTH_MAX_LENGTH = 280;
 export const DISCORD_MESSAGE_MAX_LENGTH = 2000;
 
-const EMPTY_CHARACTERS = ["\u200B", "\u200C", "\u200D", "\u200E", "\u200F"];
-export const notAllEmptyCharactersRegExp = new RegExp(
-	`^(?!(${EMPTY_CHARACTERS.join("|")})+$).*$`,
-);
-
 export const USER = {
 	BIO_MAX_LENGTH: DISCORD_MESSAGE_MAX_LENGTH,
 	CUSTOM_URL_MAX_LENGTH: 32,
 	CUSTOM_NAME_MAX_LENGTH: 32,
-	CUSTOM_NAME_REGEXP: notAllEmptyCharactersRegExp,
 	BATTLEFY_MAX_LENGTH: 32,
-	BSKY_MAX_LENGTH: 50,
 	IN_GAME_NAME_TEXT_MAX_LENGTH: 20,
 	IN_GAME_NAME_DISCRIMINATOR_MAX_LENGTH: 5,
 	WEAPON_POOL_MAX_SIZE: 5,
@@ -65,8 +58,8 @@ export const ADMIN_DISCORD_ID = "79237403620945920";
 export const ADMIN_ID = process.env.NODE_ENV === "test" ? 1 : 274;
 
 //                      Panda  Scep
-export const MOD_IDS = [11329, 9719];
-export const MOD_DISCORD_IDS = ["138757634500067328", "184478601171828737"];
+export const STAFF_IDS = [11329, 9719];
+export const STAFF_DISCORD_IDS = ["138757634500067328", "184478601171828737"];
 
 export const LOHI_TOKEN_HEADER_NAME = "Lohi-Token";
 export const SKALOP_TOKEN_HEADER_NAME = "Skalop-Token";
@@ -81,7 +74,7 @@ export const ONE_HOUR_IN_MS = 60 * 60 * 1000;
 export const TWO_HOURS_IN_MS = 2 * 60 * 60 * 1000;
 
 export const SPLATOON_3_XP_BADGE_VALUES = [
-	3400, 3300, 3200, 3100, 3000, 2900, 2800, 2700, 2600,
+	5000, 4500, 4000, 3500, 3400, 3300, 3200, 3100, 3000, 2900, 2800, 2700, 2600,
 ] as const;
 export const findSplatoon3XpBadgeValue = (xPower: number) => {
 	for (const value of SPLATOON_3_XP_BADGE_VALUES) {
@@ -95,6 +88,10 @@ export const findSplatoon3XpBadgeValue = (xPower: number) => {
 
 export const PATCHES = [
 	{
+		patch: "9.3.0",
+		date: "2025-03-13",
+	},
+	{
 		patch: "9.2.0",
 		date: "2024-11-20",
 	},
@@ -102,10 +99,10 @@ export const PATCHES = [
 		patch: "9.0.0",
 		date: "2024-08-29",
 	},
-	{
-		patch: "8.1.0",
-		date: "2024-07-17",
-	},
+	// {
+	// 	patch: "8.1.0",
+	// 	date: "2024-07-17",
+	// },
 	// {
 	// 	patch: "8.0.0",
 	// 	date: "2024-05-31",
@@ -135,3 +132,15 @@ export const PATCHES = [
 	//   date: "2023-08-30",
 	// },
 ];
+
+export const CUSTOM_CSS_VAR_COLORS = [
+	"bg",
+	"bg-darker",
+	"bg-lighter",
+	"bg-lightest",
+	"text",
+	"text-lighter",
+	"theme",
+	"theme-secondary",
+	"chat",
+] as const;

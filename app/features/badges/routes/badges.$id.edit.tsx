@@ -1,128 +1,74 @@
-import type { ActionFunction } from "@remix-run/node";
-import { redirect } from "@remix-run/node";
 import { Form, useMatches, useOutletContext } from "@remix-run/react";
 import * as React from "react";
-import { z } from "zod";
-import { Button, LinkButton } from "~/components/Button";
-import { Dialog } from "~/components/Dialog";
-import { Label } from "~/components/Label";
-import { UserSearch } from "~/components/UserSearch";
+import { Button } from "~/components/Button";
+import { SendouDialog } from "~/components/elements/Dialog";
 import { TrashIcon } from "~/components/icons/Trash";
-import type { User } from "~/db/types";
-import { useUser } from "~/features/auth/core/user";
-import { requireUserId } from "~/features/auth/core/user.server";
-import { canEditBadgeManagers, canEditBadgeOwners } from "~/permissions";
+import type { Tables } from "~/db/tables";
+import { useHasPermission, useHasRole } from "~/modules/permissions/hooks";
 import { atOrError } from "~/utils/arrays";
-import { parseRequestPayload, validate } from "~/utils/remix.server";
-import { assertUnreachable } from "~/utils/types";
-import { badgePage } from "~/utils/urls";
-import { actualNumber } from "~/utils/zod";
-import * as BadgeRepository from "../BadgeRepository.server";
-import { editBadgeActionSchema } from "../badges-schemas.server";
-import type { BadgeDetailsContext, BadgeDetailsLoaderData } from "./badges.$id";
+import type { BadgeDetailsLoaderData } from "../loaders/badges.$id.server";
+import type { BadgeDetailsContext } from "./badges.$id";
 
-export const action: ActionFunction = async ({ request, params }) => {
-	const data = await parseRequestPayload({
-		request,
-		schema: editBadgeActionSchema,
-	});
-	const badgeId = z.preprocess(actualNumber, z.number()).parse(params.id);
-	const user = await requireUserId(request);
-
-	switch (data._action) {
-		case "MANAGERS": {
-			validate(canEditBadgeManagers(user));
-
-			await BadgeRepository.replaceManagers({
-				badgeId,
-				managerIds: data.managerIds,
-			});
-			break;
-		}
-		case "OWNERS": {
-			validate(
-				canEditBadgeOwners({
-					user,
-					managers: await BadgeRepository.findManagersByBadgeId(badgeId),
-				}),
-			);
-
-			await BadgeRepository.replaceOwners({ badgeId, ownerIds: data.ownerIds });
-			break;
-		}
-		default: {
-			assertUnreachable(data);
-		}
-	}
-
-	throw redirect(badgePage(badgeId));
-};
+import { Divider } from "~/components/Divider";
+import { UserSearch } from "~/components/elements/UserSearch";
+import { action } from "../actions/badges.$id.edit.server";
+export { action };
 
 export default function EditBadgePage() {
-	const user = useUser();
+	const isStaff = useHasRole("STAFF");
 	const matches = useMatches();
 	const data = atOrError(matches, -2).data as BadgeDetailsLoaderData;
-	const { badgeName } = useOutletContext<BadgeDetailsContext>();
+	const { badge } = useOutletContext<BadgeDetailsContext>();
+	const canManageBadge = useHasPermission(badge, "MANAGE");
 
 	return (
-		<Dialog isOpen>
+		<SendouDialog
+			heading={`Editing winners of ${badge.displayName}`}
+			onCloseTo={atOrError(matches, -2).pathname}
+			isFullScreen
+		>
 			<Form method="post" className="stack md">
-				<div>
-					<h2 className="badges-edit__big-header">
-						Editing winners of {badgeName}
-					</h2>
-					<LinkButton
-						to={atOrError(matches, -2).pathname}
-						variant="minimal-destructive"
-						size="tiny"
-						className="badges-edit__cancel-button"
-					>
-						Cancel
-					</LinkButton>
-				</div>
-
-				{canEditBadgeManagers(user) ? <Managers data={data} /> : null}
-				{canEditBadgeOwners({ user, managers: data.managers }) ? (
-					<Owners data={data} />
-				) : null}
+				{isStaff ? <Managers data={data} /> : null}
+				{isStaff && canManageBadge ? <Divider className="mt-2" /> : null}
+				{canManageBadge ? <Owners data={data} /> : null}
 			</Form>
-		</Dialog>
+		</SendouDialog>
 	);
 }
 
 function Managers({ data }: { data: BadgeDetailsLoaderData }) {
-	const [managers, setManagers] = React.useState(data.managers);
+	const [managers, setManagers] = React.useState<
+		Array<{ id: number; username: string }>
+	>(data.badge.managers);
 
 	const amountOfChanges = managers
-		.filter((m) => !data.managers.some((om) => om.id === m.id))
+		.filter((m) => !data.badge.managers.some((om) => om.id === m.id))
 		// maps to id to keep typescript happy
 		.map((m) => m.id)
 		// needed so we can also list amount of removed managers
 		.concat(
-			data.managers
+			data.badge.managers
 				.filter((om) => !managers.some((m) => m.id === om.id))
 				.map((m) => m.id),
 		).length;
-
-	const userIdsToOmitFromCombobox = React.useMemo(() => {
-		return new Set(data.managers.map((m) => m.id));
-	}, [data]);
 
 	return (
 		<div className="stack md">
 			<div className="stack sm">
 				<h3 className="badges-edit__small-header">Managers</h3>
-				<div className="text-center my-4">
-					<Label className="stack vertical items-center">Add new manager</Label>
-					<UserSearch
-						className="mx-auto"
-						inputName="new-manager"
-						onChange={(user) => {
-							setManagers([...managers, user]);
-						}}
-						userIdsToOmit={userIdsToOmitFromCombobox}
-					/>
-				</div>
+				<UserSearch
+					key={managers.map((m) => m.id).join("-")}
+					label="Add new manager"
+					className="text-center mx-auto"
+					name="new-manager"
+					onChange={(user) => {
+						if (managers.some((m) => m.id === user.id)) {
+							return;
+						}
+
+						setManagers([...managers, user]);
+					}}
+				/>
 				<ul className="badges-edit__users-list">
 					{managers.map((manager) => (
 						<li key={manager.id}>
@@ -144,16 +90,16 @@ function Managers({ data }: { data: BadgeDetailsLoaderData }) {
 				name="managerIds"
 				value={JSON.stringify(managers.map((m) => m.id))}
 			/>
-			<Button
-				type="submit"
-				size="tiny"
-				className="badges-edit__submit-button"
-				disabled={amountOfChanges === 0}
-				name="_action"
-				value="MANAGERS"
-			>
-				{submitButtonText(amountOfChanges)}
-			</Button>
+			<div>
+				<Button
+					type="submit"
+					disabled={amountOfChanges === 0}
+					name="_action"
+					value="MANAGERS"
+				>
+					{submitButtonText(amountOfChanges)}
+				</Button>
+			</div>
 		</div>
 	);
 
@@ -166,9 +112,9 @@ function Managers({ data }: { data: BadgeDetailsLoaderData }) {
 }
 
 function Owners({ data }: { data: BadgeDetailsLoaderData }) {
-	const [owners, setOwners] = React.useState(data.owners);
+	const [owners, setOwners] = React.useState(data.badge.owners);
 
-	const ownerDifferences = getOwnerDifferences(owners, data.owners);
+	const ownerDifferences = getOwnerDifferences(owners, data.badge.owners);
 
 	const userInputKey = owners.map((o) => `${o.id}-${o.count}`).join("-");
 
@@ -176,27 +122,25 @@ function Owners({ data }: { data: BadgeDetailsLoaderData }) {
 		<div className="stack md">
 			<div className="stack sm">
 				<h3 className="badges-edit__small-header">Owners</h3>
-				<div className="text-center my-4">
-					<Label className="stack items-center">Add new owner</Label>
-					<UserSearch
-						className="mx-auto"
-						inputName="new-owner"
-						key={userInputKey}
-						onChange={(user) => {
-							setOwners((previousOwners) => {
-								const existingOwner = previousOwners.find(
-									(o) => o.id === user.id,
+				<UserSearch
+					label="Add new owner"
+					className="text-center mx-auto"
+					name="new-owner"
+					key={userInputKey}
+					onChange={(user) => {
+						setOwners((previousOwners) => {
+							const existingOwner = previousOwners.find(
+								(o) => o.id === user.id,
+							);
+							if (existingOwner) {
+								return previousOwners.map((o) =>
+									o.id === user.id ? { ...o, count: o.count + 1 } : o,
 								);
-								if (existingOwner) {
-									return previousOwners.map((o) =>
-										o.id === user.id ? { ...o, count: o.count + 1 } : o,
-									);
-								}
-								return [...previousOwners, { count: 1, ...user }];
-							});
-						}}
-					/>
-				</div>
+							}
+							return [...previousOwners, { count: 1, ...user }];
+						});
+					}}
+				/>
 			</div>
 			<ul className="badges-edit__users-list">
 				{owners.map((owner) => (
@@ -248,26 +192,26 @@ function Owners({ data }: { data: BadgeDetailsLoaderData }) {
 				name="ownerIds"
 				value={JSON.stringify(countArrayToDuplicatedIdsArray(owners))}
 			/>
-			<Button
-				type="submit"
-				size="tiny"
-				className="badges-edit__submit-button"
-				disabled={ownerDifferences.length === 0}
-				name="_action"
-				value="OWNERS"
-			>
-				Save
-			</Button>
+			<div>
+				<Button
+					type="submit"
+					disabled={ownerDifferences.length === 0}
+					name="_action"
+					value="OWNERS"
+				>
+					Submit
+				</Button>
+			</div>
 		</div>
 	);
 }
 
 function getOwnerDifferences(
-	newOwners: BadgeRepository.FindOwnersByBadgeIdItem[],
-	oldOwners: BadgeRepository.FindOwnersByBadgeIdItem[],
+	newOwners: BadgeDetailsLoaderData["badge"]["owners"],
+	oldOwners: BadgeDetailsLoaderData["badge"]["owners"],
 ) {
 	const result: Array<{
-		id: User["id"];
+		id: Tables["User"]["id"];
 		type: "added" | "removed";
 		difference: number;
 		username: string;
@@ -299,7 +243,7 @@ function getOwnerDifferences(
 }
 
 function countArrayToDuplicatedIdsArray(
-	owners: Array<{ id: User["id"]; count: number }>,
+	owners: Array<{ id: Tables["User"]["id"]; count: number }>,
 ) {
 	return owners.flatMap((o) => new Array(o.count).fill(null).map(() => o.id));
 }

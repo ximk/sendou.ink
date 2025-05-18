@@ -32,7 +32,6 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 				"User.country",
 				"User.discordName",
 				"User.twitch",
-				"User.twitter",
 				"User.battlefy",
 				"User.bsky",
 				"User.customUrl",
@@ -44,7 +43,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 						.selectFrom("UserWeapon")
 						.select(["UserWeapon.isFavorite", "UserWeapon.weaponSplId"])
 						.whereRef("UserWeapon.userId", "=", "User.id")
-						.orderBy("UserWeapon.order asc"),
+						.orderBy("UserWeapon.order", "asc"),
 				).as("weapons"),
 				jsonArrayFrom(
 					eb
@@ -95,9 +94,9 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 		plusServerTier: user.tier as GetUserResponse["plusServerTier"],
 		socials: {
 			twitch: user.twitch,
-			twitter: user.twitter,
 			battlefy: user.battlefy,
 			bsky: user.bsky,
+			twitter: null, // deprecated field
 		},
 		peakXp:
 			user.xRankPlacements.length > 0

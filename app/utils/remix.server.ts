@@ -1,4 +1,4 @@
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import {
 	unstable_composeUploadHandlers as composeUploadHandlers,
 	unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -7,10 +7,12 @@ import {
 import type { Params, UIMatch } from "@remix-run/react";
 import type { Namespace, TFunction } from "i18next";
 import { nanoid } from "nanoid";
-import { z } from "zod";
-import type navItems from "~/components/layout/nav-items.json";
+import type { z } from "zod";
+import type { navItems } from "~/components/layout/nav-items";
+import { LOHI_TOKEN_HEADER_NAME } from "~/constants";
 import { s3UploadHandler } from "~/features/img-upload";
 import invariant from "./invariant";
+import { logger } from "./logger";
 
 export function notFoundIfFalsy<T>(value: T | null | undefined): T {
 	if (!value) throw new Response(null, { status: 404 });
@@ -52,12 +54,9 @@ export function parseSearchParams<T extends z.ZodTypeAny>({
 	try {
 		return schema.parse(searchParams);
 	} catch (e) {
-		if (e instanceof z.ZodError) {
-			console.error(e);
-			throw new Response(JSON.stringify(e), { status: 400 });
-		}
+		logger.error("Error parsing search params", e);
 
-		throw e;
+		throw errorToastRedirect("Validation failed");
 	}
 }
 
@@ -93,16 +92,13 @@ export async function parseRequestPayload<T extends z.ZodTypeAny>({
 
 		return parsed;
 	} catch (e) {
-		if (e instanceof z.ZodError) {
-			console.error(e);
-			throw new Response(JSON.stringify(e), { status: 400 });
-		}
+		logger.error("Error parsing request payload", e);
 
-		throw e;
+		throw errorToastRedirect("Validation failed");
 	}
 }
 
-/** Parse formData with the given schema. Throws HTTP 400 response if fails. */
+/** Parse formData with the given schema. Throws a request to show an error toast if it fails. */
 export async function parseFormData<T extends z.ZodTypeAny>({
 	formData,
 	schema,
@@ -120,12 +116,9 @@ export async function parseFormData<T extends z.ZodTypeAny>({
 
 		return parsed;
 	} catch (e) {
-		if (e instanceof z.ZodError) {
-			console.error(e);
-			throw new Response(JSON.stringify(e), { status: 400 });
-		}
+		logger.error("Error parsing form data", e);
 
-		throw e;
+		throw errorToastRedirect("Validation failed");
 	}
 }
 
@@ -189,20 +182,35 @@ function formDataToObject(formData: FormData) {
 	return result;
 }
 
-/** Asserts condition is truthy. Throws a new `Response` with given status code if falsy.  */
-export function validate(
+/** Some endpoints can only be accessed with an auth token. Used by Lohi bot and cron jobs. */
+export function canAccessLohiEndpoint(request: Request) {
+	invariant(process.env.LOHI_TOKEN, "LOHI_TOKEN is required");
+	return request.headers.get(LOHI_TOKEN_HEADER_NAME) === process.env.LOHI_TOKEN;
+}
+
+// TODO: investigate better solution to toasts when middlewares land (current one has a problem of clearing search params)
+
+export function errorToastRedirect(message: string) {
+	return redirect(`?__error=${message}`);
+}
+
+/** Asserts condition is truthy. Throws a redirect triggering an error toast with given message otherwise.  */
+export function errorToastIfFalsy(
 	condition: any,
-	message?: string,
-	status = 400,
+	message: string,
 ): asserts condition {
 	if (condition) return;
 
-	throw new Response(
-		message ? JSON.stringify({ validationError: message }) : undefined,
-		{
-			status,
-		},
-	);
+	throw errorToastRedirect(message);
+}
+
+/** Throws a redirect triggering an error toast with given message.  */
+export function errorToast(message: string) {
+	throw errorToastRedirect(message);
+}
+
+export function successToast(message: string) {
+	return redirect(`?__success=${message}`);
 }
 
 export type ActionError = { field: string; msg: string; isError: true };
@@ -247,7 +255,7 @@ export type SendouRouteHandle = {
 		t: TFunction<"common", undefined>;
 	}) => Breadcrumb | Array<Breadcrumb> | undefined;
 
-	/** The name of a navItem that is active on this route. See nav-items.json */
+	/** The name of a navItem that is active on this route. See nav-items.ts */
 	navItemName?: (typeof navItems)[number]["name"];
 };
 

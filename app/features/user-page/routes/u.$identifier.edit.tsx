@@ -1,14 +1,6 @@
-import {
-	type ActionFunction,
-	type LoaderFunctionArgs,
-	redirect,
-} from "@remix-run/node";
 import { Form, Link, useLoaderData, useMatches } from "@remix-run/react";
-import type { TCountryCode } from "countries-list";
-import { countries, getEmojiFlag } from "countries-list";
 import * as React from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { z } from "zod";
 import { Button } from "~/components/Button";
 import { WeaponCombobox } from "~/components/Combobox";
 import { CustomizedColorsInput } from "~/components/CustomizedColorsInput";
@@ -18,250 +10,42 @@ import { WeaponImage } from "~/components/Image";
 import { Input } from "~/components/Input";
 import { Label } from "~/components/Label";
 import { SubmitButton } from "~/components/SubmitButton";
-import { Toggle } from "~/components/Toggle";
+import { SendouSelect, SendouSelectItem } from "~/components/elements/Select";
+import { SendouSwitch } from "~/components/elements/Switch";
 import { StarIcon } from "~/components/icons/Star";
 import { StarFilledIcon } from "~/components/icons/StarFilled";
 import { TrashIcon } from "~/components/icons/Trash";
 import { USER } from "~/constants";
-import type { User } from "~/db/types";
-import { useUser } from "~/features/auth/core/user";
-import { requireUser, requireUserId } from "~/features/auth/core/user.server";
-import * as TournamentTeamRepository from "~/features/tournament/TournamentTeamRepository.server";
-import * as UserRepository from "~/features/user-page/UserRepository.server";
-import { i18next } from "~/modules/i18n/i18next.server";
+import type { Tables } from "~/db/tables";
+import { BADGE } from "~/features/badges/badges-contants";
+import { BadgesSelector } from "~/features/badges/components/BadgesSelector";
 import type { MainWeaponId } from "~/modules/in-game-lists";
-import { canAddCustomizedColorsToUserProfile } from "~/permissions";
-import { translatedCountry } from "~/utils/i18n.server";
+import { useHasRole } from "~/modules/permissions/hooks";
 import invariant from "~/utils/invariant";
-import {
-	notFoundIfFalsy,
-	safeParseRequestFormData,
-} from "~/utils/remix.server";
-import { errorIsSqliteUniqueConstraintFailure } from "~/utils/sql";
 import { rawSensToString } from "~/utils/strings";
-import { FAQ_PAGE, isCustomUrl, userPage } from "~/utils/urls";
-import {
-	actualNumber,
-	checkboxValueToDbBoolean,
-	dbBoolean,
-	falsyToNull,
-	id,
-	jsonParseable,
-	processMany,
-	safeJSONParse,
-	undefinedToNull,
-	weaponSplId,
-} from "~/utils/zod";
-import { userParamsSchema } from "../user-page-schemas.server";
-import type { UserPageLoaderData } from "./u.$identifier";
+import { FAQ_PAGE } from "~/utils/urls";
+import type { UserPageLoaderData } from "../loaders/u.$identifier.server";
+
+import { action } from "../actions/u.$identifier.edit.server";
+import { loader } from "../loaders/u.$identifier.edit.server";
+export { loader, action };
 
 import "~/styles/u-edit.css";
 
-const userEditActionSchema = z
-	.object({
-		country: z.preprocess(
-			falsyToNull,
-			z
-				.string()
-				.refine(
-					(val) => !val || Object.keys(countries).some((code) => val === code),
-				)
-				.nullable(),
-		),
-		bio: z.preprocess(
-			falsyToNull,
-			z.string().max(USER.BIO_MAX_LENGTH).nullable(),
-		),
-		customUrl: z.preprocess(
-			falsyToNull,
-			z
-				.string()
-				.max(USER.CUSTOM_URL_MAX_LENGTH)
-				.refine((val) => val === null || isCustomUrl(val), {
-					message: "forms.errors.invalidCustomUrl.numbers",
-				})
-				.refine((val) => val === null || /^[a-zA-Z0-9-_]+$/.test(val), {
-					message: "forms.errors.invalidCustomUrl.strangeCharacter",
-				})
-				.transform((val) => val?.toLowerCase())
-				.nullable(),
-		),
-		customName: z.preprocess(
-			falsyToNull,
-			z
-				.string()
-				.trim()
-				.regex(USER.CUSTOM_NAME_REGEXP)
-				.max(USER.CUSTOM_NAME_MAX_LENGTH)
-				.nullable(),
-		),
-		battlefy: z.preprocess(
-			falsyToNull,
-			z.string().max(USER.BATTLEFY_MAX_LENGTH).nullable(),
-		),
-		bsky: z.preprocess(
-			falsyToNull,
-			z.string().max(USER.BSKY_MAX_LENGTH).nullable(),
-		),
-		stickSens: z.preprocess(
-			processMany(actualNumber, undefinedToNull),
-			z
-				.number()
-				.min(-50)
-				.max(50)
-				.refine((val) => val % 5 === 0)
-				.nullable(),
-		),
-		motionSens: z.preprocess(
-			processMany(actualNumber, undefinedToNull),
-			z
-				.number()
-				.min(-50)
-				.max(50)
-				.refine((val) => val % 5 === 0)
-				.nullable(),
-		),
-		inGameNameText: z.preprocess(
-			falsyToNull,
-			z.string().max(USER.IN_GAME_NAME_TEXT_MAX_LENGTH).nullable(),
-		),
-		inGameNameDiscriminator: z.preprocess(
-			falsyToNull,
-			z
-				.string()
-				.refine((val) => /^[0-9a-z]{4,5}$/.test(val))
-				.nullable(),
-		),
-		css: z.preprocess(falsyToNull, z.string().refine(jsonParseable).nullable()),
-		weapons: z.preprocess(
-			safeJSONParse,
-			z
-				.array(
-					z.object({
-						weaponSplId,
-						isFavorite: dbBoolean,
-					}),
-				)
-				.max(USER.WEAPON_POOL_MAX_SIZE),
-		),
-		favoriteBadgeId: z.preprocess(
-			processMany(actualNumber, undefinedToNull),
-			id.nullable(),
-		),
-		showDiscordUniqueName: z.preprocess(checkboxValueToDbBoolean, dbBoolean),
-		commissionsOpen: z.preprocess(checkboxValueToDbBoolean, dbBoolean),
-		commissionText: z.preprocess(
-			falsyToNull,
-			z.string().max(USER.COMMISSION_TEXT_MAX_LENGTH).nullable(),
-		),
-	})
-	.refine(
-		(val) => {
-			if (val.motionSens !== null && val.stickSens === null) {
-				return false;
-			}
-
-			return true;
-		},
-		{
-			message: "forms.errors.invalidSens",
-		},
-	);
-
-export const action: ActionFunction = async ({ request }) => {
-	const parsedInput = await safeParseRequestFormData({
-		request,
-		schema: userEditActionSchema,
-	});
-
-	if (!parsedInput.success) {
-		return {
-			errors: parsedInput.errors,
-		};
-	}
-
-	const { inGameNameText, inGameNameDiscriminator, ...data } = parsedInput.data;
-
-	const user = await requireUserId(request);
-	const inGameName =
-		inGameNameText && inGameNameDiscriminator
-			? `${inGameNameText}#${inGameNameDiscriminator}`
-			: null;
-
-	try {
-		const editedUser = await UserRepository.updateProfile({
-			...data,
-			inGameName,
-			userId: user.id,
-		});
-
-		// TODO: to transaction
-		if (inGameName) {
-			await TournamentTeamRepository.updateMemberInGameNameForNonStarted({
-				inGameName,
-				userId: user.id,
-			});
-		}
-
-		throw redirect(userPage(editedUser));
-	} catch (e) {
-		if (!errorIsSqliteUniqueConstraintFailure(e)) {
-			throw e;
-		}
-
-		return {
-			errors: ["forms.errors.invalidCustomUrl.duplicate"],
-		};
-	}
-};
-
-export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-	const locale = await i18next.getLocale(request);
-
-	const user = await requireUser(request);
-	const { identifier } = userParamsSchema.parse(params);
-	const userToBeEdited = notFoundIfFalsy(
-		await UserRepository.findLayoutDataByIdentifier(identifier),
-	);
-	if (user.id !== userToBeEdited.id) {
-		throw redirect(userPage(userToBeEdited));
-	}
-
-	const userProfile = (await UserRepository.findProfileByIdentifier(
-		identifier,
-		true,
-	))!;
-
-	return {
-		user: userProfile,
-		favoriteBadgeId: user.favoriteBadgeId,
-		discordUniqueName: userProfile.discordUniqueName,
-		countries: Object.entries(countries)
-			.map(([code, country]) => ({
-				code,
-				emoji: getEmojiFlag(code as TCountryCode),
-				name:
-					translatedCountry({
-						countryCode: code,
-						language: locale,
-					}) ?? country.name,
-			}))
-			.sort((a, b) => a.name.localeCompare(b.name)),
-	};
-};
-
 export default function UserEditPage() {
-	const user = useUser();
 	const { t } = useTranslation(["common", "user"]);
 	const [, parentRoute] = useMatches();
 	invariant(parentRoute);
 	const layoutData = parentRoute.data as UserPageLoaderData;
 	const data = useLoaderData<typeof loader>();
 
+	const isSupporter = useHasRole("SUPPORTER");
+	const isArtist = useHasRole("ARTIST");
+
 	return (
 		<div className="half-width">
 			<Form className="u-edit__container" method="post">
-				{canAddCustomizedColorsToUserProfile(user) ? (
+				{isSupporter ? (
 					<CustomizedColorsInput initialColors={layoutData.css} />
 				) : null}
 				<CustomNameInput />
@@ -269,7 +53,6 @@ export default function UserEditPage() {
 				<InGameNameInputs />
 				<SensSelects />
 				<BattlefyInput />
-				<BskyInput />
 				<CountrySelect />
 				<FavBadgeSelect />
 				<WeaponPoolSelect />
@@ -279,7 +62,7 @@ export default function UserEditPage() {
 				) : (
 					<input type="hidden" name="showDiscordUniqueName" value="on" />
 				)}
-				{user?.isArtist ? (
+				{isArtist ? (
 					<>
 						<CommissionsOpenToggle parentRouteData={layoutData} />
 						<CommissionTextArea initialValue={layoutData.user.commissionText} />
@@ -292,7 +75,7 @@ export default function UserEditPage() {
 				)}
 				<FormMessage type="info">
 					<Trans i18nKey={"user:discordExplanation"} t={t}>
-						Username, profile picture, YouTube, Twitter and Twitch accounts come
+						Username, profile picture, YouTube, Bluesky and Twitch accounts come
 						from your Discord account. See <Link to={FAQ_PAGE}>FAQ</Link> for
 						more information.
 					</Trans>
@@ -431,22 +214,25 @@ function CountrySelect() {
 	const data = useLoaderData<typeof loader>();
 
 	return (
-		<div>
-			<label htmlFor="country">{t("user:country")}</label>
-			<select
-				className="u-edit__country-select"
-				name="country"
-				id="country"
-				defaultValue={data.user.country ?? ""}
-			>
-				<option value="" />
-				{data.countries.map((country) => (
-					<option key={country.code} value={country.code}>
-						{`${country.name} ${country.emoji}`}
-					</option>
-				))}
-			</select>
-		</div>
+		<SendouSelect
+			items={data.countries.map((country) => ({
+				...country,
+				id: country.code,
+				key: country.code,
+			}))}
+			label={t("user:country")}
+			search={{
+				placeholder: t("user:forms.country.search.placeholder"),
+			}}
+			name="country"
+			defaultSelectedKey={data.user.country ?? undefined}
+		>
+			{({ key, ...item }) => (
+				<SendouSelectItem key={key} {...item}>
+					{item.name}
+				</SendouSelectItem>
+			)}
+		</SendouSelect>
 	);
 }
 
@@ -465,24 +251,6 @@ function BattlefyInput() {
 				leftAddon="https://battlefy.com/users/"
 			/>
 			<FormMessage type="info">{t("user:forms.info.battlefy")}</FormMessage>
-		</div>
-	);
-}
-
-function BskyInput() {
-	const { t } = useTranslation(["user"]);
-	const data = useLoaderData<typeof loader>();
-
-	return (
-		<div className="w-full">
-			<Label htmlFor="bsky">{t("user:bsky")}</Label>
-			<Input
-				name="bsky"
-				id="bsky"
-				maxLength={USER.BSKY_MAX_LENGTH}
-				defaultValue={data.user.bsky ?? undefined}
-				leftAddon="https://bsky.app/profile/"
-			/>
 		</div>
 	);
 }
@@ -577,7 +345,9 @@ function WeaponPoolSelect() {
 	);
 }
 
-function BioTextarea({ initialValue }: { initialValue: User["bio"] }) {
+function BioTextarea({
+	initialValue,
+}: { initialValue: Tables["User"]["bio"] }) {
 	const { t } = useTranslation("user");
 	const [value, setValue] = React.useState(initialValue ?? "");
 
@@ -603,34 +373,42 @@ function BioTextarea({ initialValue }: { initialValue: User["bio"] }) {
 function FavBadgeSelect() {
 	const data = useLoaderData<typeof loader>();
 	const { t } = useTranslation(["user"]);
+	const [value, setValue] = React.useState(data.favoriteBadgeIds ?? []);
+	const isSupporter = useHasRole("SUPPORTER");
 
 	// doesn't make sense to select favorite badge
 	// if user has no badges or only has 1 badge
 	if (data.user.badges.length < 2) return null;
 
-	// user's current favorite badge is the initial value
-	const initialBadge = data.user.badges.find(
-		(badge) => badge.id === data.favoriteBadgeId,
-	);
+	const onChange = (newBadges: number[]) => {
+		if (isSupporter) {
+			setValue(newBadges);
+		} else {
+			// non-supporters can only set which badge is the big one
+			setValue(newBadges.length > 0 ? [newBadges[0]] : []);
+		}
+	};
 
 	return (
 		<div>
-			<label htmlFor="favoriteBadgeId">{t("user:favoriteBadge")}</label>
-			<select
-				className=""
-				name="favoriteBadgeId"
-				id="favoriteBadgeId"
-				defaultValue={initialBadge?.id}
+			<input
+				type="hidden"
+				name="favoriteBadgeIds"
+				value={JSON.stringify(value)}
+			/>
+			<label htmlFor="favoriteBadgeIds">{t("user:favoriteBadges")}</label>
+			<BadgesSelector
+				options={data.user.badges}
+				selectedBadges={value}
+				onChange={onChange}
+				maxCount={BADGE.SMALL_BADGES_PER_DISPLAY_PAGE + 1}
 			>
-				{data.user.badges.map((badge) => (
-					<option key={badge.id} value={badge.id}>
-						{`${badge.displayName}`}
-					</option>
-				))}
-			</select>
-			<FormMessage type="info">
-				{t("user:forms.info.favoriteBadge")}
-			</FormMessage>
+				{!isSupporter ? (
+					<div className="text-sm text-lighter font-semi-bold text-center">
+						{t("user:forms.favoriteBadges.nonSupporter")}
+					</div>
+				) : null}
+			</BadgesSelector>
 		</div>
 	);
 }
@@ -647,9 +425,9 @@ function ShowUniqueDiscordNameToggle() {
 			<label htmlFor="showDiscordUniqueName">
 				{t("user:forms.showDiscordUniqueName")}
 			</label>
-			<Toggle
-				checked={checked}
-				setChecked={setChecked}
+			<SendouSwitch
+				isSelected={checked}
+				onChange={setChecked}
 				name="showDiscordUniqueName"
 			/>
 			<FormMessage type="info">
@@ -674,9 +452,9 @@ function CommissionsOpenToggle({
 	return (
 		<div>
 			<label htmlFor="commissionsOpen">{t("user:forms.commissionsOpen")}</label>
-			<Toggle
-				checked={checked}
-				setChecked={setChecked}
+			<SendouSwitch
+				isSelected={checked}
+				onChange={setChecked}
 				name="commissionsOpen"
 			/>
 		</div>
@@ -686,7 +464,7 @@ function CommissionsOpenToggle({
 function CommissionTextArea({
 	initialValue,
 }: {
-	initialValue: User["commissionText"];
+	initialValue: Tables["User"]["commissionText"];
 }) {
 	const { t } = useTranslation(["user"]);
 	const [value, setValue] = React.useState(initialValue ?? "");

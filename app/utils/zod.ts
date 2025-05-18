@@ -1,17 +1,31 @@
 import type { ZodType } from "zod";
 import { z } from "zod";
+import { CUSTOM_CSS_VAR_COLORS, INVITE_CODE_LENGTH } from "~/constants";
 import type { abilitiesShort } from "~/modules/in-game-lists";
 import { abilities, mainWeaponIds, stageIds } from "~/modules/in-game-lists";
 import { FRIEND_CODE_REGEXP } from "../features/sendouq/q-constants";
 import type { Unpacked } from "./types";
 import { assertType } from "./types";
 
-export const id = z.coerce.number().int().positive();
+export const id = z.coerce.number({ message: "Required" }).int().positive();
+export const idObject = z.object({
+	id,
+});
 export const optionalId = z.coerce.number().int().positive().optional();
+
+export const inviteCode = z.string().length(INVITE_CODE_LENGTH);
+export const inviteCodeObject = z.object({
+	inviteCode,
+});
+
+export const nonEmptyString = z.string().trim().min(1, {
+	message: "Required",
+});
 
 export const dbBoolean = z.coerce.number().min(0).max(1).int();
 
-export const hexCode = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+const hexCodeRegex = /^#(?:[0-9a-fA-F]{3}){1,2}[0-9]{0,2}$/; // https://stackoverflow.com/a/1636354
+export const hexCode = z.string().regex(hexCodeRegex);
 
 const abilityNameToType = (val: string) =>
 	abilities.find((ability) => ability.name === val)?.type;
@@ -86,6 +100,11 @@ export const weaponSplId = z.preprocess(
 	numericEnum(mainWeaponIds),
 );
 
+export const qWeapon = z.object({
+	weaponSplId,
+	isFavorite: z.union([z.literal(0), z.literal(1)]),
+});
+
 export const modeShort = z.enum(["TW", "SZ", "TC", "RM", "CB"]);
 
 export const stageId = z.preprocess(actualNumber, numericEnum(stageIds));
@@ -112,6 +131,63 @@ export function safeJSONParse(value: unknown): unknown {
 	} catch (e) {
 		return undefined;
 	}
+}
+
+const EMPTY_CHARACTERS = ["\u200B", "\u200C", "\u200D", "\u200E", "\u200F"];
+const EMPTY_CHARACTERS_REGEX = new RegExp(EMPTY_CHARACTERS.join("|"), "g");
+
+const zalgoRe = /%CC%/g;
+export const hasZalgo = (txt: string) => zalgoRe.test(encodeURIComponent(txt));
+
+/** Non-empty string that has the given length (max and optionally min). Prevents z͎͗ͣḁ̵̑l̉̃ͦg̐̓̒o͓̔ͥ text as well as filters out characters that have no width. */
+export const safeStringSchema = ({ min, max }: { min?: number; max: number }) =>
+	z.preprocess(
+		actuallyNonEmptyStringOrNull, // if this returns null, none of the checks below will run because it's not a string
+		z
+			.string()
+			.min(min ?? 0)
+			.max(max)
+			.refine((text) => !hasZalgo(text), {
+				message: "Includes not allowed characters.",
+			}),
+	);
+
+/** Nullable string that has the given length (max and optionally min). Prevents z͎͗ͣḁ̵̑l̉̃ͦg̐̓̒o͓̔ͥ text as well as filters out characters that have no width. */
+export const safeNullableStringSchema = ({
+	min,
+	max,
+}: {
+	min?: number;
+	max: number;
+}) =>
+	z.preprocess(
+		actuallyNonEmptyStringOrNull,
+		z
+			.string()
+			.min(min ?? 0)
+			.max(max)
+			.nullable()
+			.refine(
+				(text) => {
+					if (typeof text !== "string") return true;
+
+					return !hasZalgo(text);
+				},
+				{
+					message: "Includes not allowed characters.",
+				},
+			),
+	);
+
+/**
+ * Processes the input value and returns a non-empty string with invisible characters cleaned out or null.
+ */
+function actuallyNonEmptyStringOrNull(value: unknown) {
+	if (typeof value !== "string") return value;
+
+	const trimmed = value.replace(EMPTY_CHARACTERS_REGEX, "").trim();
+
+	return trimmed === "" ? null : trimmed;
 }
 
 /**
@@ -186,6 +262,12 @@ export function noDuplicates(arr: (number | string)[]) {
 	return new Set(arr).size === arr.length;
 }
 
+export function filterOutNullishMembers(value: unknown) {
+	if (!Array.isArray(value)) return value;
+
+	return value.filter((member) => member !== null && member !== undefined);
+}
+
 export function removeDuplicates(value: unknown) {
 	if (!Array.isArray(value)) return value;
 
@@ -249,4 +331,36 @@ export function numericEnum<TValues extends readonly number[]>(
 			});
 		}
 	}) as ZodType<TValues[number]>;
+}
+
+export const dayMonthYear = z.object({
+	day: z.number().int().min(1).max(31),
+	month: z.number().int().min(0).max(11),
+	year: z.number().int().min(2015).max(2100),
+});
+
+export type DayMonthYear = z.infer<typeof dayMonthYear>;
+
+export const customCssVarObject = z.preprocess(
+	falsyToNull,
+	z.string().nullable().refine(validSerializedCustomCssVarObject, {
+		message: "Invalid custom CSS var object",
+	}),
+);
+
+function validSerializedCustomCssVarObject(value: unknown) {
+	if (!value) return true;
+
+	try {
+		const parsedValue = JSON.parse(value as string);
+
+		for (const [key, value] of Object.entries(parsedValue)) {
+			if (!CUSTOM_CSS_VAR_COLORS.includes(key as any)) return false;
+			if (!hexCodeRegex.test(value as string)) return false;
+		}
+
+		return true;
+	} catch {
+		return false;
+	}
 }

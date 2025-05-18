@@ -1,17 +1,11 @@
-import type {
-	LoaderFunctionArgs,
-	MetaFunction,
-	SerializeFrom,
-} from "@remix-run/node";
+import type { MetaFunction } from "@remix-run/node";
 import { Outlet, useLoaderData, useLocation } from "@remix-run/react";
 import { useTranslation } from "react-i18next";
 import { Main } from "~/components/Main";
 import { SubNav, SubNavLink } from "~/components/SubNav";
 import { useUser } from "~/features/auth/core/user";
-import { getUserId } from "~/features/auth/core/user.server";
-import * as UserRepository from "~/features/user-page/UserRepository.server";
-import { type SendouRouteHandle, notFoundIfFalsy } from "~/utils/remix.server";
-import { makeTitle } from "~/utils/strings";
+import { metaTags } from "~/utils/remix";
+import type { SendouRouteHandle } from "~/utils/remix.server";
 import {
 	USER_SEARCH_PAGE,
 	navIconUrl,
@@ -24,16 +18,26 @@ import {
 	userVodsPage,
 } from "~/utils/urls";
 
+import {
+	type UserPageLoaderData,
+	loader,
+} from "../loaders/u.$identifier.server";
+export { loader };
+
 import "~/styles/u.css";
 
-export const meta: MetaFunction<typeof loader> = ({ data }) => {
-	if (!data) return [];
+export const meta: MetaFunction<typeof loader> = (args) => {
+	if (!args.data) return [];
 
-	return [{ title: makeTitle(data.user.username) }];
+	return metaTags({
+		title: args.data.user.username,
+		description: `${args.data.user.username}'s profile on sendou.ink including builds, tournament results, art and more.`,
+		location: args.location,
+	});
 };
 
 export const handle: SendouRouteHandle = {
-	i18n: "user",
+	i18n: ["user", "badges"],
 	breadcrumb: ({ match }) => {
 		const data = match.data as UserPageLoaderData | undefined;
 
@@ -52,27 +56,6 @@ export const handle: SendouRouteHandle = {
 			},
 		];
 	},
-};
-
-export type UserPageLoaderData = SerializeFrom<typeof loader>;
-
-export const loader = async ({ params, request }: LoaderFunctionArgs) => {
-	const loggedInUser = await getUserId(request);
-
-	const user = notFoundIfFalsy(
-		await UserRepository.findLayoutDataByIdentifier(
-			params.identifier!,
-			loggedInUser?.id,
-		),
-	);
-
-	return {
-		user: {
-			...user,
-			css: undefined,
-		},
-		css: user.css,
-	};
 };
 
 export default function UserPageLayout() {

@@ -1,11 +1,8 @@
-import { RadioGroup } from "@headlessui/react";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import type { MetaFunction } from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
-import clsx from "clsx";
 import * as React from "react";
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { Trans } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { Avatar } from "~/components/Avatar";
 import { Button } from "~/components/Button";
 import { WeaponCombobox } from "~/components/Combobox";
@@ -14,44 +11,45 @@ import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { ModeImage, WeaponImage } from "~/components/Image";
 import { Main } from "~/components/Main";
 import { SubmitButton } from "~/components/SubmitButton";
-import { Toggle } from "~/components/Toggle";
+import { SendouSwitch } from "~/components/elements/Switch";
 import { CrossIcon } from "~/components/icons/Cross";
 import { MapIcon } from "~/components/icons/Map";
 import { MicrophoneFilledIcon } from "~/components/icons/MicrophoneFilled";
 import { PuzzleIcon } from "~/components/icons/Puzzle";
 import { SpeakerFilledIcon } from "~/components/icons/SpeakerFilled";
+import { StarIcon } from "~/components/icons/Star";
+import { StarFilledIcon } from "~/components/icons/StarFilled";
 import { TrashIcon } from "~/components/icons/Trash";
 import { UsersIcon } from "~/components/icons/Users";
 import type { Preference, Tables, UserMapModePreferences } from "~/db/tables";
-import { requireUserId } from "~/features/auth/core/user.server";
 import {
 	soundCodeToLocalStorageKey,
 	soundVolume,
 } from "~/features/chat/chat-utils";
-import * as QSettingsRepository from "~/features/sendouq-settings/QSettingsRepository.server";
 import { useIsMounted } from "~/hooks/useIsMounted";
 import { languagesUnified } from "~/modules/i18n/config";
 import type { MainWeaponId, ModeShort } from "~/modules/in-game-lists";
 import { modesShort } from "~/modules/in-game-lists/modes";
-import {
-	type SendouRouteHandle,
-	parseRequestPayload,
-} from "~/utils/remix.server";
+import { metaTags } from "~/utils/remix";
+import type { SendouRouteHandle } from "~/utils/remix.server";
 import { assertUnreachable } from "~/utils/types";
 import {
 	SENDOUQ_PAGE,
 	SENDOUQ_SETTINGS_PAGE,
 	navIconUrl,
-	preferenceEmojiUrl,
 	soundPath,
 } from "~/utils/urls";
 import { BANNED_MAPS } from "../banned-maps";
 import { ModeMapPoolPicker } from "../components/ModeMapPoolPicker";
+import { PreferenceRadioGroup } from "../components/PreferenceRadioGroup";
 import {
 	AMOUNT_OF_MAPS_IN_POOL_PER_MODE,
 	SENDOUQ_WEAPON_POOL_MAX_SIZE,
 } from "../q-settings-constants";
-import { settingsActionSchema } from "../q-settings-schemas.server";
+
+import { action } from "../actions/q.settings.server";
+import { loader } from "../loaders/q.settings.server";
+export { loader, action };
 
 import "../q-settings.css";
 
@@ -71,79 +69,22 @@ export const handle: SendouRouteHandle = {
 	],
 };
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-	const user = await requireUserId(request);
-	const data = await parseRequestPayload({
-		request,
-		schema: settingsActionSchema,
+export const meta: MetaFunction = (args) => {
+	return metaTags({
+		title: "SendouQ - Settings",
+		location: args.location,
 	});
-
-	switch (data._action) {
-		case "UPDATE_MAP_MODE_PREFERENCES": {
-			await QSettingsRepository.updateUserMapModePreferences({
-				mapModePreferences: data.mapModePreferences,
-				userId: user.id,
-			});
-			break;
-		}
-		case "UPDATE_VC": {
-			await QSettingsRepository.updateVoiceChat({
-				userId: user.id,
-				vc: data.vc,
-				languages: data.languages,
-			});
-			break;
-		}
-		case "UPDATE_SENDOUQ_WEAPON_POOL": {
-			await QSettingsRepository.updateSendouQWeaponPool({
-				userId: user.id,
-				weaponPool: data.weaponPool,
-			});
-			break;
-		}
-		case "UPDATE_NO_SCREEN": {
-			await QSettingsRepository.updateNoScreen({
-				userId: user.id,
-				noScreen: Number(data.noScreen),
-			});
-			break;
-		}
-		case "REMOVE_TRUST": {
-			await QSettingsRepository.deleteTrustedUser({
-				trustGiverUserId: user.id,
-				trustReceiverUserId: data.userToRemoveTrustFromId,
-			});
-			break;
-		}
-		default: {
-			assertUnreachable(data);
-		}
-	}
-
-	return { ok: true };
-};
-
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const user = await requireUserId(request);
-
-	return {
-		settings: await QSettingsRepository.settingsByUserId(user.id),
-		trusted: await QSettingsRepository.findTrustedUsersByGiverId(user.id),
-		team: await QSettingsRepository.currentTeamByUserId(user.id),
-	};
 };
 
 export default function SendouQSettingsPage() {
 	return (
-		<Main className="stack sm">
-			<div className="stack">
-				<MapPicker />
-				<WeaponPool />
-				<VoiceChat />
-				<Sounds />
-				<TrustedUsers />
-				<Misc />
-			</div>
+		<Main>
+			<MapPicker />
+			<WeaponPool />
+			<VoiceChat />
+			<Sounds />
+			<TrustedUsers />
+			<Misc />
 		</Main>
 	);
 }
@@ -251,6 +192,7 @@ function MapPicker() {
 												preference,
 											})
 										}
+										aria-label={`Select preference towards ${modeShort}`}
 									/>
 								</div>
 							);
@@ -307,78 +249,6 @@ function MapPicker() {
 				</div>
 			</fetcher.Form>
 		</details>
-	);
-}
-
-function PreferenceRadioGroup({
-	preference,
-	onPreferenceChange,
-}: {
-	preference?: Preference;
-	onPreferenceChange: (preference: Preference & "NEUTRAL") => void;
-}) {
-	const { t } = useTranslation(["q"]);
-
-	return (
-		<RadioGroup
-			value={preference ?? "NEUTRAL"}
-			onChange={(newPreference) =>
-				onPreferenceChange(newPreference as Preference & "NEUTRAL")
-			}
-			className="stack horizontal xs"
-		>
-			<RadioGroup.Option value="AVOID">
-				{({ checked }) => (
-					<span
-						className={clsx("q-settings__radio", {
-							"q-settings__radio__checked": checked,
-						})}
-					>
-						<img
-							src={preferenceEmojiUrl("AVOID")}
-							className="q-settings__radio__emoji"
-							width={18}
-							alt="Avoid emoji"
-						/>
-						{t("q:settings.maps.avoid")}
-					</span>
-				)}
-			</RadioGroup.Option>
-			<RadioGroup.Option value="NEUTRAL">
-				{({ checked }) => (
-					<span
-						className={clsx("q-settings__radio", {
-							"q-settings__radio__checked": checked,
-						})}
-					>
-						<img
-							src={preferenceEmojiUrl()}
-							className="q-settings__radio__emoji"
-							width={18}
-							alt="Neutral emoji"
-						/>
-						{t("q:settings.maps.neutral")}
-					</span>
-				)}
-			</RadioGroup.Option>
-			<RadioGroup.Option value="PREFER">
-				{({ checked }) => (
-					<span
-						className={clsx("q-settings__radio", {
-							"q-settings__radio__checked": checked,
-						})}
-					>
-						<img
-							src={preferenceEmojiUrl("PREFER")}
-							className="q-settings__radio__emoji"
-							width={18}
-							alt="Prefer emoji"
-						/>
-						{t("q:settings.maps.prefer")}
-					</span>
-				)}
-			</RadioGroup.Option>
-		</RadioGroup>
 	);
 }
 
@@ -515,7 +385,7 @@ function WeaponPool() {
 	const [weapons, setWeapons] = React.useState(data.settings.qWeaponPool ?? []);
 	const fetcher = useFetcher();
 
-	const latestWeapon = weapons[weapons.length - 1];
+	const latestWeapon = weapons[weapons.length - 1]?.weaponSplId ?? null;
 
 	return (
 		<details>
@@ -540,12 +410,15 @@ function WeaponPool() {
 									if (!weapon) return;
 									setWeapons([
 										...weapons,
-										Number(weapon.value) as MainWeaponId,
+										{
+											weaponSplId: Number(weapon.value) as MainWeaponId,
+											isFavorite: 0,
+										},
 									]);
 								}}
 								// empty on selection
 								key={latestWeapon ?? "empty"}
-								weaponIdsToOmit={new Set(weapons)}
+								weaponIdsToOmit={new Set(weapons.map((w) => w.weaponSplId))}
 								fullWidth
 							/>
 						</div>
@@ -558,23 +431,45 @@ function WeaponPool() {
 				<div className="stack horizontal sm justify-center">
 					{weapons.map((weapon) => {
 						return (
-							<div key={weapon} className="stack xs">
+							<div key={weapon.weaponSplId} className="stack xs">
 								<div>
 									<WeaponImage
-										weaponSplId={weapon}
-										variant="badge"
+										weaponSplId={weapon.weaponSplId}
+										variant={weapon.isFavorite ? "badge-5-star" : "badge"}
 										width={38}
 										height={38}
 									/>
 								</div>
 								<div className="stack sm horizontal items-center justify-center">
 									<Button
+										icon={weapon.isFavorite ? <StarFilledIcon /> : <StarIcon />}
+										variant="minimal"
+										aria-label="Favorite weapon"
+										onClick={() =>
+											setWeapons(
+												weapons.map((w) =>
+													w.weaponSplId === weapon.weaponSplId
+														? {
+																...weapon,
+																isFavorite: weapon.isFavorite === 1 ? 0 : 1,
+															}
+														: w,
+												),
+											)
+										}
+									/>
+									<Button
 										icon={<TrashIcon />}
 										variant="minimal-destructive"
 										aria-label="Delete weapon"
 										onClick={() =>
-											setWeapons(weapons.filter((w) => w !== weapon))
+											setWeapons(
+												weapons.filter(
+													(w) => w.weaponSplId !== weapon.weaponSplId,
+												),
+											)
 										}
+										testId={`delete-weapon-${weapon.weaponSplId}`}
 										size="tiny"
 									/>
 								</div>
@@ -743,7 +638,7 @@ function TrustedUsers() {
 												["_action", "REMOVE_TRUST"],
 												["userToRemoveTrustFromId", trustedUser.id],
 											]}
-											deleteButtonText="Remove"
+											submitButtonText="Remove"
 										>
 											<Button
 												className="build__small-text"
@@ -799,9 +694,9 @@ function Misc() {
 			</summary>
 			<fetcher.Form method="post" className="mb-4 ml-2-5 stack sm">
 				<div className="stack horizontal xs items-center">
-					<Toggle
-						checked={checked}
-						setChecked={setChecked}
+					<SendouSwitch
+						isSelected={checked}
+						onChange={setChecked}
 						id="noScreen"
 						name="noScreen"
 					/>

@@ -1,6 +1,5 @@
 import { Link, useFetcher, useLoaderData } from "@remix-run/react";
 import clsx from "clsx";
-import clone from "just-clone";
 import * as React from "react";
 import { Avatar } from "~/components/Avatar";
 import { Button } from "~/components/Button";
@@ -11,7 +10,7 @@ import { inGameNameWithoutDiscriminator } from "~/utils/strings";
 import { tournamentTeamPage, userPage } from "~/utils/urls";
 import { useTournament } from "../../tournament/routes/to.$id";
 import type { TournamentDataTeam } from "../core/Tournament.server";
-import type { TournamentMatchLoaderData } from "../routes/to.$id.matches.$mid";
+import type { TournamentMatchLoaderData } from "../loaders/to.$id.matches.$mid.server";
 import { tournamentTeamToActiveRosterUserIds } from "../tournament-bracket-utils";
 import type { Result } from "./StartedMatch";
 
@@ -39,17 +38,9 @@ export function TeamRosterInputs({
 	result?: Result;
 	revising?: boolean;
 }) {
-	const presentational = !revising && Boolean(result);
-
-	const data = useLoaderData<TournamentMatchLoaderData>();
 	const tournament = useTournament();
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: biome migration
-	React.useEffect(() => {
-		if (result) return;
-		setWinnerId(undefined);
-		setPoints([0, 0]);
-	}, [data, setWinnerId, setPoints, result]);
+	const presentational = !revising && Boolean(result);
 
 	const points =
 		typeof result?.opponentOnePoints === "number" &&
@@ -95,8 +86,7 @@ export function TeamRosterInputs({
 	);
 }
 
-const TeamRoster = React.memo(_TeamRoster);
-function _TeamRoster({
+export function TeamRoster({
 	team,
 	bothTeamsHaveActiveRosters,
 	presentational,
@@ -148,7 +138,7 @@ function _TeamRoster({
 		const didCancel = !editing;
 		if (didCancel) {
 			setCheckedPlayers?.((oldPlayers) => {
-				const newPlayers = clone(oldPlayers);
+				const newPlayers = structuredClone(oldPlayers);
 				newPlayers[idx] = activeRoster ?? [];
 				return newPlayers;
 			});
@@ -165,7 +155,7 @@ function _TeamRoster({
 	const onPointsChange = React.useCallback(
 		(newPoint: number) => {
 			setPoints((points) => {
-				const newPoints = clone(points);
+				const newPoints = structuredClone(points);
 				newPoints[idx] = newPoint;
 				return newPoints;
 			});
@@ -226,7 +216,7 @@ function _TeamRoster({
 					if (!setCheckedPlayers) return;
 
 					setCheckedPlayers((oldPlayers) => {
-						const newPlayers = clone(oldPlayers);
+						const newPlayers = structuredClone(oldPlayers);
 						if (oldPlayers[idx].includes(playerId)) {
 							newPlayers[idx] = newPlayers[idx].filter((id) => id !== playerId);
 						} else {
@@ -251,8 +241,7 @@ function _TeamRoster({
 	);
 }
 
-const TeamRosterHeader = React.memo(_TeamRosterHeader);
-function _TeamRosterHeader({
+export function TeamRosterHeader({
 	idx,
 	team,
 	tournamentId,
@@ -348,8 +337,7 @@ function WinnerRadio({
 	);
 }
 
-const PointInput = React.memo(_PointInput);
-function _PointInput({
+export function PointInput({
 	value,
 	onChange,
 	presentational,

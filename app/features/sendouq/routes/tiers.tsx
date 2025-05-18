@@ -1,3 +1,4 @@
+import type { MetaFunction } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { useTranslation } from "react-i18next";
 import { TierImage } from "~/components/Image";
@@ -8,21 +9,23 @@ import {
 	USER_LEADERBOARD_MIN_ENTRIES_FOR_LEVIATHAN,
 } from "~/features/mmr/mmr-constants";
 import { ordinalToSp } from "~/features/mmr/mmr-utils";
-import { currentOrPreviousSeason } from "~/features/mmr/season";
-import { userSkills } from "~/features/mmr/tiered.server";
+import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
+
+import { loader } from "../loaders/tiers.server";
+export { loader };
+
+export const meta: MetaFunction = (args) => {
+	return metaTags({
+		title: "SendouQ - Tiers",
+		description:
+			"Information about the tiers in SendouQ. From Leviathan+ to Iron.",
+		location: args.location,
+	});
+};
 
 export const handle: SendouRouteHandle = {
 	i18n: ["q"],
-};
-
-export const loader = () => {
-	const season = currentOrPreviousSeason(new Date());
-	const { intervals } = userSkills(season!.nth);
-
-	return {
-		intervals,
-	};
 };
 
 export default function TiersPage() {

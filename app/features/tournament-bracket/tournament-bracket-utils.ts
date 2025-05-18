@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
-import type { TournamentRoundMaps } from "~/db/tables";
-import type { TournamentMatch } from "~/db/types";
+import * as R from "remeda";
+import type { Tables, TournamentRoundMaps } from "~/db/tables";
 import type { TournamentManagerDataSet } from "~/modules/brackets-manager/types";
 import type { ModeShort, StageId } from "~/modules/in-game-lists";
 import type { TournamentMaplistSource } from "~/modules/tournament-map-list-generator";
@@ -8,10 +8,8 @@ import {
 	seededRandom,
 	sourceTypes,
 } from "~/modules/tournament-map-list-generator";
-import { removeDuplicates } from "~/utils/arrays";
-import { sumArray } from "~/utils/number";
 import type { FindMatchById } from "../tournament-bracket/queries/findMatchById.server";
-import type { TournamentLoaderData } from "../tournament/routes/to.$id";
+import type { TournamentLoaderData } from "../tournament/loaders/to.$id.server";
 import type { Standing } from "./core/Bracket";
 import type { Tournament } from "./core/Tournament";
 import type { TournamentDataTeam } from "./core/Tournament.server";
@@ -28,7 +26,7 @@ const NUM_MAP = {
 	"9": ["9", "6", "8"],
 	"0": ["0", "8"],
 };
-export function resolveRoomPass(matchId: TournamentMatch["id"]) {
+export function resolveRoomPass(matchId: Tables["TournamentMatch"]["id"]) {
 	let pass = "5";
 	for (let i = 0; i < 3; i++) {
 		const { shuffle } = seededRandom(`${matchId}-${i}`);
@@ -111,7 +109,7 @@ export function everyMatchIsOver(
 ) {
 	// winners, losers & grand finals+bracket reset are all different stages
 	const isDoubleElimination =
-		removeDuplicates(bracket.match.map((match) => match.group_id)).length === 3;
+		R.unique(bracket.match.map((match) => match.group_id)).length === 3;
 
 	// tournament didn't start yet
 	if (bracket.match.length === 0) return false;
@@ -206,8 +204,23 @@ export function pickInfoText({
 	return "";
 }
 
-export function groupNumberToLetter(groupNumber: number) {
-	return String.fromCharCode(65 + groupNumber - 1).toUpperCase();
+/**
+ * Converts a group number to its corresponding letter representation.
+ *
+ * The function takes a one-based group number and converts it to a string
+ * of uppercase letters, similar to how Excel columns are labeled (e.g., 1 -> 'A', 26 -> 'Z', 27 -> 'AA').
+ *
+ * @param groupNumber - The one-based group number to convert.
+ * @returns The letter representation of the group number.
+ */
+export function groupNumberToLetters(groupNumber: number) {
+	let letters = "";
+	let num = groupNumber - 1; // Adjust for one-based input
+	while (num >= 0) {
+		letters = String.fromCharCode((num % 26) + 65) + letters;
+		num = Math.floor(num / 26) - 1;
+	}
+	return letters;
 }
 
 export function isSetOverByResults({
@@ -227,7 +240,7 @@ export function isSetOverByResults({
 	}
 
 	if (countType === "PLAY_ALL") {
-		return sumArray(Array.from(winCounts.values())) === count;
+		return R.sum(Array.from(winCounts.values())) === count;
 	}
 
 	const maxWins = Math.max(...Array.from(winCounts.values()));
@@ -246,7 +259,7 @@ export function isSetOverByScore({
 	countType: TournamentRoundMaps["type"];
 }) {
 	if (countType === "PLAY_ALL") {
-		return sumArray(scores) === count;
+		return R.sum(scores) === count;
 	}
 
 	const matchOverAtXWins = Math.ceil(count / 2);

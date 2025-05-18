@@ -1,13 +1,6 @@
-import type { ActionFunction, LoaderFunctionArgs } from "@remix-run/node";
-import {
-	unstable_composeUploadHandlers as composeUploadHandlers,
-	unstable_createMemoryUploadHandler as createMemoryUploadHandler,
-	unstable_parseMultipartFormData as parseMultipartFormData,
-	redirect,
-} from "@remix-run/node";
+import type { MetaFunction } from "@remix-run/node";
 import { Form, useLoaderData } from "@remix-run/react";
 import Compressor from "compressorjs";
-import clone from "just-clone";
 import { nanoid } from "nanoid";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
@@ -18,32 +11,24 @@ import { Combobox } from "~/components/Combobox";
 import { FormMessage } from "~/components/FormMessage";
 import { Label } from "~/components/Label";
 import { Main } from "~/components/Main";
-import { Toggle } from "~/components/Toggle";
-import { UserSearch } from "~/components/UserSearch";
+import { SendouSwitch } from "~/components/elements/Switch";
+import { UserSearch } from "~/components/elements/UserSearch";
 import { CrossIcon } from "~/components/icons/Cross";
-import { useUser } from "~/features/auth/core/user";
-import { requireUser } from "~/features/auth/core/user.server";
-import { s3UploadHandler } from "~/features/img-upload";
-import { dateToDatabaseTimestamp } from "~/utils/dates";
+import { useHasRole } from "~/modules/permissions/hooks";
 import invariant from "~/utils/invariant";
-import {
-	type SendouRouteHandle,
-	parseFormData,
-	parseRequestPayload,
-	validate,
-} from "~/utils/remix.server";
+import type { SendouRouteHandle } from "~/utils/remix.server";
 import {
 	artPage,
 	conditionalUserSubmittedImage,
 	navIconUrl,
-	userArtPage,
 } from "~/utils/urls";
-import { ART, NEW_ART_EXISTING_SEARCH_PARAM_KEY } from "../art-constants";
-import { editArtSchema, newArtSchema } from "../art-schemas.server";
+import { metaTitle } from "../../../utils/remix";
+import { ART } from "../art-constants";
 import { previewUrl } from "../art-utils";
-import { addNewArt, editArt } from "../queries/addNewArt.server";
-import { allArtTags } from "../queries/allArtTags.server";
-import { findArtById } from "../queries/findArtById.server";
+
+import { action } from "../actions/art.new.server";
+import { loader } from "../loaders/art.new.server";
+export { loader, action };
 
 export const handle: SendouRouteHandle = {
 	i18n: ["art"],
@@ -54,84 +39,10 @@ export const handle: SendouRouteHandle = {
 	}),
 };
 
-export const action: ActionFunction = async ({ request }) => {
-	const user = await requireUser(request);
-	validate(user.isArtist, "Lacking artist role", 403);
-
-	const searchParams = new URL(request.url).searchParams;
-	const artIdRaw = searchParams.get(NEW_ART_EXISTING_SEARCH_PARAM_KEY);
-
-	// updating logic
-	if (artIdRaw) {
-		const artId = Number(artIdRaw);
-
-		const existingArt = findArtById(artId);
-		validate(
-			existingArt?.authorId === user.id,
-			"Insufficient permissions",
-			401,
-		);
-
-		const data = await parseRequestPayload({
-			request,
-			schema: editArtSchema,
-		});
-
-		editArt({
-			authorId: user.id,
-			artId,
-			description: data.description,
-			isShowcase: data.isShowcase,
-			linkedUsers: data.linkedUsers,
-			tags: data.tags,
-		});
-	} else {
-		const uploadHandler = composeUploadHandlers(
-			s3UploadHandler(`art-${nanoid()}-${Date.now()}`),
-			createMemoryUploadHandler(),
-		);
-		const formData = await parseMultipartFormData(request, uploadHandler);
-		const imgSrc = formData.get("img") as string | null;
-		invariant(imgSrc);
-
-		const urlParts = imgSrc.split("/");
-		const fileName = urlParts[urlParts.length - 1];
-		invariant(fileName);
-
-		const data = await parseFormData({
-			formData,
-			schema: newArtSchema,
-		});
-
-		addNewArt({
-			authorId: user.id,
-			description: data.description,
-			url: fileName,
-			validatedAt: user.patronTier ? dateToDatabaseTimestamp(new Date()) : null,
-			linkedUsers: data.linkedUsers,
-			tags: data.tags,
-		});
-	}
-
-	throw redirect(userArtPage(user));
-};
-
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const user = await requireUser(request);
-	validate(user.isArtist, "Lacking artist role", 403);
-
-	const artIdRaw = new URL(request.url).searchParams.get(
-		NEW_ART_EXISTING_SEARCH_PARAM_KEY,
-	);
-	if (!artIdRaw) return { art: null, tags: allArtTags() };
-	const artId = Number(artIdRaw);
-
-	const art = findArtById(artId);
-	if (!art || art.authorId !== user.id) {
-		return { art: null, tags: allArtTags() };
-	}
-
-	return { art, tags: allArtTags() };
+export const meta: MetaFunction = () => {
+	return metaTitle({
+		title: "New art",
+	});
 };
 
 export default function NewArtPage() {
@@ -141,7 +52,7 @@ export default function NewArtPage() {
 	const { t } = useTranslation(["common", "art"]);
 	const ref = React.useRef<HTMLFormElement>(null);
 	const fetcher = useFetcher();
-	const user = useUser();
+	const isArtist = useHasRole("ARTIST");
 
 	const handleSubmit = () => {
 		const formData = new FormData(ref.current!);
@@ -161,7 +72,7 @@ export default function NewArtPage() {
 		return !img && !data.art;
 	};
 
-	if (!user || !user.isArtist) {
+	if (!isArtist) {
 		return (
 			<Main className="stack items-center">
 				<Alert variation="WARNING">{t("art:gainPerms")}</Alert>
@@ -432,9 +343,9 @@ function LinkedUsers() {
 				return (
 					<div key={inputId} className="stack horizontal sm mb-2 items-center">
 						<UserSearch
-							inputName="user"
+							name="user"
 							onChange={(newUser) => {
-								const newUsers = clone(users);
+								const newUsers = structuredClone(users);
 								newUsers[i] = { ...newUsers[i], userId: newUser.id };
 
 								setUsers(newUsers);
@@ -481,11 +392,12 @@ function ShowcaseToggle() {
 	return (
 		<div>
 			<label htmlFor="isShowcase">{t("art:forms.showcase.title")}</label>
-			<Toggle
-				checked={checked}
-				setChecked={setChecked}
+			<SendouSwitch
+				isSelected={checked}
+				onChange={setChecked}
 				name="isShowcase"
-				disabled={isCurrentlyShowcase}
+				id="isShowcase"
+				isDisabled={isCurrentlyShowcase}
 			/>
 			<FormMessage type="info">{t("art:forms.showcase.info")}</FormMessage>
 		</div>

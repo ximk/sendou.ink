@@ -11,19 +11,28 @@ import {
 	Scripts,
 	ScrollRestoration,
 	type ShouldRevalidateFunction,
+	useHref,
 	useLoaderData,
 	useMatches,
+	useNavigate,
 	useNavigation,
-	useRevalidator,
+	useSearchParams,
 } from "@remix-run/react";
 import generalI18next from "i18next";
 import NProgress from "nprogress";
 import * as React from "react";
+import { I18nProvider } from "react-aria-components";
+import { RouterProvider } from "react-aria-components";
 import { ErrorBoundary as ClientErrorBoundary } from "react-error-boundary";
 import { useTranslation } from "react-i18next";
+import type { NavigateOptions } from "react-router-dom";
+import { useDebounce } from "react-use";
 import { useChangeLanguage } from "remix-i18next/react";
+import * as NotificationRepository from "~/features/notifications/NotificationRepository.server";
+import { NOTIFICATIONS } from "~/features/notifications/notifications-contants";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import { Catcher } from "./components/Catcher";
+import { SendouToastRegion, toastQueue } from "./components/elements/Toast";
 import { Layout } from "./components/layout";
 import { Ramp } from "./components/ramp/Ramp";
 import { CUSTOMIZED_CSS_VARS_NAME } from "./constants";
@@ -41,17 +50,17 @@ import { useIsMounted } from "./hooks/useIsMounted";
 import { DEFAULT_LANGUAGE } from "./modules/i18n/config";
 import i18next, { i18nCookie } from "./modules/i18n/i18next.server";
 import type { Namespace } from "./modules/i18n/resources.server";
-import { COMMON_PREVIEW_IMAGE, SUSPENDED_PAGE } from "./utils/urls";
+import { isRevalidation, metaTags } from "./utils/remix";
+import { SUSPENDED_PAGE } from "./utils/urls";
 
 import "nprogress/nprogress.css";
 import "~/styles/common.css";
+import "~/styles/elements.css";
 import "~/styles/flags.css";
 import "~/styles/layout.css";
 import "~/styles/reset.css";
 import "~/styles/utils.css";
 import "~/styles/vars.css";
-import { useVisibilityChange } from "./hooks/useVisibilityChange";
-import { isRevalidation } from "./utils/remix";
 
 export const shouldRevalidate: ShouldRevalidateFunction = (args) => {
 	if (isRevalidation(args)) return true;
@@ -62,22 +71,18 @@ export const shouldRevalidate: ShouldRevalidateFunction = (args) => {
 	return Boolean(lang);
 };
 
-export const meta: MetaFunction = () => {
-	return [
-		{ title: "sendou.ink" },
-		{
-			name: "description",
-			content:
-				"Competitive Splatoon Hub featuring gear planner, event calendar, builds by top players, and more!",
-		},
-		{
-			property: "og:image",
-			content: COMMON_PREVIEW_IMAGE,
-		},
-	];
+export const meta: MetaFunction = (args) => {
+	return metaTags({
+		title: "sendou.ink",
+		ogTitle: "sendou.ink - Competitive Splatoon Hub",
+		location: args.location,
+		description:
+			"Sendou.ink is the home of competitive Splatoon featuring daily tournaments and a seasonal ladder. Variety of tools and the largest collection of builds by top players allow you to level up your skill in Splatoon 3.",
+	});
 };
 
 export type RootLoaderData = SerializeFrom<typeof loader>;
+export type LoggedInUser = NonNullable<RootLoaderData["user"]>;
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const user = await getUser(request, false);
@@ -103,16 +108,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 						discordAvatar: user.discordAvatar,
 						discordId: user.discordId,
 						id: user.id,
-						plusTier: user.plusTier,
 						customUrl: user.customUrl,
-						patronTier: user.patronTier,
-						isArtist: user.isArtist,
-						isVideoAdder: user.isVideoAdder,
-						isTournamentOrganizer: user.isTournamentOrganizer,
 						inGameName: user.inGameName,
 						friendCode: user.friendCode,
+						preferences: user.preferences ?? {},
 						languages: user.languages ? user.languages.split(",") : [],
+						plusTier: user.plusTier,
+						roles: user.roles,
 					}
+				: undefined,
+			notifications: user
+				? await NotificationRepository.findByUserId(user.id, {
+						limit: NOTIFICATIONS.PEEK_COUNT,
+					})
 				: undefined,
 		},
 		{
@@ -136,6 +144,7 @@ function Document({
 }) {
 	const { htmlThemeClass } = useTheme();
 	const { i18n } = useTranslation();
+	const navigate = useNavigate();
 	const locale = data?.locale ?? DEFAULT_LANGUAGE;
 
 	// TODO: re-enable after testing if it causes bug where JS is not loading on revisit
@@ -143,6 +152,7 @@ function Document({
 	useChangeLanguage(locale);
 	usePreloadTranslation();
 	useLoadingIndicator();
+	useTriggerToasts();
 	const customizedCSSVars = useCustomizedCSSVars();
 
 	return (
@@ -170,25 +180,72 @@ function Document({
 			<body style={customizedCSSVars}>
 				{process.env.NODE_ENV === "development" && <HydrationTestIndicator />}
 				<React.StrictMode>
-					<MyRamp data={data} />
-					<Layout data={data} isErrored={isErrored}>
-						{children}
-					</Layout>
+					<RouterProvider navigate={navigate} useHref={useHref}>
+						<I18nProvider locale={i18n.language}>
+							<SendouToastRegion />
+							<MyRamp data={data} />
+							<Layout data={data} isErrored={isErrored}>
+								{children}
+							</Layout>
+						</I18nProvider>
+					</RouterProvider>
 				</React.StrictMode>
-				<ScrollRestoration />
+				<ScrollRestoration
+					getKey={(location) => {
+						return location.pathname;
+					}}
+				/>
 				<Scripts />
 			</body>
 		</html>
 	);
 }
 
+function useTriggerToasts() {
+	const [searchParams] = useSearchParams();
+	const navigate = useNavigate();
+
+	const error = searchParams.get("__error");
+	const success = searchParams.get("__success");
+
+	React.useEffect(() => {
+		if (!error && !success) return;
+
+		if (error) {
+			toastQueue.add({
+				message: error,
+				variant: "error",
+			});
+		} else if (success) {
+			toastQueue.add(
+				{
+					message: success,
+					variant: "success",
+				},
+				{
+					timeout: 5000,
+				},
+			);
+		}
+
+		navigate({ search: "" }, { replace: true });
+	}, [error, success, navigate]);
+}
+
 function useLoadingIndicator() {
 	const transition = useNavigation();
 
-	React.useEffect(() => {
-		if (transition.state === "loading") NProgress.start();
-		if (transition.state === "idle") NProgress.done();
-	}, [transition.state]);
+	useDebounce(
+		() => {
+			if (transition.state === "loading") {
+				NProgress.start();
+			} else if (transition.state === "idle") {
+				NProgress.done();
+			}
+		},
+		250,
+		[transition.state],
+	);
 }
 
 // TODO: this should be an array if we can figure out how to make Typescript
@@ -205,6 +262,7 @@ export const namespaceJsonsToPreloadObj: Record<Namespace, boolean> = {
 	gear: true,
 	user: true,
 	weapons: true,
+	scrims: true,
 	tournament: true,
 	team: true,
 	vods: true,
@@ -222,36 +280,11 @@ function usePreloadTranslation() {
 	}, []);
 }
 
-// @ts-expect-error to be used in the future
-function useRevalidateOnRevisit() {
-	const visibility = useVisibilityChange();
-	const { revalidate } = useRevalidator();
-	const [lastUpdated, setLastUpdated] = React.useState<Date>();
-
-	React.useEffect(() => {
-		setLastUpdated(new Date());
-	}, []);
-
-	React.useEffect(() => {
-		if (visibility !== "visible" || !lastUpdated) return;
-
-		const sinceLastUpdated = new Date().getTime() - lastUpdated.getTime();
-
-		// 15 minutes
-		if (sinceLastUpdated < 1000 * 60 * 15) return;
-
-		setLastUpdated(new Date());
-		revalidate();
-	}, [visibility, revalidate, lastUpdated]);
-}
-
 function useCustomizedCSSVars() {
 	const matches = useMatches();
 
 	for (const match of matches) {
 		if ((match.data as any)?.[CUSTOMIZED_CSS_VARS_NAME]) {
-			// cheating TypeScript here but no real way to keep up
-			// even an illusion of type safety here
 			return Object.fromEntries(
 				Object.entries(
 					(match.data as any)[CUSTOMIZED_CSS_VARS_NAME] as Record<
@@ -264,6 +297,12 @@ function useCustomizedCSSVars() {
 	}
 
 	return;
+}
+
+declare module "react-aria-components" {
+	interface RouterConfig {
+		routerOptions: NavigateOptions;
+	}
 }
 
 export default function App() {
@@ -495,7 +534,7 @@ function PWALinks() {
 }
 
 function MyRamp({ data }: { data: RootLoaderData | undefined }) {
-	if (!data || data.user?.patronTier) {
+	if (!data || data.user?.roles.includes("MINOR_SUPPORT")) {
 		return null;
 	}
 

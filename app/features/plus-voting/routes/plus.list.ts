@@ -1,7 +1,7 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunction } from "@remix-run/node";
 import * as UserRepository from "~/features/user-page/UserRepository.server";
-import { canAccessLohiEndpoint } from "~/permissions";
+import { canAccessLohiEndpoint } from "~/utils/remix.server";
 
 export interface PlusListLoaderData {
 	users: Record<string, number>;
@@ -14,7 +14,7 @@ export const loader: LoaderFunction = async ({ request }) => {
 
 	return json<PlusListLoaderData>({
 		users: Object.fromEntries(
-			(await UserRepository.findAllPlusMembers()).map((u) => [
+			(await UserRepository.findAllPlusServerMembers()).map((u) => [
 				u.discordId,
 				u.plusTier,
 			]),

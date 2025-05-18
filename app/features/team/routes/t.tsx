@@ -1,25 +1,20 @@
 import type { MetaFunction } from "@remix-run/node";
-import {
-	Form,
-	Link,
-	useLoaderData,
-	useNavigate,
-	useSearchParams,
-} from "@remix-run/react";
+import { Form, Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "~/components/Alert";
-import { Button } from "~/components/Button";
-import { Dialog } from "~/components/Dialog";
 import { FormErrors } from "~/components/FormErrors";
 import { Input } from "~/components/Input";
 import { Main } from "~/components/Main";
 import { Pagination } from "~/components/Pagination";
 import { SubmitButton } from "~/components/SubmitButton";
+import { SendouDialog } from "~/components/elements/Dialog";
 import { SearchIcon } from "~/components/icons/Search";
 import { useUser } from "~/features/auth/core/user";
 import { usePagination } from "~/hooks/usePagination";
+import { useHasRole } from "~/modules/permissions/hooks";
 import { joinListToNaturalString } from "~/utils/arrays";
+import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import {
 	TEAM_SEARCH_PAGE,
@@ -27,19 +22,22 @@ import {
 	teamPage,
 	userSubmittedImage,
 } from "~/utils/urls";
-import { isAtLeastFiveDollarTierPatreon } from "~/utils/users";
 import { TEAM, TEAMS_PER_PAGE } from "../team-constants";
-
-import "../team.css";
 
 import { action } from "../actions/t.server";
 import { loader } from "../loaders/t.server";
 export { loader, action };
 
-export const meta: MetaFunction<typeof loader> = ({ data }) => {
-	if (!data) return [];
+import "../team.css";
 
-	return [{ title: data.title }];
+export const meta: MetaFunction = (args) => {
+	return metaTags({
+		title: "Team Search",
+		ogTitle: "Splatoon team search",
+		description:
+			"List of all teams on sendou.ink and their members. Search for teams by name or member name.",
+		location: args.location,
+	});
 };
 
 export const handle: SendouRouteHandle = {
@@ -152,19 +150,16 @@ export default function TeamSearchPage() {
 
 function NewTeamDialog() {
 	const { t } = useTranslation(["common", "team"]);
-	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
 	const user = useUser();
+	const isSupporter = useHasRole("SUPPORTER");
 	const data = useLoaderData<typeof loader>();
 
 	const isOpen = searchParams.get("new") === "true";
 
-	const close = () => navigate(TEAM_SEARCH_PAGE);
-
 	const canAddNewTeam = () => {
 		if (!user) return false;
-
-		if (isAtLeastFiveDollarTierPatreon(user)) {
+		if (isSupporter) {
 			return data.teamMemberOfCount < TEAM.MAX_TEAM_COUNT_PATRON;
 		}
 
@@ -181,10 +176,13 @@ function NewTeamDialog() {
 	}
 
 	return (
-		<Dialog isOpen={isOpen} close={close} className="text-center">
+		<SendouDialog
+			heading={t("team:newTeam.header")}
+			isOpen={isOpen}
+			onCloseTo={TEAM_SEARCH_PAGE}
+		>
 			<Form method="post" className="stack md">
-				<h2 className="text-sm">{t("team:newTeam.header")}</h2>
-				<div className="team-search__form-input-container">
+				<div className="">
 					<label htmlFor="name">{t("common:forms.name")}</label>
 					<input
 						id="name"
@@ -196,13 +194,10 @@ function NewTeamDialog() {
 					/>
 				</div>
 				<FormErrors namespace="team" />
-				<div className="stack horizontal md justify-center mt-4">
+				<div className="mt-2">
 					<SubmitButton>{t("common:actions.create")}</SubmitButton>
-					<Button variant="destructive" onClick={close}>
-						{t("common:actions.cancel")}
-					</Button>
 				</div>
 			</Form>
-		</Dialog>
+		</SendouDialog>
 	);
 }

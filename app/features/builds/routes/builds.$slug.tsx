@@ -4,14 +4,14 @@ import {
 	useLoaderData,
 	useSearchParams,
 } from "@remix-run/react";
-import clone from "just-clone";
 import { nanoid } from "nanoid";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { BuildCard } from "~/components/BuildCard";
-import { Button, LinkButton } from "~/components/Button";
+import { LinkButton } from "~/components/Button";
 import { Main } from "~/components/Main";
-import { Menu } from "~/components/Menu";
+import { SendouButton } from "~/components/elements/Button";
+import { SendouMenu, SendouMenuItem } from "~/components/elements/Menu";
 import { BeakerFilledIcon } from "~/components/icons/BeakerFilled";
 import { CalendarIcon } from "~/components/icons/Calendar";
 import { ChartBarIcon } from "~/components/icons/ChartBar";
@@ -23,8 +23,9 @@ import {
 	BUILDS_PAGE_MAX_BUILDS,
 	PATCHES,
 } from "~/constants";
+import { useUser } from "~/features/auth/core/user";
 import { safeJSONParse } from "~/utils/json";
-import { isRevalidation } from "~/utils/remix";
+import { isRevalidation, metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import type { Unpacked } from "~/utils/types";
 import {
@@ -125,12 +126,15 @@ export const shouldRevalidate: ShouldRevalidateFunction = (args) => {
 	return args.defaultShouldRevalidate;
 };
 
-export const meta: MetaFunction = (args) => {
-	const data = args.data as SerializeFrom<typeof loader> | null;
+export const meta: MetaFunction<typeof loader> = (args) => {
+	if (!args.data) return [];
 
-	if (!data) return [];
-
-	return [{ title: data.title }];
+	return metaTags({
+		title: `${args.data.weaponName} builds`,
+		ogTitle: `${args.data.weaponName} Splatoon 3 builds`,
+		description: `Collection of ${args.data.weaponName} builds from the top competitive players. Find the best combination of abilities and level up your gameplay.`,
+		location: args.location,
+	});
 };
 
 export const handle: SendouRouteHandle = {
@@ -155,11 +159,13 @@ export const handle: SendouRouteHandle = {
 	},
 };
 
-const BuildCards = React.memo(function BuildCards({
+export function BuildCards({
 	data,
 }: {
 	data: SerializeFrom<typeof loader>;
 }) {
+	const user = useUser();
+
 	return (
 		<div className="builds-container">
 			{data.builds.map((build) => {
@@ -169,12 +175,13 @@ const BuildCards = React.memo(function BuildCards({
 						build={build}
 						owner={build}
 						canEdit={false}
+						withAbilitySorting={!user?.preferences.disableBuildAbilitySorting}
 					/>
 				);
 			})}
 		</div>
 	);
-});
+}
 
 export default function WeaponsBuildsPage() {
 	const data = useLoaderData<typeof loader>();
@@ -233,7 +240,7 @@ export default function WeaponsBuildsPage() {
 	};
 
 	const handleFilterChange = (i: number, newFilter: Partial<BuildFilter>) => {
-		const newFilters = clone(filters);
+		const newFilters = structuredClone(filters);
 
 		newFilters[i] = {
 			...(filters[i] as AbilityBuildFilter),
@@ -264,20 +271,6 @@ export default function WeaponsBuildsPage() {
 		return `?${params.toString()}`;
 	};
 
-	const FilterMenuButton = React.forwardRef((props, ref) => (
-		<Button
-			variant="outlined"
-			size="tiny"
-			icon={<FilterIcon />}
-			disabled={filters.length >= MAX_BUILD_FILTERS}
-			testId="add-filter-button"
-			{...props}
-			_ref={ref}
-		>
-			{t("builds:addFilter")}
-		</Button>
-	));
-
 	const nthOfSameFilter = (index: number) => {
 		const type = filters[index].type;
 
@@ -287,30 +280,43 @@ export default function WeaponsBuildsPage() {
 	return (
 		<Main className="stack lg">
 			<div className="builds-buttons">
-				<Menu
-					items={[
-						{
-							id: "ability",
-							text: t("builds:filters.type.ability"),
-							icon: <BeakerFilledIcon />,
-							onClick: () => handleFilterAdd("ability"),
-						},
-						{
-							id: "mode",
-							text: t("builds:filters.type.mode"),
-							icon: <MapIcon />,
-							onClick: () => handleFilterAdd("mode"),
-						},
-						{
-							id: "date",
-							text: t("builds:filters.type.date"),
-							icon: <CalendarIcon />,
-							onClick: () => handleFilterAdd("date"),
-							disabled: filters.some((filter) => filter.type === "date"),
-						},
-					]}
-					button={FilterMenuButton}
-				/>
+				<SendouMenu
+					trigger={
+						<SendouButton
+							variant="outlined"
+							size="small"
+							icon={<FilterIcon />}
+							isDisabled={filters.length >= MAX_BUILD_FILTERS}
+							data-testid="add-filter-button"
+						>
+							{t("builds:addFilter")}
+						</SendouButton>
+					}
+				>
+					<SendouMenuItem
+						icon={<BeakerFilledIcon />}
+						isDisabled={filters.length >= MAX_BUILD_FILTERS}
+						onAction={() => handleFilterAdd("ability")}
+						data-testid="menu-item-ability"
+					>
+						{t("builds:filters.type.ability")}
+					</SendouMenuItem>
+					<SendouMenuItem
+						icon={<MapIcon />}
+						onAction={() => handleFilterAdd("mode")}
+						data-testid="menu-item-mode"
+					>
+						{t("builds:filters.type.mode")}
+					</SendouMenuItem>
+					<SendouMenuItem
+						icon={<CalendarIcon />}
+						isDisabled={filters.some((filter) => filter.type === "date")}
+						onAction={() => handleFilterAdd("date")}
+						data-testid="menu-item-date"
+					>
+						{t("builds:filters.type.date")}
+					</SendouMenuItem>
+				</SendouMenu>
 				<div className="builds-buttons__link">
 					<LinkButton
 						to={weaponBuildStatsPage(data.slug)}

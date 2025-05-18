@@ -12,10 +12,10 @@ import { Image, TierImage, WeaponImage } from "~/components/Image";
 import { EditIcon } from "~/components/icons/Edit";
 import { TrashIcon } from "~/components/icons/Trash";
 import { useUser } from "~/features/auth/core/user";
-import { currentOrPreviousSeason } from "~/features/mmr/season";
+import * as Seasons from "~/features/mmr/core/Seasons";
 import type { TieredSkill } from "~/features/mmr/tiered.server";
 import { useIsMounted } from "~/hooks/useIsMounted";
-import { isAdmin } from "~/permissions";
+import { useHasRole } from "~/modules/permissions/hooks";
 import { databaseTimestampToDate } from "~/utils/dates";
 import {
 	lfgNewPostPage,
@@ -25,6 +25,8 @@ import {
 } from "~/utils/urls";
 import { hourDifferenceBetweenTimezones } from "../core/timezone";
 import type { LFGLoaderData, TiersMap } from "../routes/lfg";
+
+import styles from "./LFGPost.module.css";
 
 type Post = LFGLoaderData["posts"][number];
 
@@ -47,11 +49,12 @@ export function LFGPost({
 const USER_POST_EXPANDABLE_CRITERIA = 300;
 function UserLFGPost({ post, tiersMap }: { post: Post; tiersMap: TiersMap }) {
 	const user = useUser();
+	const isAdmin = useHasRole("ADMIN");
 	const [isExpanded, setIsExpanded] = React.useState(false);
 
 	return (
-		<div className="lfg-post__wide-layout">
-			<div className="lfg-post__wide-layout__left-row">
+		<div className={styles.wideLayout}>
+			<div className={styles.leftRow}>
 				<PostUserHeader
 					author={post.author}
 					includeWeapons={post.type !== "COACH_FOR_TEAM"}
@@ -73,7 +76,7 @@ function UserLFGPost({ post, tiersMap }: { post: Post; tiersMap: TiersMap }) {
 			<div>
 				<div className="stack horizontal justify-between">
 					<PostTextTypeHeader type={post.type} />
-					{isAdmin(user) || post.author.id === user?.id ? (
+					{post.author.id === user?.id || isAdmin ? (
 						<PostDeleteButton id={post.id} type={post.type} />
 					) : null}
 				</div>
@@ -97,10 +100,11 @@ function TeamLFGPost({
 }) {
 	const isMounted = useIsMounted();
 	const user = useUser();
+	const isAdmin = useHasRole("ADMIN");
 	const [isExpanded, setIsExpanded] = React.useState(false);
 
 	return (
-		<div className="lfg-post__wide-layout">
+		<div className={styles.wideLayout}>
 			<div className="stack md">
 				<div className="stack xs">
 					<div className="stack horizontal items-center justify-between">
@@ -128,7 +132,7 @@ function TeamLFGPost({
 			<div>
 				<div className="stack horizontal justify-between">
 					<PostTextTypeHeader type={post.type} />
-					{isAdmin(user) || post.author.id === user?.id ? (
+					{post.author.id === user?.id || isAdmin ? (
 						<PostDeleteButton id={post.id} type={post.type} />
 					) : null}
 				</div>
@@ -209,7 +213,7 @@ function PostTeamMember({
 		<div className="stack sm items-center flex-same-size">
 			<div className="stack sm items-center">
 				<Avatar size="xs" user={member} />
-				<Link to={userPage(member)} className="lfg__post-team-member-name">
+				<Link to={userPage(member)} className={styles.teamMemberName}>
 					{member.username}
 				</Link>
 				{tier ? <TierImage tier={tier} width={32} /> : null}
@@ -231,7 +235,7 @@ function PostUserHeader({
 				<Avatar size="xsm" user={author} />
 				<div>
 					<div className="stack horizontal sm items-center text-md font-bold">
-						<Link to={userPage(author)} className="lfg__post-user-name">
+						<Link to={userPage(author)} className={styles.userName}>
 							{author.username}
 						</Link>{" "}
 						{author.country ? <Flag countryCode={author.country} tiny /> : null}
@@ -329,10 +333,10 @@ function PostPills({
 }
 
 function PostTimezonePillPlaceholder() {
-	return <div className="lfg-post__pill lfg-post__pill--placeholder" />;
+	return <div className={clsx(styles.pill, styles.pillPlaceholder)} />;
 }
 
-const currentSeasonNth = currentOrPreviousSeason(new Date())!.nth;
+const currentSeasonNth = Seasons.currentOrPrevious()!.nth;
 
 function PostSkillPills({
 	tiers,
@@ -372,20 +376,20 @@ function PostSkillPill({
 }) {
 	return (
 		<div
-			className={clsx("lfg-post__pill", "lfg-post__tier-pill", {
-				"lfg-post__tier-pill--start": cut === "START",
-				"lfg-post__tier-pill--end": cut === "END",
+			className={clsx(styles.pill, styles.tierPill, {
+				[styles.tierPillStart]: cut === "START",
+				[styles.tierPillEnd]: cut === "END",
 			})}
 		>
 			S{seasonNth}
-			<TierImage tier={tier} width={32} className="lfg-post__tier" />
+			<TierImage tier={tier} width={32} className={styles.tier} />
 		</div>
 	);
 }
 
 function PostPlusServerPill({ plusTier }: { plusTier: number }) {
 	return (
-		<div className="lfg-post__pill">
+		<div className={styles.pill}>
 			<Image alt="" path={navIconUrl("plus")} size={18} />
 			{plusTier}
 		</div>
@@ -409,7 +413,7 @@ function PostTimezonePill({ timezone }: { timezone: string }) {
 	};
 
 	return (
-		<div title={timezone} className={clsx("lfg-post__pill", textColorClass())}>
+		<div title={timezone} className={clsx(styles.pill, textColorClass())}>
 			{diff === 0 ? "±" : ""}
 			{diff > 0 ? "+" : ""}
 			{diff}h
@@ -419,7 +423,7 @@ function PostTimezonePill({ timezone }: { timezone: string }) {
 
 function PostLanguagePill({ languages }: { languages: string }) {
 	return (
-		<div className="lfg-post__pill">
+		<div className={styles.pill}>
 			{languages.replace(/,/g, " / ").toUpperCase()}
 		</div>
 	);
@@ -439,7 +443,7 @@ function PostEditButton({ id }: { id: number }) {
 	const { t } = useTranslation(["common"]);
 
 	return (
-		<Link className="lfg-post__edit-button" to={lfgNewPostPage(id)}>
+		<Link className={styles.editButton} to={lfgNewPostPage(id)}>
 			<EditIcon />
 			{t("common:actions.edit")}
 		</Link>
@@ -491,16 +495,16 @@ function PostExpandableText({
 	return (
 		<div
 			className={clsx({
-				"lfg__post-text-container": !isExpanded,
-				"lfg__post-text-container--expanded": isExpanded,
+				[styles.textContainer]: !isExpanded,
+				[styles.textContainerExpanded]: isExpanded,
 			})}
 		>
-			<div className="lfg__post-text">{text}</div>
+			<div className={styles.text}>{text}</div>
 			{isExpandable ? (
 				<Button
 					onClick={() => setIsExpanded(!isExpanded)}
-					className={clsx("lfg__post-text__show-all-button", {
-						"lfg__post-text__show-all-button--expanded": isExpanded,
+					className={clsx([styles.showAllButton], {
+						[styles.showAllButtonExpanded]: isExpanded,
 					})}
 					variant="outlined"
 					size="tiny"
@@ -510,7 +514,7 @@ function PostExpandableText({
 						: t("common:actions.showMore")}
 				</Button>
 			) : null}
-			{!isExpanded ? <div className="lfg__post-text-cut" /> : null}
+			{!isExpanded ? <div className={styles.textCut} /> : null}
 		</div>
 	);
 }

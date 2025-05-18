@@ -1,8 +1,3 @@
-import {
-	type ActionFunction,
-	type LoaderFunctionArgs,
-	redirect,
-} from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -11,93 +6,21 @@ import { Button, LinkButton } from "~/components/Button";
 import { Flag } from "~/components/Flag";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { WeaponImage } from "~/components/Image";
-import { Popover } from "~/components/Popover";
 import { Redirect } from "~/components/Redirect";
+import { SendouButton } from "~/components/elements/Button";
+import { SendouPopover } from "~/components/elements/Popover";
 import { MicrophoneIcon } from "~/components/icons/Microphone";
 import { TrashIcon } from "~/components/icons/Trash";
 import { useUser } from "~/features/auth/core/user";
-import { getUser, requireUser } from "~/features/auth/core/user.server";
-import { tournamentIdFromParams } from "~/features/tournament";
-import {
-	clearTournamentDataCache,
-	tournamentFromDB,
-} from "~/features/tournament-bracket/core/Tournament.server";
 import { useTournament } from "~/features/tournament/routes/to.$id";
-import { parseRequestPayload, validate } from "~/utils/remix.server";
-import { assertUnreachable } from "~/utils/types";
 import { tournamentRegisterPage, userPage } from "~/utils/urls";
-import { deleteSub } from "../queries/deleteSub.server";
-import {
-	type SubByTournamentId,
-	findSubsByTournamentId,
-} from "../queries/findSubsByTournamentId.server";
-import { deleteSubSchema } from "../tournament-subs-schemas.server";
+import type { SubByTournamentId } from "../queries/findSubsByTournamentId.server";
+
+import { action } from "../actions/to.$id.subs.server";
+import { loader } from "../loaders/to.$id.subs.server";
+export { action, loader };
 
 import "../tournament-subs.css";
-
-export const action: ActionFunction = async ({ request, params }) => {
-	const user = await requireUser(request);
-	const tournamentId = tournamentIdFromParams(params);
-	const tournament = await tournamentFromDB({ tournamentId, user });
-	const data = await parseRequestPayload({
-		request,
-		schema: deleteSubSchema,
-	});
-
-	validate(
-		user.id === data.userId || tournament.isOrganizer(user),
-		"You can only delete your own sub post",
-		401,
-	);
-
-	deleteSub({
-		tournamentId,
-		userId: data.userId,
-	});
-
-	clearTournamentDataCache(tournamentId);
-
-	return null;
-};
-
-export const loader = async ({ params, request }: LoaderFunctionArgs) => {
-	const user = await getUser(request);
-	const tournamentId = tournamentIdFromParams(params);
-
-	const tournament = await tournamentFromDB({ tournamentId, user });
-	if (!tournament.subsFeatureEnabled) {
-		throw redirect(tournamentRegisterPage(tournamentId));
-	}
-
-	const subs = findSubsByTournamentId({
-		tournamentId,
-		userId: user?.id,
-	}).filter((sub) => {
-		if (sub.visibility === "ALL") return true;
-
-		const userPlusTier = user?.plusTier ?? 4;
-
-		switch (sub.visibility) {
-			case "+1": {
-				return userPlusTier === 1;
-			}
-			case "+2": {
-				return userPlusTier <= 2;
-			}
-			case "+3": {
-				return userPlusTier <= 3;
-			}
-			default: {
-				assertUnreachable(sub.visibility);
-			}
-		}
-	});
-
-	return {
-		subs,
-		hasOwnSubPost: subs.some((sub) => sub.userId === user?.id),
-	};
-};
 
 export default function TournamentSubsPage() {
 	const user = useUser();
@@ -133,11 +56,13 @@ function AddOrEditSubButton() {
 
 	if (!tournament.canAddNewSubPost) {
 		return (
-			<Popover buttonChildren={buttonText} triggerClassName="tiny">
+			<SendouPopover
+				trigger={<SendouButton size="small">{buttonText}</SendouButton>}
+			>
 				{data.hasOwnSubPost
 					? "Sub post can't be edited anymore since registration has closed"
 					: "Sub post can't be added anymore since registration has closed"}
-			</Popover>
+			</SendouPopover>
 		);
 	}
 

@@ -1,12 +1,10 @@
 /** Map list generation logic for "TO pick" as in the map list is defined beforehand by TO and teams don't pick */
 
-import clone from "just-clone";
-import shuffle from "just-shuffle";
+import * as R from "remeda";
 import type { Tables, TournamentRoundMaps } from "~/db/tables";
 import type { Round } from "~/modules/brackets-model";
 import type { ModeShort, StageId } from "~/modules/in-game-lists";
 import { SENDOUQ_DEFAULT_MAPS } from "~/modules/tournament-map-list-generator/constants";
-import { removeDuplicates } from "~/utils/arrays";
 import { logger } from "~/utils/logger";
 import { assertUnreachable } from "~/utils/types";
 
@@ -57,7 +55,12 @@ export function generateTournamentRoundMaplist(
 			if (!args.roundsWithPickBan.has(round.id) || !args.pickBanStyle) {
 				return count;
 			}
-			if (args.pickBanStyle === "COUNTERPICK") return 1;
+			if (
+				args.pickBanStyle === "COUNTERPICK" ||
+				args.pickBanStyle === "COUNTERPICK_MODE_REPEAT_OK"
+			) {
+				return 1;
+			}
 			if (args.pickBanStyle === "BAN_2") return count + 2;
 
 			assertUnreachable(args.pickBanStyle);
@@ -160,8 +163,8 @@ function modeOrder({
 	iteration: number;
 	flavor: GenerateTournamentRoundMaplistArgs["flavor"];
 }) {
-	const modes = removeDuplicates(pool.map((x) => x.mode));
-	const shuffledModes = shuffle(modes);
+	const modes = R.unique(pool.map((x) => x.mode));
+	const shuffledModes = R.shuffle(modes);
 	shuffledModes.sort((a, b) => {
 		const aFreq = modeFrequency.get(a) ?? 0;
 		const bFreq = modeFrequency.get(b) ?? 0;
@@ -199,7 +202,7 @@ function modesWithSZBiased({
 	}
 
 	if (flavor === "SZ_FIRST" && modes.includes("SZ")) {
-		const result: ModeShort[] = clone(modes);
+		const result: ModeShort[] = structuredClone(modes);
 		const szIndex = result.indexOf("SZ");
 		result.splice(szIndex, 1);
 		result.unshift("SZ");
@@ -266,9 +269,9 @@ function resolveStage(
 		}
 	}
 
-	const stage = shuffle(equallyGoodOptionsIgnoringCombo)[0];
+	const stage = R.shuffle(equallyGoodOptionsIgnoringCombo)[0];
 	if (typeof stage !== "number") {
-		const fallback = shuffle(SENDOUQ_DEFAULT_MAPS[mode].slice())[0];
+		const fallback = R.shuffle(SENDOUQ_DEFAULT_MAPS[mode])[0];
 		logger.warn(
 			`No stage found for mode ${mode} iteration ${currentIteration}, using fallback ${fallback}`,
 		);

@@ -1,5 +1,5 @@
 import { sql } from "~/db/sql";
-import type { PlusTier, User } from "~/db/types";
+import type { Tables } from "~/db/tables";
 import { ordinalToSp } from "~/features/mmr/mmr-utils";
 import { MATCHES_COUNT_NEEDED_FOR_LEADERBOARD } from "../leaderboards-constants";
 
@@ -13,14 +13,12 @@ const stm = sql.prepare(/* sql */ `
     "User"."discordId",
     "User"."customUrl",
     "User"."plusSkippedForSeasonNth",
-    "PlusTier"."tier" as "plusTier",
     rank () over ( 
       order by "Skill"."Ordinal" desc
     ) "placementRank"
   from 
     "Skill"
     left join "User" on "User"."id" = "Skill"."userId"
-    left join "PlusTier" on "PlusTier"."userId" = "User"."id"
     inner join (
       select "userId", max("id") as "maxId"
       from "Skill"
@@ -38,15 +36,14 @@ const stm = sql.prepare(/* sql */ `
 export interface UserSPLeaderboardItem {
 	entryId: number;
 	power: number;
-	id: User["id"];
-	username: User["username"];
-	discordAvatar: User["discordAvatar"];
-	discordId: User["discordId"];
-	customUrl: User["customUrl"];
-	plusTier?: PlusTier["tier"];
+	id: Tables["User"]["id"];
+	username: Tables["User"]["username"];
+	discordAvatar: Tables["User"]["discordAvatar"];
+	discordId: Tables["User"]["discordId"];
+	customUrl: Tables["User"]["customUrl"];
 	plusSkippedForSeasonNth: number | null;
 	/** Plus tier player is on track to join */
-	pendingPlusTier?: PlusTier["tier"];
+	pendingPlusTier?: Tables["PlusTier"]["tier"];
 	placementRank: number;
 }
 

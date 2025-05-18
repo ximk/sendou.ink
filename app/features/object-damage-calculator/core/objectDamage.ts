@@ -1,3 +1,4 @@
+import * as R from "remeda";
 import type {
 	AbilityPoints,
 	AnalyzedBuild,
@@ -10,7 +11,7 @@ import type {
 	SpecialWeaponId,
 	SubWeaponId,
 } from "~/modules/in-game-lists";
-import { removeDuplicates } from "~/utils/arrays";
+import { altWeaponIdToId } from "~/modules/in-game-lists/weapon-ids";
 import invariant from "~/utils/invariant";
 import { roundToNDecimalPlaces } from "~/utils/number";
 import {
@@ -23,6 +24,10 @@ import objectDamages from "./object-dmg.json";
 import { objectHitPoints } from "./objectHitPoints";
 
 const getNormalizedMainWeapondId = (id: MainWeaponId) => {
+	if (altWeaponIdToId.has(id)) {
+		return altWeaponIdToId.get(id)!;
+	}
+
 	return id % 10 !== 0 ? ((id - 1) as MainWeaponId) : id;
 };
 
@@ -135,9 +140,7 @@ export function resolveAllUniqueDamageTypes({
 				? analyzed.stats.specialWeaponDamages.map((d) => d.type)
 				: analyzed.stats.damages.map((d) => d.type);
 
-	return removeDuplicates(damageTypes).filter(
-		(dmg) => !dmg.includes("SECONDARY"),
-	);
+	return R.unique(damageTypes).filter((dmg) => !dmg.includes("SECONDARY"));
 }
 
 function resolveFilteredDamages({
@@ -258,9 +261,18 @@ export function calculateDamage({
 					}
 
 					const otherDamage = () => {
+						//[Special Case] Booyah ignores Tri-Stringer's otherDamage at full charge. In-game bug
+						if (
+							[7010, 7011].includes(anyWeapon.id) &&
+							receiver === "NiceBall_Armor"
+						) {
+							return 0;
+						}
+
 						const result = filteredDamages.find(
 							(damage) => damage.type === toCombine?.combineWith,
 						)?.value;
+
 						invariant(result);
 
 						return result;

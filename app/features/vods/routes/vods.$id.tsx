@@ -1,8 +1,4 @@
-import type {
-	LoaderFunctionArgs,
-	MetaFunction,
-	SerializeFrom,
-} from "@remix-run/node";
+import type { MetaFunction, SerializeFrom } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import clsx from "clsx";
 import * as React from "react";
@@ -18,9 +14,8 @@ import { useUser } from "~/features/auth/core/user";
 import { useIsMounted } from "~/hooks/useIsMounted";
 import { useSearchParamState } from "~/hooks/useSearchParamState";
 import { databaseTimestampToDate } from "~/utils/dates";
-import { secondsToMinutes } from "~/utils/number";
-import { type SendouRouteHandle, notFoundIfFalsy } from "~/utils/remix.server";
-import { makeTitle } from "~/utils/strings";
+import { metaTags } from "~/utils/remix";
+import type { SendouRouteHandle } from "~/utils/remix.server";
 import type { Unpacked } from "~/utils/types";
 import {
 	VODS_PAGE,
@@ -31,14 +26,14 @@ import {
 	vodVideoPage,
 } from "~/utils/urls";
 import { PovUser } from "../components/VodPov";
-import { findVodById } from "../queries/findVodById.server";
 import type { Vod } from "../vods-types";
-import { canEditVideo } from "../vods-utils";
-
-import "../vods.css";
+import { canEditVideo, secondsToHoursMinutesSecondString } from "../vods-utils";
 
 import { action } from "../actions/vods.$id.server";
-export { action };
+import { loader } from "../loaders/vods.$id.server";
+export { loader, action };
+
+import "../vods.css";
 
 export const handle: SendouRouteHandle = {
 	breadcrumb: ({ match }) => {
@@ -61,18 +56,15 @@ export const handle: SendouRouteHandle = {
 	},
 };
 
-export const meta: MetaFunction = (args) => {
-	const data = args.data as SerializeFrom<typeof loader> | null;
+export const meta: MetaFunction<typeof loader> = (args) => {
+	if (!args.data) return [];
 
-	if (!data) return [];
-
-	return [{ title: makeTitle(data.vod.title) }];
-};
-
-export const loader = ({ params }: LoaderFunctionArgs) => {
-	const vod = notFoundIfFalsy(findVodById(Number(params.id)));
-
-	return { vod };
+	return metaTags({
+		title: args.data.vod.title,
+		description:
+			"Splatoon 3 VoD with timestamps to check out specific weapons as well as map and mode combinations.",
+		location: args.location,
+	});
 };
 
 export default function VodPage() {
@@ -240,7 +232,7 @@ function Match({
 				onClick={() => setStart(match.startsAt)}
 				variant="outlined"
 			>
-				{secondsToMinutes(match.startsAt)}
+				{secondsToHoursMinutesSecondString(match.startsAt)}
 			</Button>
 		</div>
 	);

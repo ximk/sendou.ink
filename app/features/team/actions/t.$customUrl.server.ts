@@ -1,9 +1,9 @@
 import type { ActionFunction } from "@remix-run/node";
 import { requireUserId } from "~/features/auth/core/user.server";
 import {
+	errorToastIfFalsy,
 	notFoundIfFalsy,
 	parseRequestPayload,
-	validate,
 } from "~/utils/remix.server";
 import { assertUnreachable } from "~/utils/types";
 import * as TeamRepository from "../TeamRepository.server";
@@ -11,7 +11,7 @@ import {
 	teamParamsSchema,
 	teamProfilePageActionSchema,
 } from "../team-schemas.server";
-import { isTeamMember, isTeamOwner } from "../team-utils";
+import { isTeamMember, isTeamOwner, resolveNewOwner } from "../team-utils";
 
 export const action: ActionFunction = async ({ request, params }) => {
 	const user = await requireUserId(request);
@@ -25,14 +25,23 @@ export const action: ActionFunction = async ({ request, params }) => {
 
 	switch (data._action) {
 		case "LEAVE_TEAM": {
-			validate(
-				isTeamMember({ user, team }) && !isTeamOwner({ user, team }),
-				"You are not a regular member of this team",
+			errorToastIfFalsy(
+				isTeamMember({ user, team }),
+				"You are not a member of this team",
 			);
 
-			await TeamRepository.removeTeamMember({
+			const newOwner = isTeamOwner({ user, team })
+				? resolveNewOwner(team.members)
+				: null;
+			errorToastIfFalsy(
+				!isTeamOwner({ user, team }) || newOwner,
+				"You can't leave the team if you are the owner and there is no other member to become the owner",
+			);
+
+			await TeamRepository.handleMemberLeaving({
 				teamId: team.id,
 				userId: user.id,
+				newOwnerUserId: newOwner?.id,
 			});
 
 			break;

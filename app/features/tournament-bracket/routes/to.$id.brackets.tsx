@@ -1,7 +1,6 @@
-import type { ActionFunction } from "@remix-run/node";
 import { useRevalidator } from "@remix-run/react";
 import clsx from "clsx";
-import { add } from "date-fns";
+import { sub } from "date-fns";
 import * as React from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { useTranslation } from "react-i18next";
@@ -11,35 +10,18 @@ import { Alert } from "~/components/Alert";
 import { Button } from "~/components/Button";
 import { Divider } from "~/components/Divider";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
-import { Menu } from "~/components/Menu";
-import { Popover } from "~/components/Popover";
+import { SendouButton } from "~/components/elements/Button";
+import { SendouMenu, SendouMenuItem } from "~/components/elements/Menu";
+import { SendouPopover } from "~/components/elements/Popover";
 import { CheckmarkIcon } from "~/components/icons/Checkmark";
 import { EyeIcon } from "~/components/icons/Eye";
 import { EyeSlashIcon } from "~/components/icons/EyeSlash";
 import { MapIcon } from "~/components/icons/Map";
-import { sql } from "~/db/sql";
 import { useUser } from "~/features/auth/core/user";
-import { requireUser } from "~/features/auth/core/user.server";
-import {
-	queryCurrentTeamRating,
-	queryCurrentUserRating,
-	queryCurrentUserSeedingRating,
-	queryTeamPlayerRatingAverage,
-} from "~/features/mmr/mmr-utils.server";
-import { currentSeason } from "~/features/mmr/season";
-import { refreshUserSkills } from "~/features/mmr/tiered.server";
-import { TOURNAMENT, tournamentIdFromParams } from "~/features/tournament";
-import * as Progression from "~/features/tournament-bracket/core/Progression";
-import * as TournamentRepository from "~/features/tournament/TournamentRepository.server";
-import { createSwissBracketInTransaction } from "~/features/tournament/queries/createSwissBracketInTransaction.server";
-import { updateRoundMaps } from "~/features/tournament/queries/updateRoundMaps.server";
+import { TOURNAMENT } from "~/features/tournament/tournament-constants";
 import { useIsMounted } from "~/hooks/useIsMounted";
 import { useSearchParamState } from "~/hooks/useSearchParamState";
 import { useVisibilityChange } from "~/hooks/useVisibilityChange";
-import invariant from "~/utils/invariant";
-import { logger } from "~/utils/logger";
-import { parseRequestPayload, validate } from "~/utils/remix.server";
-import { assertUnreachable } from "~/utils/types";
 import {
 	SENDOU_INK_BASE_URL,
 	tournamentBracketsSubscribePage,
@@ -55,270 +37,13 @@ import { BracketMapListDialog } from "../components/BracketMapListDialog";
 import { TournamentTeamActions } from "../components/TournamentTeamActions";
 import type { Bracket as BracketType } from "../core/Bracket";
 import * as PreparedMaps from "../core/PreparedMaps";
-import * as Swiss from "../core/Swiss";
-import type { Tournament } from "../core/Tournament";
-import {
-	clearTournamentDataCache,
-	tournamentFromDB,
-} from "../core/Tournament.server";
-import { getServerTournamentManager } from "../core/brackets-manager/manager.server";
-import { roundMapsFromInput } from "../core/mapList.server";
-import { tournamentSummary } from "../core/summarizer.server";
-import { addSummary } from "../queries/addSummary.server";
-import { allMatchResultsByTournamentId } from "../queries/allMatchResultsByTournamentId.server";
-import { bracketSchema } from "../tournament-bracket-schemas.server";
-import {
-	bracketSubscriptionKey,
-	fillWithNullTillPowerOfTwo,
-} from "../tournament-bracket-utils";
+import { bracketSubscriptionKey } from "../tournament-bracket-utils";
+
+import { action } from "../actions/to.$id.brackets.server";
+export { action };
 
 import "../components/Bracket/bracket.css";
 import "../tournament-bracket.css";
-
-export const action: ActionFunction = async ({ params, request }) => {
-	const user = await requireUser(request);
-	const tournamentId = tournamentIdFromParams(params);
-	const tournament = await tournamentFromDB({ tournamentId, user });
-	const data = await parseRequestPayload({ request, schema: bracketSchema });
-	const manager = getServerTournamentManager();
-
-	switch (data._action) {
-		case "START_BRACKET": {
-			validate(tournament.isOrganizer(user));
-
-			const bracket = tournament.bracketByIdx(data.bracketIdx);
-			invariant(bracket, "Bracket not found");
-
-			const seeding = bracket.seeding;
-			invariant(seeding, "Seeding not found");
-
-			validate(bracket.canBeStarted, "Bracket is not ready to be started");
-
-			const groupCount = new Set(bracket.data.round.map((r) => r.group_id))
-				.size;
-
-			validate(
-				bracket.type === "round_robin" || bracket.type === "swiss"
-					? bracket.data.round.length / groupCount === data.maps.length
-					: bracket.data.round.length === data.maps.length,
-				"Invalid map count",
-			);
-
-			sql.transaction(() => {
-				const stage =
-					bracket.type === "swiss"
-						? createSwissBracketInTransaction(
-								Swiss.create({
-									name: bracket.name,
-									seeding,
-									tournamentId,
-									settings: tournament.bracketManagerSettings(
-										bracket.settings,
-										bracket.type,
-										seeding.length,
-									),
-								}),
-							)
-						: manager.create({
-								tournamentId,
-								name: bracket.name,
-								type: bracket.type as "round_robin",
-								seeding:
-									bracket.type === "round_robin"
-										? seeding
-										: fillWithNullTillPowerOfTwo(seeding),
-								settings: tournament.bracketManagerSettings(
-									bracket.settings,
-									bracket.type,
-									seeding.length,
-								),
-							});
-
-				updateRoundMaps(
-					roundMapsFromInput({
-						virtualRounds: bracket.data.round,
-						roundsFromDB: manager.get.stageData(stage.id).round,
-						maps: data.maps,
-						bracket,
-					}),
-				);
-			})();
-
-			break;
-		}
-		case "PREPARE_MAPS": {
-			validate(tournament.isOrganizer(user));
-
-			const bracket = tournament.bracketByIdx(data.bracketIdx);
-			invariant(bracket, "Bracket not found");
-
-			validate(
-				!bracket.canBeStarted,
-				"Bracket can already be started, preparing maps no longer possible",
-			);
-			validate(
-				bracket.preview,
-				"Bracket has started, preparing maps no longer possible",
-			);
-
-			await TournamentRepository.upsertPreparedMaps({
-				bracketIdx: data.bracketIdx,
-				tournamentId,
-				maps: {
-					maps: data.maps,
-					authorId: user.id,
-					eliminationTeamCount: data.eliminationTeamCount ?? undefined,
-				},
-			});
-
-			break;
-		}
-		case "ADVANCE_BRACKET": {
-			validate(tournament.isOrganizer(user));
-
-			const bracket = tournament.bracketByIdx(data.bracketIdx);
-			validate(bracket, "Bracket not found");
-			validate(bracket.type === "swiss", "Can't advance non-swiss bracket");
-
-			const matches = Swiss.generateMatchUps({
-				bracket,
-				groupId: data.groupId,
-			});
-
-			await TournamentRepository.insertSwissMatches(matches);
-
-			break;
-		}
-		case "UNADVANCE_BRACKET": {
-			validate(tournament.isOrganizer(user));
-
-			const bracket = tournament.bracketByIdx(data.bracketIdx);
-			validate(bracket, "Bracket not found");
-			validate(bracket.type === "swiss", "Can't unadvance non-swiss bracket");
-			validateNoFollowUpBrackets(tournament);
-
-			await TournamentRepository.deleteSwissMatches({
-				groupId: data.groupId,
-				roundId: data.roundId,
-			});
-
-			break;
-		}
-		case "FINALIZE_TOURNAMENT": {
-			validate(tournament.canFinalize(user), "Can't finalize tournament");
-
-			const _finalStandings = tournament.standings;
-
-			const results = allMatchResultsByTournamentId(tournamentId);
-			invariant(results.length > 0, "No results found");
-
-			const season = currentSeason(tournament.ctx.startTime)?.nth;
-
-			const seedingSkillCountsFor = tournament.skillCountsFor;
-			const summary = tournamentSummary({
-				teams: tournament.ctx.teams,
-				finalStandings: _finalStandings,
-				results,
-				calculateSeasonalStats: tournament.ranked,
-				queryCurrentTeamRating: (identifier) =>
-					queryCurrentTeamRating({ identifier, season: season! }).rating,
-				queryCurrentUserRating: (userId) =>
-					queryCurrentUserRating({ userId, season: season! }).rating,
-				queryTeamPlayerRatingAverage: (identifier) =>
-					queryTeamPlayerRatingAverage({
-						identifier,
-						season: season!,
-					}),
-				queryCurrentSeedingRating: (userId) =>
-					queryCurrentUserSeedingRating({
-						userId,
-						type: seedingSkillCountsFor!,
-					}),
-				seedingSkillCountsFor,
-			});
-
-			logger.info(
-				`Inserting tournament summary. Tournament id: ${tournamentId}, mapResultDeltas.lenght: ${summary.mapResultDeltas.length}, playerResultDeltas.length ${summary.playerResultDeltas.length}, tournamentResults.length ${summary.tournamentResults.length}, skills.length ${summary.skills.length}, seedingSkills.length ${summary.seedingSkills.length}`,
-			);
-
-			addSummary({
-				tournamentId,
-				summary,
-				season,
-			});
-
-			if (tournament.ranked) {
-				try {
-					refreshUserSkills(season!);
-				} catch (error) {
-					logger.warn("Error refreshing user skills", error);
-				}
-			}
-
-			break;
-		}
-		case "BRACKET_CHECK_IN": {
-			const bracket = tournament.bracketByIdx(data.bracketIdx);
-			invariant(bracket, "Bracket not found");
-
-			const ownTeam = tournament.ownedTeamByUser(user);
-			invariant(ownTeam, "User doesn't have owned team");
-
-			validate(bracket.canCheckIn(user));
-
-			await TournamentRepository.checkIn({
-				bracketIdx: data.bracketIdx,
-				tournamentTeamId: ownTeam.id,
-			});
-			break;
-		}
-		case "OVERRIDE_BRACKET_PROGRESSION": {
-			validate(tournament.isOrganizer(user));
-
-			const allDestinationBrackets = Progression.destinationsFromBracketIdx(
-				data.sourceBracketIdx,
-				tournament.ctx.settings.bracketProgression,
-			);
-			validate(
-				data.destinationBracketIdx === -1 ||
-					allDestinationBrackets.includes(data.destinationBracketIdx),
-				"Invalid destination bracket",
-			);
-			validate(
-				allDestinationBrackets.every(
-					(bracketIdx) => tournament.bracketByIdx(bracketIdx)!.preview,
-				),
-				"Can't override progression if follow-up brackets are started",
-			);
-
-			await TournamentRepository.overrideTeamBracketProgression({
-				tournamentTeamId: data.tournamentTeamId,
-				sourceBracketIdx: data.sourceBracketIdx,
-				destinationBracketIdx: data.destinationBracketIdx,
-				tournamentId,
-			});
-			break;
-		}
-		default: {
-			assertUnreachable(data);
-		}
-	}
-
-	clearTournamentDataCache(tournamentId);
-
-	return null;
-};
-
-function validateNoFollowUpBrackets(tournament: Tournament) {
-	const followUpBrackets = tournament.brackets.filter((b) =>
-		b.sources?.some((source) => source.bracketIdx === 0),
-	);
-
-	validate(
-		followUpBrackets.every((b) => b.preview),
-		"Follow-up brackets are already started",
-	);
-}
 
 export default function TournamentBracketsPage() {
 	const { t } = useTranslation(["tournament"]);
@@ -417,7 +142,7 @@ export default function TournamentBracketsPage() {
 		if (bracket.sources) {
 			return (
 				(bracket.teamsPendingCheckIn ?? []).length +
-				bracket.participantTournamentTeamIds.length
+				bracket.tournamentTeamIds.length
 			);
 		}
 
@@ -430,6 +155,10 @@ export default function TournamentBracketsPage() {
 		).length;
 	};
 
+	if (tournament.isLeagueSignup) {
+		return null;
+	}
+
 	return (
 		<div>
 			{visibility !== "hidden" && !tournament.everyBracketOver ? (
@@ -440,7 +169,7 @@ export default function TournamentBracketsPage() {
 					<FormWithConfirm
 						dialogHeading={t("tournament:actions.finalize.confirm")}
 						fields={[["_action", "FINALIZE_TOURNAMENT"]]}
-						deleteButtonText={t("tournament:actions.finalize.action")}
+						submitButtonText={t("tournament:actions.finalize.action")}
 						submitButtonVariant="outlined"
 					>
 						<Button variant="minimal" testId="finalize-tournament-button">
@@ -460,7 +189,7 @@ export default function TournamentBracketsPage() {
 							alertClassName="tournament-bracket__start-bracket-alert"
 							textClassName="stack horizontal md items-center"
 						>
-							{bracket.participantTournamentTeamIds.length}/
+							{bracket.tournamentTeamIds.length}/
 							{totalTeamsAvailableForTheBracket()} teams checked in
 							{bracket.canBeStarted ? (
 								<BracketStarter bracket={bracket} bracketIdx={bracketIdx} />
@@ -483,7 +212,8 @@ export default function TournamentBracketsPage() {
 				</div>
 			) : null}
 			<div className="stack horizontal mb-4 sm justify-between items-center">
-				<TournamentTeamActions />
+				{/** TournamentTeamActions more confusing than helpful for leagues, for example might say "Waiting for match..." when previous match was rescheduled  */}
+				{!tournament.isLeagueDivision ? <TournamentTeamActions /> : null}
 				{showAddSubsButton ? (
 					// TODO: could also hide this when team is not in any bracket anymore
 					<AddSubsPopOver />
@@ -522,19 +252,19 @@ export default function TournamentBracketsPage() {
 							{bracket.startTime ? (
 								<span suppressHydrationWarning>
 									(open{" "}
-									{bracket.startTime.toLocaleString("en-US", {
-										hour: "numeric",
-										minute: "numeric",
-										weekday: "long",
-									})}{" "}
-									-{" "}
-									{add(bracket.startTime, { hours: 1 }).toLocaleTimeString(
+									{sub(bracket.startTime, { hours: 1 }).toLocaleString(
 										"en-US",
 										{
 											hour: "numeric",
 											minute: "numeric",
+											weekday: "long",
 										},
-									)}
+									)}{" "}
+									-{" "}
+									{bracket.startTime.toLocaleTimeString("en-US", {
+										hour: "numeric",
+										minute: "numeric",
+									})}
 									)
 								</span>
 							) : null}
@@ -675,16 +405,7 @@ function AddSubsPopOver() {
 		const teamMemberOf = tournament.teamMemberOfByUser(user);
 		if (!teamMemberOf) return null;
 
-		return (
-			<Popover
-				buttonChildren={t("tournament:actions.addSub")}
-				triggerClassName="tiny outlined ml-auto"
-				triggerTestId="add-sub-button"
-				contentClassName="text-xs"
-			>
-				Only team captain or a TO can add subs
-			</Popover>
-		);
+		return <SubsPopover>Only team captain or a TO can add subs</SubsPopover>;
 	}
 
 	const subsAvailableToAdd =
@@ -696,12 +417,7 @@ function AddSubsPopOver() {
 	})}`;
 
 	return (
-		<Popover
-			buttonChildren={t("tournament:actions.addSub")}
-			triggerClassName="tiny outlined ml-auto"
-			triggerTestId="add-sub-button"
-			contentClassName="text-xs"
-		>
+		<SubsPopover>
 			{t("tournament:actions.sub.prompt", { count: subsAvailableToAdd })}
 			{subsAvailableToAdd > 0 ? (
 				<>
@@ -720,7 +436,29 @@ function AddSubsPopOver() {
 					</div>
 				</>
 			) : null}
-		</Popover>
+		</SubsPopover>
+	);
+}
+
+function SubsPopover({ children }: { children: React.ReactNode }) {
+	const { t } = useTranslation(["tournament"]);
+
+	return (
+		<SendouPopover
+			popoverClassName="text-xs"
+			trigger={
+				<SendouButton
+					className="ml-auto"
+					variant="outlined"
+					size="small"
+					data-testid="add-sub-button"
+				>
+					{t("tournament:actions.addSub")}
+				</SendouButton>
+			}
+		>
+			{children}
+		</SendouPopover>
 	);
 }
 
@@ -752,31 +490,34 @@ function BracketNav({
 
 	const bracketNameForButton = (name: string) => name.replace("bracket", "");
 
-	const button = React.forwardRef((props, ref) => (
-		<Button
-			className="tournament-bracket__bracket-nav__link"
-			_ref={ref}
-			{...props}
-		>
-			{bracketNameForButton(tournament.bracketByIdxOrDefault(bracketIdx).name)}
-			<span className="tournament-bracket__bracket-nav__chevron">▼</span>
-		</Button>
-	));
-
 	return (
 		<>
 			{/** MOBILE */}
-			<Menu
-				items={visibleBrackets.map((bracket, i) => {
-					return {
-						id: bracket.name,
-						onClick: () => setBracketIdx(i),
-						text: bracketNameForButton(bracket.name),
-					};
-				})}
-				button={button}
-				className="tournament-bracket__menu"
-			/>
+			<SendouMenu
+				trigger={
+					<SendouButton
+						className={clsx(
+							"tournament-bracket__bracket-nav__link",
+							"tournament-bracket__menu",
+						)}
+					>
+						{bracketNameForButton(
+							tournament.bracketByIdxOrDefault(bracketIdx).name,
+						)}
+						<span className="tournament-bracket__bracket-nav__chevron">▼</span>
+					</SendouButton>
+				}
+			>
+				{visibleBrackets.map((bracket, i) => (
+					<SendouMenuItem
+						key={bracket.name}
+						onAction={() => setBracketIdx(i)}
+						isActive={i === bracketIdx}
+					>
+						{bracketNameForButton(bracket.name)}
+					</SendouMenuItem>
+				))}
+			</SendouMenu>
 			{/** DESKTOP */}
 			<div className="tournament-bracket__bracket-nav tournament-bracket__button-row">
 				{visibleBrackets.map((bracket, i) => {

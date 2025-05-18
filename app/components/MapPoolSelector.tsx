@@ -3,7 +3,7 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "~/components/Button";
 import { Image } from "~/components/Image";
-import type { CalendarEvent } from "~/db/types";
+import type { Tables } from "~/db/tables";
 import type { SerializedMapPoolEvent } from "~/features/calendar/routes/map-pool-events";
 import { MapPool } from "~/features/map-list-generator/core/map-pool";
 import { BANNED_MAPS } from "~/features/sendouq-settings/banned-maps";
@@ -20,17 +20,19 @@ import { MapPoolEventsCombobox } from "./Combobox";
 import { ArrowLongLeftIcon } from "./icons/ArrowLongLeft";
 import { CrossIcon } from "./icons/Cross";
 
+import styles from "./MapPoolSelector.module.css";
+
 export type MapPoolSelectorProps = {
 	mapPool: MapPool;
 	preselectedMapPool?: MapPool;
 	handleRemoval?: () => void;
 	handleMapPoolChange: (
 		mapPool: MapPool,
-		event?: Pick<CalendarEvent, "id" | "name">,
+		event?: Pick<Tables["CalendarEvent"], "id" | "name">,
 	) => void;
 	className?: string;
 	recentEvents?: SerializedMapPoolEvent[];
-	initialEvent?: Pick<CalendarEvent, "id" | "name">;
+	initialEvent?: Pick<Tables["CalendarEvent"], "id" | "name">;
 	title?: string;
 	modesToInclude?: ModeShort[];
 	info?: React.ReactNode;
@@ -138,7 +140,7 @@ export function MapPoolSelector({
 			)}
 			<div className="stack md">
 				{allowBulkEdit && (
-					<div className="maps__template-selection">
+					<div className={styles.templateSelection}>
 						<MapPoolTemplateSelect
 							value={template}
 							handleChange={handleTemplateChange}
@@ -243,16 +245,16 @@ export function MapPoolStages({
 	return (
 		<div className="stack md">
 			{stageIds.filter(stageRowIsVisible).map((stageId) => (
-				<div key={stageId} className="maps__stage-row">
+				<div key={stageId} className={styles.stageRow}>
 					<Image
-						className="maps__stage-image"
+						className={styles.stageImage}
 						alt=""
 						path={stageImageUrl(stageId)}
 						width={80}
 						height={45}
 					/>
 					<div
-						className="maps__stage-name-row"
+						className={styles.stageNameRow}
 						// biome-ignore lint/a11y/useSemanticElements: todo
 						role="group"
 						aria-labelledby={`${id}-stage-name-${stageId}`}
@@ -260,7 +262,7 @@ export function MapPoolStages({
 						<div id={`${id}-stage-name-${stageId}`}>
 							{t(`game-misc:STAGE_${stageId}`)}
 						</div>
-						<div className="maps__mode-buttons-container">
+						<div className={styles.modeButtonsContainer}>
 							{modes
 								.filter(
 									(mode) =>
@@ -274,8 +276,8 @@ export function MapPoolStages({
 										return (
 											<Image
 												key={mode.short}
-												className={clsx("maps__mode", {
-													selected,
+												className={clsx(styles.mode, {
+													[styles.selected]: selected,
 												})}
 												title={t(`game-misc:MODE_LONG_${mode.short}`)}
 												alt={t(`game-misc:MODE_LONG_${mode.short}`)}
@@ -294,9 +296,9 @@ export function MapPoolStages({
 									return (
 										<button
 											key={mode.short}
-											className={clsx("maps__mode-button", "outline-theme", {
-												selected,
-												preselected,
+											className={clsx(styles.modeButton, "outline-theme", {
+												[styles.selected]: selected,
+												[styles.preselected]: preselected,
 												invisible:
 													hideBanned &&
 													BANNED_MAPS[mode.short].includes(stageId),
@@ -311,9 +313,9 @@ export function MapPoolStages({
 											disabled={preselected}
 										>
 											<Image
-												className={clsx("maps__mode", {
-													selected,
-													preselected,
+												className={clsx(styles.mode, {
+													[styles.selected]: selected,
+													[styles.preselected]: preselected,
 												})}
 												alt={t(`game-misc:MODE_LONG_${mode.short}`)}
 												path={modeImageUrl(mode.short)}
@@ -376,7 +378,7 @@ function detectTemplate(mapPool: MapPool): MapPoolTemplateValue {
 type MapPoolTemplateSelectProps = {
 	value: MapPoolTemplateValue;
 	handleChange: (newValue: MapPoolTemplateValue) => void;
-	recentEvents?: Pick<CalendarEvent, "id" | "name">[];
+	recentEvents?: Pick<Tables["CalendarEvent"], "id" | "name">[];
 };
 
 function MapPoolTemplateSelect({
@@ -428,7 +430,7 @@ function MapPoolTemplateSelect({
 type TemplateEventSelectionProps = {
 	handleEventChange: (
 		mapPool: MapPool,
-		event?: Pick<CalendarEvent, "id" | "name">,
+		event?: Pick<Tables["CalendarEvent"], "id" | "name">,
 	) => void;
 	initialEvent?: SerializedMapPoolEvent;
 };

@@ -1,19 +1,19 @@
 import type { MetaFunction } from "@remix-run/node";
 import { useTranslation } from "react-i18next";
 import { Main } from "~/components/Main";
-import { useSetTitle } from "~/hooks/useSetTitle";
+import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
-import { makeTitle } from "~/utils/strings";
 
-import "~/styles/faq.css";
+import styles from "./faq.module.css";
 
 const AMOUNT_OF_QUESTIONS = 9;
 
-export const meta: MetaFunction = () => {
-	return [
-		{ title: makeTitle("FAQ") },
-		{ name: "description", content: "Frequently asked questions" },
-	];
+export const meta: MetaFunction = (args) => {
+	return metaTags({
+		title: "FAQ",
+		description: "Frequently asked questions",
+		location: args.location,
+	});
 };
 
 export const handle: SendouRouteHandle = {
@@ -22,18 +22,18 @@ export const handle: SendouRouteHandle = {
 
 export default function FAQPage() {
 	const { t } = useTranslation(["faq", "common"]);
-	useSetTitle(t("common:pages.faq"));
 
 	return (
 		<Main className="stack md">
 			{new Array(AMOUNT_OF_QUESTIONS).fill(null).map((_, i) => {
 				const questionNumber = i + 1;
 				return (
-					<details key={i} className="faq__details">
-						<summary className="faq__summary">
+					<details key={i}>
+						<summary className={styles.summary}>
 							{t(`faq:q${questionNumber}` as any)}
 						</summary>
 						<p
+							className={styles.details}
 							// biome-ignore lint/security/noDangerouslySetInnerHtml: trusted source
 							dangerouslySetInnerHTML={{
 								__html: t(`faq:a${questionNumber}` as any),

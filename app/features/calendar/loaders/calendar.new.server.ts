@@ -5,19 +5,15 @@ import * as BadgeRepository from "~/features/badges/BadgeRepository.server";
 import * as CalendarRepository from "~/features/calendar/CalendarRepository.server";
 import { tournamentData } from "~/features/tournament-bracket/core/Tournament.server";
 import * as TournamentOrganizationRepository from "~/features/tournament-organization/TournamentOrganizationRepository.server";
-import { i18next } from "~/modules/i18n/i18next.server";
-import { canEditCalendarEvent } from "~/permissions";
-import { validate } from "~/utils/remix.server";
-import { makeTitle } from "~/utils/strings";
+import { requireRole } from "~/modules/permissions/guards.server";
 import { tournamentBracketsPage } from "~/utils/urls";
-import { canAddNewEvent } from "../calendar-utils";
+import { canEditCalendarEvent } from "../calendar-utils";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const t = await i18next.getFixedT(request);
 	const user = await requireUser(request);
-	const url = new URL(request.url);
+	requireRole(user, "CALENDAR_EVENT_ADDER");
 
-	validate(canAddNewEvent(user), "Not authorized", 401);
+	const url = new URL(request.url);
 
 	const eventWithTournament = async (key: string) => {
 		const eventId = Number(url.searchParams.get(key));
@@ -73,23 +69,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 	return {
 		isAddingTournament: Boolean(
-			url.searchParams.has("tournament") || url.searchParams.has("copyEventId"),
+			url.searchParams.has("tournament") ||
+				url.searchParams.has("copyEventId") ||
+				eventToEdit?.tournament,
 		),
 		managedBadges: await BadgeRepository.findManagedByUserId(user.id),
 		recentEventsWithMapPools:
 			await CalendarRepository.findRecentMapPoolsByAuthorId(user.id),
 		eventToEdit: canEditEvent ? eventToEdit : undefined,
 		eventToCopy:
-			user.isTournamentOrganizer && !eventToEdit
+			user.roles.includes("TOURNAMENT_ADDER") && !eventToEdit
 				? await eventWithTournament("copyEventId")
 				: undefined,
 		recentTournaments:
-			user.isTournamentOrganizer && !eventToEdit
+			user.roles.includes("TOURNAMENT_ADDER") && !eventToEdit
 				? await CalendarRepository.findRecentTournamentsByAuthorId(user.id)
 				: undefined,
-		title: makeTitle([canEditEvent ? "Edit" : "New", t("pages.calendar")]),
-		organizations: await TournamentOrganizationRepository.findByOrganizerUserId(
-			user.id,
+		organizations: (
+			await TournamentOrganizationRepository.findByOrganizerUserId(user.id)
+		).concat(
+			eventToEdit?.tournament?.ctx.organization
+				? eventToEdit.tournament.ctx.organization
+				: [],
 		),
 	};
 };

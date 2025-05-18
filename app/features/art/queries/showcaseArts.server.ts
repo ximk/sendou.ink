@@ -1,5 +1,5 @@
 import { sql } from "~/db/sql";
-import type { ArtTag } from "~/db/types";
+import type { Tables } from "~/db/tables";
 import type { ListedArt } from "../art-types";
 
 const showcaseArtsStm = sql.prepare(/* sql */ `
@@ -23,6 +23,7 @@ const showcaseArtsStm = sql.prepare(/* sql */ `
 export function showcaseArts(): ListedArt[] {
 	return showcaseArtsStm.all().map((a: any) => ({
 		id: a.id,
+		createdAt: a.createdAt,
 		url: a.url,
 		author: {
 			commissionsOpen: a.commissionsOpen,
@@ -54,7 +55,7 @@ const showcaseArtsByTagStm = sql.prepare(/* sql */ `
 
 `);
 
-export function showcaseArtsByTag(tagId: ArtTag["id"]): ListedArt[] {
+export function showcaseArtsByTag(tagId: Tables["ArtTag"]["id"]): ListedArt[] {
 	const encounteredUserIds = new Set<number>();
 
 	return showcaseArtsByTagStm
@@ -69,6 +70,7 @@ export function showcaseArtsByTag(tagId: ArtTag["id"]): ListedArt[] {
 		})
 		.map((a: any) => ({
 			id: a.id,
+			createdAt: a.createdAt,
 			url: a.url,
 			author: {
 				commissionsOpen: a.commissionsOpen,

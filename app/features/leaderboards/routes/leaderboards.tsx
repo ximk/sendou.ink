@@ -1,35 +1,17 @@
-import { cachified } from "@epic-web/cachified";
-import type {
-	LoaderFunctionArgs,
-	MetaFunction,
-	SerializeFrom,
-} from "@remix-run/node";
+import type { MetaFunction, SerializeFrom } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "~/components/Avatar";
 import { TierImage, WeaponImage } from "~/components/Image";
 import { Main } from "~/components/Main";
-import { HALF_HOUR_IN_MS } from "~/constants";
-import { getUser } from "~/features/auth/core/user.server";
-import * as LeaderboardRepository from "~/features/leaderboards/LeaderboardRepository.server";
+import * as Seasons from "~/features/mmr/core/Seasons";
 import { ordinalToSp } from "~/features/mmr/mmr-utils";
-import {
-	allSeasons,
-	currentOrPreviousSeason,
-	currentSeason,
-} from "~/features/mmr/season";
 import type { SkillTierInterval } from "~/features/mmr/tiered.server";
-import { i18next } from "~/modules/i18n/i18next.server";
-import {
-	type MainWeaponId,
-	type RankedModeShort,
-	weaponCategories,
-} from "~/modules/in-game-lists";
+import { weaponCategories } from "~/modules/in-game-lists";
 import { rankedModesShort } from "~/modules/in-game-lists/modes";
-import { cache, ttl } from "~/utils/cache.server";
+import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
-import { makeTitle } from "~/utils/strings";
 import {
 	LEADERBOARDS_PAGE,
 	navIconUrl,
@@ -42,22 +24,15 @@ import {
 import { InfoPopover } from "../../../components/InfoPopover";
 import { TopTenPlayer } from "../components/TopTenPlayer";
 import {
-	cachedFullUserLeaderboard,
-	filterByWeaponCategory,
-	ownEntryPeek,
-} from "../core/leaderboards.server";
-import {
-	DEFAULT_LEADERBOARD_MAX_SIZE,
 	LEADERBOARD_TYPES,
-	WEAPON_LEADERBOARD_MAX_SIZE,
+	SEASON_SEARCH_PARAM_KEY,
+	TYPE_SEARCH_PARAM_KEY,
 } from "../leaderboards-constants";
 import { seasonHasTopTen } from "../leaderboards-utils";
-import {
-	type XPLeaderboardItem,
-	allXPLeaderboard,
-	modeXPLeaderboard,
-	weaponXPLeaderboard,
-} from "../queries/XPLeaderboard.server";
+import type { XPLeaderboardItem } from "../queries/XPLeaderboard.server";
+
+import { loader } from "../loaders/leaderboards.server";
+export { loader };
 
 import "../../top-search/top-search.css";
 
@@ -75,93 +50,13 @@ export const meta: MetaFunction = (args) => {
 
 	if (!data) return [];
 
-	return [
-		{ title: data.title },
-		{
-			name: "description",
-			content:
-				"Leaderboards of top Splatoon players ranked by their X Power and tournament results",
-		},
-	];
-};
-
-const TYPE_SEARCH_PARAM_KEY = "type";
-const SEASON_SEARCH_PARAM_KEY = "season";
-
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const user = await getUser(request);
-	const t = await i18next.getFixedT(request);
-	const unvalidatedType = new URL(request.url).searchParams.get(
-		TYPE_SEARCH_PARAM_KEY,
-	);
-	const unvalidatedSeason = new URL(request.url).searchParams.get(
-		SEASON_SEARCH_PARAM_KEY,
-	);
-
-	const type =
-		LEADERBOARD_TYPES.find((type) => type === unvalidatedType) ??
-		LEADERBOARD_TYPES[0];
-	const season =
-		allSeasons(new Date()).find(
-			(s) => unvalidatedSeason && s === Number(unvalidatedSeason),
-		) ?? currentOrPreviousSeason(new Date())!.nth;
-
-	const fullUserLeaderboard = type.includes("USER")
-		? await cachedFullUserLeaderboard(season)
-		: null;
-
-	const userLeaderboard = fullUserLeaderboard?.slice(
-		0,
-		DEFAULT_LEADERBOARD_MAX_SIZE,
-	);
-
-	const teamLeaderboard =
-		type === "TEAM" || type === "TEAM-ALL"
-			? await cachified({
-					key: `team-leaderboard-season-${season}-${type}`,
-					cache,
-					ttl: ttl(HALF_HOUR_IN_MS),
-					async getFreshValue() {
-						return LeaderboardRepository.teamLeaderboardBySeason({
-							season,
-							onlyOneEntryPerUser: type !== "TEAM-ALL",
-						});
-					},
-				})
-			: null;
-
-	const isWeaponLeaderboard = userLeaderboard && type !== "USER";
-
-	const filteredLeaderboard = isWeaponLeaderboard
-		? filterByWeaponCategory(
-				fullUserLeaderboard!,
-				type.split("-")[1] as (typeof weaponCategories)[number]["name"],
-			).slice(0, WEAPON_LEADERBOARD_MAX_SIZE)
-		: userLeaderboard;
-
-	const showOwnEntryPeek = fullUserLeaderboard && !isWeaponLeaderboard && user;
-
-	return {
-		userLeaderboard: filteredLeaderboard ?? userLeaderboard,
-		ownEntryPeek: showOwnEntryPeek
-			? ownEntryPeek({
-					leaderboard: fullUserLeaderboard,
-					season,
-					userId: user.id,
-				})
-			: null,
-		teamLeaderboard,
-		xpLeaderboard:
-			type === "XP-ALL"
-				? allXPLeaderboard()
-				: type.startsWith("XP-MODE")
-					? modeXPLeaderboard(type.split("-")[2] as RankedModeShort)
-					: type.startsWith("XP-WEAPON")
-						? weaponXPLeaderboard(Number(type.split("-")[2]) as MainWeaponId)
-						: null,
-		title: makeTitle(t("pages.leaderboards")),
-		season,
-	};
+	return metaTags({
+		title: "Leaderboards",
+		ogTitle: "Splatoon leaderboards",
+		description:
+			"Leaderboards of top Splatoon players ranked by their X Battle placements as well as tournament and SendouQ results. Categories per weapon and mode.",
+		location: args.location,
+	});
 };
 
 export default function LeaderboardsPage() {
@@ -220,7 +115,7 @@ export default function LeaderboardsPage() {
 					});
 				}}
 			>
-				{allSeasons(new Date()).map((season) => {
+				{Seasons.allStarted().map((season) => {
 					return (
 						<optgroup label={`SP - Season ${season}`} key={season}>
 							{LEADERBOARD_TYPES.filter((type) => !type.includes("XP")).map(
@@ -327,7 +222,7 @@ export default function LeaderboardsPage() {
 				</div>
 			) : null}
 
-			{!data.xpLeaderboard && data.season === currentSeason(new Date())?.nth ? (
+			{!data.xpLeaderboard && data.season === Seasons.current()?.nth ? (
 				<div className="text-xs text-lighter text-center">
 					{t("common:leaderboard.updateInfo")}
 				</div>
@@ -464,7 +359,7 @@ function TeamTable({
 }) {
 	const { t } = useTranslation(["common"]);
 	const data = useLoaderData<typeof loader>();
-	const isCurrentSeason = data.season === currentSeason(new Date())?.nth;
+	const isCurrentSeason = data.season === Seasons.current()?.nth;
 	const showQualificationDividers =
 		_showQualificationDividers && isCurrentSeason && entries.length > 20;
 

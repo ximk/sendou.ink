@@ -6,14 +6,16 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Image } from "~/components/Image";
 import { NewTabs } from "~/components/NewTabs";
-import { Popover } from "~/components/Popover";
 import { SubmitButton } from "~/components/SubmitButton";
+import { SendouButton } from "~/components/elements/Button";
+import { SendouPopover } from "~/components/elements/Popover";
 import { CheckmarkIcon } from "~/components/icons/Checkmark";
 import { CrossIcon } from "~/components/icons/Cross";
 import { PickIcon } from "~/components/icons/Pick";
 import { useUser } from "~/features/auth/core/user";
 import { Chat, useChat } from "~/features/chat/components/Chat";
 import { useTournament } from "~/features/tournament/routes/to.$id";
+import { resolveLeagueRoundStartDate } from "~/features/tournament/tournament-utils";
 import { useIsMounted } from "~/hooks/useIsMounted";
 import { useSearchParamState } from "~/hooks/useSearchParamState";
 import type { StageId } from "~/modules/in-game-lists";
@@ -30,9 +32,9 @@ import {
 import type { Bracket } from "../core/Bracket";
 import * as PickBan from "../core/PickBan";
 import type { TournamentDataTeam } from "../core/Tournament.server";
-import type { TournamentMatchLoaderData } from "../routes/to.$id.matches.$mid";
+import type { TournamentMatchLoaderData } from "../loaders/to.$id.matches.$mid.server";
 import {
-	groupNumberToLetter,
+	groupNumberToLetters,
 	mapCountPlayedInSetWithCertainty,
 	matchIsLocked,
 	pickInfoText,
@@ -100,9 +102,9 @@ export function StartedMatch({
 			.find((group) => group.id === match?.group_id);
 		return tournament.resolvePoolCode({
 			hostingTeamId,
-			groupLetter:
+			groupLetters:
 				group && bracket?.type === "round_robin"
-					? groupNumberToLetter(group.number)
+					? groupNumberToLetters(group.number)
 					: undefined,
 			bracketNumber:
 				hasRoundRobin && bracket?.type !== "round_robin"
@@ -311,6 +313,14 @@ function FancyStageBanner({
 		return null;
 	})();
 
+	const waitingForLeagueRoundToStart = (() => {
+		const date = resolveLeagueRoundStartDate(tournament, data.match.roundId);
+
+		if (!date) return false;
+
+		return date > new Date();
+	})();
+
 	return (
 		<>
 			{inBanPhase ? (
@@ -335,6 +345,22 @@ function FancyStageBanner({
 							Match locked to be casted
 						</div>
 						<div>Please wait for staff to unlock</div>
+					</div>
+				</div>
+			) : waitingForLeagueRoundToStart ? (
+				<div className="tournament-bracket__locked-banner">
+					<div className="stack sm items-center">
+						<div className="text-lg text-center font-bold">
+							Waiting for league round to start
+						</div>
+						<div>
+							Round playable from{" "}
+							{resolveLeagueRoundStartDate(
+								tournament,
+								data.match.roundId,
+							)!.toLocaleDateString()}{" "}
+							onwards
+						</div>
 					</div>
 				</div>
 			) : waitingForActiveRosterSelectionFor ? (
@@ -442,90 +468,97 @@ function ModeProgressIndicator({
 	// TODO: this should be button when we click on it
 	return (
 		<div className="tournament-bracket__mode-progress">
-			{nullFilledArray(
-				Math.max(data.mapList?.length ?? 0, data.match.roundMaps?.count ?? 0),
-			).map((_, i) => {
-				const map = data.mapList?.[i];
+			<div className="tournament-bracket__mode-progress__inner">
+				{nullFilledArray(
+					Math.max(data.mapList?.length ?? 0, data.match.roundMaps?.count ?? 0),
+				).map((_, i) => {
+					const map = data.mapList?.[i];
 
-				const adjustedI = indexWithBansConsider(i);
+					const adjustedI = indexWithBansConsider(i);
 
-				if (
-					data.matchIsOver &&
-					!data.results[adjustedI] &&
-					!map?.bannedByTournamentTeamId
-				) {
-					return null;
-				}
+					if (
+						data.matchIsOver &&
+						!data.results[adjustedI] &&
+						!map?.bannedByTournamentTeamId
+					) {
+						return null;
+					}
 
-				if (!map?.mode) {
+					if (!map?.mode) {
+						return (
+							<div key={i} className="tournament-bracket__mode-progress__image">
+								<PickIcon />
+							</div>
+						);
+					}
+
+					if (map.bannedByTournamentTeamId) {
+						const bannerTeamName = tournament.ctx.teams.find(
+							(t) => t.id === map.bannedByTournamentTeamId,
+						)?.name;
+
+						return (
+							<SendouPopover
+								key={i}
+								trigger={
+									<SendouButton
+										variant="minimal"
+										size="small"
+										className="tournament-bracket__mode-progress__image__banned__popover-trigger"
+									>
+										<Image
+											containerClassName="tournament-bracket__mode-progress__image tournament-bracket__mode-progress__image__banned"
+											path={modeImageUrl(map.mode)}
+											height={20}
+											width={20}
+											alt={t(`game-misc:MODE_LONG_${map.mode}`)}
+										/>
+									</SendouButton>
+								}
+							>
+								<div className="text-center">
+									{t(`game-misc:MODE_SHORT_${map.mode}`)}{" "}
+									{t(`game-misc:STAGE_${map.stageId}`)}
+								</div>
+								<div className="text-xs text-lighter">
+									Banned by {bannerTeamName}
+								</div>
+							</SendouPopover>
+						);
+					}
+
 					return (
-						<div key={i} className="tournament-bracket__mode-progress__image">
-							<PickIcon />
-						</div>
-					);
-				}
-
-				if (map.bannedByTournamentTeamId) {
-					const bannerTeamName = tournament.ctx.teams.find(
-						(t) => t.id === map.bannedByTournamentTeamId,
-					)?.name;
-
-					return (
-						<Popover
+						<Image
+							containerClassName={clsx(
+								"tournament-bracket__mode-progress__image",
+								{
+									"tournament-bracket__mode-progress__image__notable":
+										adjustedI <= maxIndexThatWillBePlayedForSure,
+									"tournament-bracket__mode-progress__image__team-one-win":
+										data.results[adjustedI] &&
+										data.results[adjustedI].winnerTeamId ===
+											data.match.opponentOne?.id,
+									"tournament-bracket__mode-progress__image__team-two-win":
+										data.results[adjustedI] &&
+										data.results[adjustedI].winnerTeamId ===
+											data.match.opponentTwo?.id,
+									"tournament-bracket__mode-progress__image__selected":
+										adjustedI === selectedResultIndex,
+									"cursor-pointer": Boolean(setSelectedResultIndex),
+								},
+							)}
 							key={i}
-							triggerClassName="minimal tiny tournament-bracket__mode-progress__image__banned__popover-trigger"
-							buttonChildren={
-								<Image
-									containerClassName="tournament-bracket__mode-progress__image tournament-bracket__mode-progress__image__banned"
-									path={modeImageUrl(map.mode)}
-									height={20}
-									width={20}
-									alt={t(`game-misc:MODE_LONG_${map.mode}`)}
-								/>
-							}
-						>
-							<div className="text-center">
-								{t(`game-misc:MODE_SHORT_${map.mode}`)}{" "}
-								{t(`game-misc:STAGE_${map.stageId}`)}
-							</div>
-							<div className="text-xs text-lighter">
-								Banned by {bannerTeamName}
-							</div>
-						</Popover>
+							path={modeImageUrl(map.mode)}
+							height={20}
+							width={20}
+							alt={t(`game-misc:MODE_LONG_${map.mode}`)}
+							title={t(`game-misc:MODE_LONG_${map.mode}`)}
+							onClick={() => setSelectedResultIndex?.(adjustedI)}
+							testId={`mode-progress-${map.mode}`}
+						/>
 					);
-				}
-
-				return (
-					<Image
-						containerClassName={clsx(
-							"tournament-bracket__mode-progress__image",
-							{
-								"tournament-bracket__mode-progress__image__notable":
-									adjustedI <= maxIndexThatWillBePlayedForSure,
-								"tournament-bracket__mode-progress__image__team-one-win":
-									data.results[adjustedI] &&
-									data.results[adjustedI].winnerTeamId ===
-										data.match.opponentOne?.id,
-								"tournament-bracket__mode-progress__image__team-two-win":
-									data.results[adjustedI] &&
-									data.results[adjustedI].winnerTeamId ===
-										data.match.opponentTwo?.id,
-								"tournament-bracket__mode-progress__image__selected":
-									adjustedI === selectedResultIndex,
-								"cursor-pointer": Boolean(setSelectedResultIndex),
-							},
-						)}
-						key={i}
-						path={modeImageUrl(map.mode)}
-						height={20}
-						width={20}
-						alt={t(`game-misc:MODE_LONG_${map.mode}`)}
-						title={t(`game-misc:MODE_LONG_${map.mode}`)}
-						onClick={() => setSelectedResultIndex?.(adjustedI)}
-						testId={`mode-progress-${map.mode}`}
-					/>
-				);
-			})}
+				})}
+			</div>
 		</div>
 	);
 }
@@ -552,6 +585,7 @@ function StartedMatchTabs({
 		revive: (value) => [0, 1, 2].find((idx) => idx === Number(value)),
 	});
 
+	// TODO: resolve this on server (notice it is copy-pasted now)
 	const chatUsers = React.useMemo(() => {
 		return Object.fromEntries(
 			[
@@ -579,7 +613,10 @@ function StartedMatchTabs({
 		}
 		const oneMonthAgo = new Date();
 		oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-		if (tournament.ctx.startTime < oneMonthAgo) {
+		if (
+			tournament.ctx.startTime < oneMonthAgo &&
+			!tournament.isLeagueDivision
+		) {
 			return false;
 		}
 
@@ -635,6 +672,7 @@ function StartedMatchTabs({
 				.join(","),
 			result?.opponentOnePoints,
 			result?.opponentTwoPoints,
+			data.results.length,
 		].join("-");
 
 	return (
@@ -664,8 +702,8 @@ function StartedMatchTabs({
 									<Chat
 										rooms={rooms}
 										users={chatUsers}
-										className="w-full q__chat-container"
-										messagesContainerClassName="q__chat-messages-container"
+										className="tournament__chat-container"
+										messagesContainerClassName="tournament__chat-messages-container pt-0"
 										chat={chat}
 										onMount={onChatMount}
 										onUnmount={onChatUnmount}
@@ -687,8 +725,7 @@ function StartedMatchTabs({
 								// Without the key prop when switching to another match the winnerId is remembered
 								// which causes "No winning team matching the id" error.
 								// In addition we want the active roster changing either by the user or by another user
-								// to reset the state inside.
-								// Switching the key props forces the component to remount.
+								// to reset the state inside. We also want to clear the inputs when a result is submitted
 								key={matchActionsKey()}
 								scores={scores}
 								teams={teams}

@@ -2,12 +2,12 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { z } from "zod";
 import * as AdminRepository from "~/features/admin/AdminRepository.server";
 import { makeArtist } from "~/features/art/queries/makeArtist.server";
-import { requireUserId } from "~/features/auth/core/user.server";
+import { requireUser } from "~/features/auth/core/user.server";
 import { refreshBannedCache } from "~/features/ban/core/banned.server";
 import * as UserRepository from "~/features/user-page/UserRepository.server";
-import { isAdmin, isMod } from "~/permissions";
+import { requireRole } from "~/modules/permissions/guards.server";
 import { logger } from "~/utils/logger";
-import { parseRequestPayload, validate } from "~/utils/remix.server";
+import { parseRequestPayload, successToast } from "~/utils/remix.server";
 import { assertUnreachable } from "~/utils/types";
 import { _action, actualNumber, friendCode } from "~/utils/zod";
 import { plusTiersFromVotingAndLeaderboard } from "../core/plus-tier.server";
@@ -17,28 +17,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 		request,
 		schema: adminActionSchema,
 	});
-	const user = await requireUserId(request);
+	const user = await requireUser(request);
 
+	let message: string;
 	switch (data._action) {
 		case "MIGRATE": {
-			validate(isMod(user), "Admin needed", 401);
+			requireRole(user, "STAFF");
 
 			await AdminRepository.migrate({
 				oldUserId: data["old-user"],
 				newUserId: data["new-user"],
 			});
+
+			message = "Account migrated";
 			break;
 		}
 		case "REFRESH": {
-			validate(isAdmin(user));
+			requireRole(user, "ADMIN");
 
 			await AdminRepository.replacePlusTiers(
 				await plusTiersFromVotingAndLeaderboard(),
 			);
+
+			message = "Plus tiers refreshed";
 			break;
 		}
 		case "FORCE_PATRON": {
-			validate(isAdmin(user), "Admin needed", 401);
+			requireRole(user, "ADMIN");
 
 			await AdminRepository.forcePatron({
 				id: data.user,
@@ -46,45 +51,56 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 				patronTier: data.patronTier,
 				patronTill: new Date(data.patronTill),
 			});
+
+			message = "Patron status updated";
 			break;
 		}
 		case "CLEAN_UP": {
-			validate(isAdmin(user), "Admin needed", 401);
+			requireRole(user, "ADMIN");
 
 			// on purpose sync
 			AdminRepository.cleanUp();
+
+			message = "Clean up done";
 			break;
 		}
 		case "ARTIST": {
-			validate(isMod(user), "Mod needed", 401);
+			requireRole(user, "STAFF");
 
 			makeArtist(data.user);
+
+			message = "Artist permissions given";
 			break;
 		}
 		case "VIDEO_ADDER": {
-			validate(isMod(user), "Mod needed", 401);
+			requireRole(user, "STAFF");
 
 			await AdminRepository.makeVideoAdderByUserId(data.user);
+
+			message = "VoD adder permissions given";
 			break;
 		}
 		case "TOURNAMENT_ORGANIZER": {
-			validate(isMod(user), "Mod needed", 401);
+			requireRole(user, "STAFF");
 
 			await AdminRepository.makeTournamentOrganizerByUserId(data.user);
+
+			message = "Tournament permissions given";
 			break;
 		}
 		case "LINK_PLAYER": {
-			validate(isMod(user), "Mod needed", 401);
+			requireRole(user, "STAFF");
 
 			await AdminRepository.linkUserAndPlayer({
 				userId: data.user,
 				playerId: data.playerId,
 			});
 
+			message = "Linked user and player";
 			break;
 		}
 		case "BAN_USER": {
-			validate(isMod(user), "Mod needed", 401);
+			requireRole(user, "STAFF");
 
 			await AdminRepository.banUser({
 				bannedReason: data.reason ?? null,
@@ -103,10 +119,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 					: undefined,
 			});
 
+			message = "User banned";
 			break;
 		}
 		case "UNBAN_USER": {
-			validate(isMod(user), "Mod needed", 401);
+			requireRole(user, "STAFF");
 
 			await AdminRepository.unbanUser(data.user);
 
@@ -117,10 +134,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 				byUserId: user.id,
 			});
 
+			message = "User unbanned";
 			break;
 		}
 		case "UPDATE_FRIEND_CODE": {
-			validate(isMod(user), "Mod needed", 401);
+			requireRole(user, "STAFF");
 
 			await UserRepository.insertFriendCode({
 				friendCode: data.friendCode,
@@ -128,6 +146,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 				userId: data.user,
 			});
 
+			message = "Friend code updated";
 			break;
 		}
 		default: {
@@ -135,7 +154,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 		}
 	}
 
-	return { ok: true };
+	return successToast(message);
 };
 
 export const adminActionSchema = z.union([

@@ -4,19 +4,24 @@ import { Trans, useTranslation } from "react-i18next";
 import { Badge } from "~/components/Badge";
 import { LinkButton } from "~/components/Button";
 import { Main } from "~/components/Main";
-import { Popover } from "~/components/Popover";
 import { CheckmarkIcon } from "~/components/icons/Checkmark";
-import { useSetTitle } from "~/hooks/useSetTitle";
-import { makeTitle } from "~/utils/strings";
+import { FF_SCRIMS_ENABLED } from "~/features/scrims/scrims-constants";
+import { metaTags } from "~/utils/remix";
 import {
 	PATREON_HOW_TO_CONNECT_DISCORD_URL,
 	SENDOU_INK_PATREON_URL,
 } from "~/utils/urls";
+import { SendouButton } from "../../../components/elements/Button";
+import { SendouPopover } from "../../../components/elements/Popover";
 
 import "../support.css";
 
-export const meta: MetaFunction = () => {
-	return [{ title: makeTitle("Support") }];
+export const meta: MetaFunction = (args) => {
+	return metaTags({
+		title: "Support",
+		description: "Support Sendou's work on Patreon and get perks on sendou.ink",
+		location: args.location,
+	});
 };
 
 // 1 = support
@@ -50,13 +55,33 @@ const PERKS = [
 	},
 	{
 		tier: 2,
+		name: "tournamentsBeta",
+		extraInfo: false,
+	},
+	{
+		tier: 2,
+		name: "previewQ",
+		extraInfo: false,
+	},
+	{
+		tier: 2,
 		name: "userShortLink",
+		extraInfo: true,
+	},
+	{
+		tier: 2,
+		name: "autoValidatePictures",
 		extraInfo: true,
 	},
 	{
 		tier: 2,
 		name: "customizedColorsUser",
 		extraInfo: false,
+	},
+	{
+		tier: 2,
+		name: "favoriteBadges",
+		extraInfo: true,
 	},
 	{
 		tier: 2,
@@ -85,29 +110,23 @@ const PERKS = [
 	},
 	{
 		tier: 2,
-		name: "autoValidatePictures",
-		extraInfo: true,
-	},
-	{
-		tier: 2,
-		name: "previewQ",
-		extraInfo: false,
-	},
-	{
-		tier: 2,
 		name: "joinFive",
 		extraInfo: false,
 	},
 	{
 		tier: 2,
-		name: "tournamentsBeta",
+		name: "joinMoreAssociations",
 		extraInfo: false,
+	},
+	{
+		tier: 2,
+		name: "useBotToLogIn",
+		extraInfo: true,
 	},
 ] as const;
 
 export default function SupportPage() {
 	const { t } = useTranslation();
-	useSetTitle(t("pages.support"));
 
 	return (
 		<Main className="stack lg">
@@ -134,7 +153,7 @@ export default function SupportPage() {
 					>
 						your Discord on Patreon.com
 					</a>
-					. Afterwards the perks will take effect within 2 hours. If any
+					. Afterwards the perks will take effect within an hour. If any
 					questions or problems contact Sendou for support.
 				</Trans>
 			</p>
@@ -150,19 +169,26 @@ function SupportTable() {
 			<div>Support</div>
 			<div>Supporter</div>
 			<div>Supporter+</div>
-			{PERKS.map((perk) => {
+			{PERKS.filter(
+				(perk) => FF_SCRIMS_ENABLED || perk.name !== "joinMoreAssociations",
+			).map((perk) => {
 				return (
 					<React.Fragment key={perk.name}>
 						<div className="justify-self-start">
 							{t(`support.perk.${perk.name}`)}
 							{perk.extraInfo ? (
-								<Popover
-									containerClassName="support__popover"
-									triggerClassName="support__popover-trigger"
-									buttonChildren={<>?</>}
-								>
-									{t(`support.perk.${perk.name}.extra` as any)}
-								</Popover>
+								<>
+									{" "}
+									<SendouPopover
+										trigger={
+											<SendouButton className="support__popover-trigger">
+												?
+											</SendouButton>
+										}
+									>
+										{t(`support.perk.${perk.name}.extra` as any)}
+									</SendouPopover>
+								</>
 							) : null}
 						</div>
 						<div>

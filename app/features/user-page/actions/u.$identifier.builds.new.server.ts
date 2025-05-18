@@ -1,4 +1,5 @@
 import { type ActionFunction, redirect } from "@remix-run/node";
+import * as R from "remeda";
 import { z } from "zod";
 import { BUILD } from "~/constants";
 import { requireUser } from "~/features/auth/core/user.server";
@@ -15,10 +16,9 @@ import type {
 	BuildAbilitiesTuple,
 	MainWeaponId,
 } from "~/modules/in-game-lists/types";
-import { removeDuplicates } from "~/utils/arrays";
 import { unJsonify } from "~/utils/kysely.server";
 import { logger } from "~/utils/logger";
-import { parseRequestPayload, validate } from "~/utils/remix.server";
+import { errorToastIfFalsy, parseRequestPayload } from "~/utils/remix.server";
 import type { Nullish } from "~/utils/types";
 import { userBuildsPage } from "~/utils/urls";
 import {
@@ -54,9 +54,10 @@ export const action: ActionFunction = async ({ request }) => {
 	if (usersBuilds.length >= BUILD.MAX_COUNT) {
 		throw new Response("Max amount of builds reached", { status: 400 });
 	}
-	validate(
+	errorToastIfFalsy(
 		!data.buildToEditId ||
 			usersBuilds.some((build) => build.id === data.buildToEditId),
+		"Build to edit not found",
 	);
 
 	const someGearIsMissing =
@@ -193,7 +194,7 @@ function refreshCache({
 		...oldBuildWeapons.map(({ weaponSplId }) => weaponSplId),
 	];
 
-	const dedupedWeaponSplIds = removeDuplicates(allWeaponSplIds);
+	const dedupedWeaponSplIds = R.unique(allWeaponSplIds);
 
 	refreshBuildsCacheByWeaponSplIds(dedupedWeaponSplIds);
 }

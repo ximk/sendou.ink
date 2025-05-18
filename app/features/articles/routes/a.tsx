@@ -1,14 +1,16 @@
+import type { MetaFunction } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import { useTranslation } from "react-i18next";
 import { Main } from "~/components/Main";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import { ARTICLES_MAIN_PAGE, articlePage, navIconUrl } from "~/utils/urls";
-import { mostRecentArticles } from "../core/list.server";
+import { joinListToNaturalString } from "../../../utils/arrays";
+import { metaTags } from "../../../utils/remix";
+
+import { loader } from "../loaders/a.server";
+export { loader };
 
 import "~/styles/front.css";
-import { joinListToNaturalString } from "../../../utils/arrays";
-
-const MAX_ARTICLES_COUNT = 100;
 
 export const handle: SendouRouteHandle = {
 	breadcrumb: () => ({
@@ -18,10 +20,14 @@ export const handle: SendouRouteHandle = {
 	}),
 };
 
-export const loader = async () => {
-	return {
-		articles: await mostRecentArticles(MAX_ARTICLES_COUNT),
-	};
+export const meta: MetaFunction = (args) => {
+	return metaTags({
+		title: "Articles",
+		ogTitle: "Splatoon articles",
+		description:
+			"Articles about the competitive side of Splatoon. Written by various community members.",
+		location: args.location,
+	});
 };
 
 export default function ArticlesMainPage() {

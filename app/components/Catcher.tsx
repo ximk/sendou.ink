@@ -55,7 +55,7 @@ export function Catcher() {
 				{errorText ? (
 					<>
 						<div className="mt-4 stack sm items-center">
-							<textarea readOnly>{errorText}</textarea>
+							<textarea readOnly defaultValue={errorText} />
 							<Button onClick={() => copyToClipboard(errorText)}>
 								Copy to clipboard
 							</Button>
@@ -83,6 +83,17 @@ export function Catcher() {
 							</p>
 						</form>
 					)}
+				</Main>
+			);
+		case 403:
+			return (
+				<Main>
+					<h2>Error 403 Forbidden</h2>
+					<p className="text-sm text-lighter font-semi-bold">
+						Your account doesn't have the required permissions to perform this
+						action.
+					</p>
+					<GetHelp />
 				</Main>
 			);
 		case 404:

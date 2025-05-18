@@ -6,6 +6,7 @@ import * as React from "react";
 export interface ButtonProps
 	extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 	variant?:
+		| "primary"
 		| "success"
 		| "outlined"
 		| "outlined-success"
@@ -38,6 +39,7 @@ export function Button(props: ButtonProps) {
 	return (
 		<button
 			className={clsx(
+				"button",
 				variant,
 				{
 					"disabled-opaque": props.disabled,
@@ -70,8 +72,8 @@ type LinkButtonProps = Pick<
 > &
 	Pick<LinkProps, "to" | "prefetch" | "preventScrollReset"> & {
 		"data-cy"?: string;
-	} & {
 		isExternal?: boolean;
+		onClick?: () => void;
 	};
 
 export function LinkButton({
@@ -85,6 +87,7 @@ export function LinkButton({
 	testId,
 	icon,
 	preventScrollReset,
+	onClick,
 }: LinkButtonProps) {
 	if (isExternal) {
 		return (
@@ -99,6 +102,7 @@ export function LinkButton({
 				data-testid={testId}
 				target="_blank"
 				rel="noreferrer"
+				onClick={onClick}
 			>
 				{icon &&
 					React.cloneElement(icon, {

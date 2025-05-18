@@ -1,3 +1,4 @@
+import * as R from "remeda";
 import type { TournamentRoundMaps } from "~/db/tables";
 import type {
 	ModeShort,
@@ -5,12 +6,18 @@ import type {
 	StageId,
 } from "~/modules/in-game-lists";
 import type { TournamentMapListMap } from "~/modules/tournament-map-list-generator";
-import { removeDuplicates } from "~/utils/arrays";
 import invariant from "~/utils/invariant";
 import { logger } from "~/utils/logger";
 import { assertUnreachable } from "~/utils/types";
 import { isSetOverByResults } from "../tournament-bracket-utils";
 import type { TournamentDataTeam } from "./Tournament.server";
+
+export const types = [
+	"COUNTERPICK",
+	"COUNTERPICK_MODE_REPEAT_OK",
+	"BAN_2",
+] as const;
+export type Type = (typeof types)[number];
 
 export function turnOf({
 	results,
@@ -45,6 +52,7 @@ export function turnOf({
 
 			return null;
 		}
+		case "COUNTERPICK_MODE_REPEAT_OK":
 		case "COUNTERPICK": {
 			// there exists an unplayed map
 			if (mapList.length > results.length) return null;
@@ -102,6 +110,7 @@ export function mapsListWithLegality(args: MapListWithStatusesArgs) {
 				}
 				return args.mapList;
 			}
+			case "COUNTERPICK_MODE_REPEAT_OK":
 			case "COUNTERPICK": {
 				if (args.toSetMapPool.length === 0) {
 					const combinedPools = [
@@ -132,7 +141,7 @@ export function mapsListWithLegality(args: MapListWithStatusesArgs) {
 		}
 	})();
 
-	const modesIncluded = removeDuplicates(mapPool.map((m) => m.mode));
+	const modesIncluded = R.unique(mapPool.map((m) => m.mode));
 
 	const unavailableStagesSet = unavailableStages(args);
 	const unavailableModesSetAll = unavailableModes(args);
@@ -177,6 +186,7 @@ function unavailableStages({
 					.map((map) => map.stageId) ?? [],
 			);
 		}
+		case "COUNTERPICK_MODE_REPEAT_OK":
 		case "COUNTERPICK": {
 			return new Set(results.map((result) => result.stageId));
 		}
@@ -195,7 +205,13 @@ function unavailableModes({
 	pickerTeamId: number;
 	maps: TournamentRoundMaps | null;
 }): Set<ModeShort> {
-	if (!maps?.pickBan || maps.pickBan === "BAN_2") return new Set();
+	if (
+		!maps?.pickBan ||
+		maps.pickBan === "BAN_2" ||
+		maps.pickBan === "COUNTERPICK_MODE_REPEAT_OK"
+	) {
+		return new Set();
+	}
 
 	// can't pick the same mode last won on
 	const result = new Set(

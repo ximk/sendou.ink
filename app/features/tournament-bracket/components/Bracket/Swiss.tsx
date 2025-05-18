@@ -11,7 +11,7 @@ import {
 import { useSearchParamState } from "~/hooks/useSearchParamState";
 import type { Match as MatchType } from "~/modules/brackets-model";
 import type { Bracket as BracketType } from "../../core/Bracket";
-import { groupNumberToLetter } from "../../tournament-bracket-utils";
+import { groupNumberToLetters } from "../../tournament-bracket-utils";
 import { Match } from "./Match";
 import { PlacementsTable } from "./PlacementsTable";
 import { RoundHeader } from "./RoundHeader";
@@ -228,7 +228,10 @@ export function SwissBracket({
 									})}
 								</div>
 								{teamWithBye ? (
-									<div className="text-xs text-lighter font-semi-bold">
+									<div
+										className="text-xs text-lighter font-semi-bold"
+										data-testid="bye-team"
+									>
 										BYE: {teamWithBye.name}
 									</div>
 								) : null}
@@ -259,7 +262,7 @@ function getGroups(bracket: BracketType) {
 		);
 
 		result.push({
-			groupName: `Group ${groupNumberToLetter(group.number)}`,
+			groupName: `Group ${groupNumberToLetters(group.number)}`,
 			matches,
 			groupId: group.id,
 		});

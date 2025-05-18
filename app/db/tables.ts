@@ -2,22 +2,31 @@ import type {
 	ColumnType,
 	GeneratedAlways,
 	Insertable,
+	JSONColumnType,
 	Selectable,
 	SqlBool,
+	Updateable,
 } from "kysely";
+import type { AssociationVisibility } from "~/features/associations/associations-types";
+import type {
+	persistedTags,
+	tags,
+} from "~/features/calendar/calendar-constants";
 import type { TieredSkill } from "~/features/mmr/tiered.server";
-import type { TEAM_MEMBER_ROLES } from "~/features/team";
+import type { Notification as NotificationValue } from "~/features/notifications/notifications-types";
+import type { TEAM_MEMBER_ROLES } from "~/features/team/team-constants";
+import type * as PickBan from "~/features/tournament-bracket/core/PickBan";
 import type * as Progression from "~/features/tournament-bracket/core/Progression";
-import type { ParticipantResult } from "~/modules/brackets-model";
+import type { ParticipantResult, SeedOrdering } from "~/modules/brackets-model";
 import type {
 	Ability,
 	MainWeaponId,
 	ModeShort,
 	StageId,
 } from "~/modules/in-game-lists";
-import type { GroupSkillDifference, UserSkillDifference } from "./types";
+import type { JSONColumnTypeNullable } from "~/utils/kysely.server";
 
-export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
+type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
 	? ColumnType<S, I | undefined, U>
 	: ColumnType<T, T | undefined, T>;
 
@@ -28,19 +37,19 @@ export interface Team {
 	bannerImgId: number | null;
 	bio: string | null;
 	createdAt: Generated<number>;
-	css: ColumnType<Record<string, string> | null, string | null, string | null>;
+	css: JSONColumnTypeNullable<Record<string, string>>;
 	customUrl: string;
 	deletedAt: number | null;
 	id: GeneratedAlways<number>;
 	inviteCode: string;
 	name: string;
-	twitter: string | null;
 	bsky: string | null;
 }
 
 export interface TeamMember {
 	createdAt: Generated<number>;
 	isOwner: Generated<number>;
+	isManager: Generated<number>;
 	leftAt: number | null;
 	role: MemberRole | null;
 	teamId: number;
@@ -93,7 +102,7 @@ export interface Build {
 	description: string | null;
 	headGearSplId: number;
 	id: GeneratedAlways<number>;
-	modes: ColumnType<ModeShort[] | null, string | null, string | null>;
+	modes: JSONColumnTypeNullable<ModeShort[]>;
 	ownerId: number;
 	private: number | null;
 	shoesGearSplId: number;
@@ -101,10 +110,12 @@ export interface Build {
 	updatedAt: Generated<number>;
 }
 
+export type GearType = "HEAD" | "CLOTHES" | "SHOES";
+
 export interface BuildAbility {
 	ability: Ability;
 	buildId: number;
-	gearType: string;
+	gearType: GearType;
 	slotIndex: number;
 }
 
@@ -119,6 +130,9 @@ export type CalendarEventAvatarMetadata = {
 	textColor: string;
 };
 
+export type PersistedCalendarEventTag = keyof typeof persistedTags;
+export type CalendarEventTag = keyof typeof tags;
+
 export interface CalendarEvent {
 	authorId: number;
 	bracketUrl: string;
@@ -129,15 +143,12 @@ export interface CalendarEvent {
 	name: string;
 	participantCount: number | null;
 	tags: string | null;
+	hidden: Generated<number>;
 	tournamentId: number | null;
 	organizationId: number | null;
 	avatarImgId: number | null;
 	// TODO: remove in migration
-	avatarMetadata: ColumnType<
-		CalendarEventAvatarMetadata | null,
-		string | null,
-		string | null
-	>;
+	avatarMetadata: JSONColumnTypeNullable<CalendarEventAvatarMetadata>;
 }
 
 export interface CalendarEventBadge {
@@ -186,6 +197,27 @@ export interface GroupLike {
 	isRechallenge: number | null;
 }
 
+type CalculatingSkill = {
+	calculated: false;
+	matchesCount: number;
+	matchesCountNeeded: number;
+	/** Freshly calculated skill */
+	newSp?: number;
+};
+export type UserSkillDifference =
+	| {
+			calculated: true;
+			spDiff: number;
+	  }
+	| CalculatingSkill;
+export type GroupSkillDifference =
+	| {
+			calculated: true;
+			oldSp: number;
+			newSp: number;
+	  }
+	| CalculatingSkill;
+
 export type ParsedMemento = {
 	users: Record<
 		number,
@@ -216,7 +248,7 @@ export interface GroupMatch {
 	chatCode: string | null;
 	createdAt: Generated<number>;
 	id: GeneratedAlways<number>;
-	memento: ColumnType<ParsedMemento | null, string | null, string | null>;
+	memento: JSONColumnTypeNullable<ParsedMemento>;
 	reportedAt: number | null;
 	reportedByUserId: number | null;
 }
@@ -330,7 +362,7 @@ export interface PlusSuggestion {
 
 export interface PlusTier {
 	tier: number;
-	userId: number | null;
+	userId: number;
 }
 
 export interface PlusVote {
@@ -356,7 +388,7 @@ export interface PlusVotingResult {
 export interface ReportedWeapon {
 	groupMatchMapId: number | null;
 	userId: number;
-	weaponSplId: number;
+	weaponSplId: MainWeaponId;
 }
 
 export interface Skill {
@@ -429,6 +461,7 @@ export interface TournamentSettings {
 		roundCount: number;
 	};
 	minMembersPerTeam?: number;
+	isTest?: boolean;
 }
 
 export interface CastedMatchesInfo {
@@ -439,22 +472,16 @@ export interface CastedMatchesInfo {
 }
 
 export interface Tournament {
-	settings: ColumnType<TournamentSettings, string, string>;
+	settings: JSONColumnType<TournamentSettings>;
 	id: GeneratedAlways<number>;
 	mapPickingStyle: TournamentMapPickingStyle;
 	/** Maps prepared ahead of time for rounds. Follows settings.bracketProgression order. Null in the spot if not defined yet for that bracket. */
-	preparedMaps: ColumnType<
-		(PreparedMaps | null)[] | null,
-		string | null,
-		string | null
-	>;
-	castTwitchAccounts: ColumnType<string[] | null, string | null, string | null>;
-	castedMatchesInfo: ColumnType<
-		CastedMatchesInfo | null,
-		string | null,
-		string | null
-	>;
+	preparedMaps: JSONColumnTypeNullable<(PreparedMaps | null)[]>;
+	castTwitchAccounts: JSONColumnTypeNullable<string[]>;
+	castedMatchesInfo: JSONColumnTypeNullable<CastedMatchesInfo>;
 	rules: string | null;
+	/** Related "parent tournament", the tournament that contains the original sign-ups (for leagues) */
+	parentTournamentId: number | null;
 }
 
 export interface PreparedMaps {
@@ -487,6 +514,23 @@ export interface TournamentGroup {
 	stageId: number;
 }
 
+export const TournamentMatchStatus = {
+	/** The two matches leading to this one are not completed yet. */
+	Locked: 0,
+
+	/** One participant is ready and waiting for the other one. */
+	Waiting: 1,
+
+	/** Both participants are ready to start. */
+	Ready: 2,
+
+	/** The match is running. */
+	Running: 3,
+
+	/** The match is completed. */
+	Completed: 4,
+};
+
 export interface TournamentMatch {
 	// TODO: remove
 	bestOf: Generated<3 | 5 | 7>;
@@ -494,11 +538,11 @@ export interface TournamentMatch {
 	groupId: number;
 	id: GeneratedAlways<number>;
 	number: number;
-	opponentOne: ColumnType<ParticipantResult, string, string>;
-	opponentTwo: ColumnType<ParticipantResult, string, string>;
+	opponentOne: JSONColumnType<ParticipantResult>;
+	opponentTwo: JSONColumnType<ParticipantResult>;
 	roundId: number;
 	stageId: number;
-	status: number;
+	status: (typeof TournamentMatchStatus)[keyof typeof TournamentMatchStatus];
 	// used only for swiss because it's the only stage type where matches are not created in advance
 	createdAt: Generated<number>;
 }
@@ -547,7 +591,7 @@ export interface TournamentRoundMaps {
 	list?: Array<{ mode: ModeShort; stageId: StageId }> | null;
 	count: number;
 	type: "BEST_OF" | "PLAY_ALL";
-	pickBan?: "COUNTERPICK" | "BAN_2" | null;
+	pickBan?: PickBan.Type | null;
 }
 
 /**
@@ -562,9 +606,10 @@ export interface TournamentRound {
 	id: GeneratedAlways<number>;
 	number: number;
 	stageId: number;
-	maps: ColumnType<TournamentRoundMaps | null, string | null, string | null>;
+	maps: JSONColumnTypeNullable<TournamentRoundMaps>;
 }
 
+// when updating this also update `defaultBracketSettings` in tournament-utils.ts
 export interface TournamentStageSettings {
 	// SE
 	thirdPlaceMatch?: boolean;
@@ -574,6 +619,9 @@ export interface TournamentStageSettings {
 	groupCount?: number;
 	// SWISS
 	roundCount?: number;
+
+	// Not exposed as user setting currently, applies to all brackets except swiss
+	seedOrdering?: SeedOrdering[];
 }
 
 export const TOURNAMENT_STAGE_TYPES = [
@@ -624,11 +672,7 @@ export interface TournamentTeam {
 	seed: number | null;
 	/** For formats that have many starting brackets, where should the team start? */
 	startingBracketIdx: number | null;
-	activeRosterUserIds: ColumnType<
-		number[] | null,
-		string | null,
-		string | null
-	>;
+	activeRosterUserIds: JSONColumnTypeNullable<number[]>;
 	tournamentId: number;
 	teamId: number | null;
 	avatarImgId: number | null;
@@ -656,7 +700,7 @@ export interface TournamentOrganization {
 	name: string;
 	slug: string;
 	description: string | null;
-	socials: ColumnType<string[] | null, string | null, string | null>;
+	socials: JSONColumnTypeNullable<string[]>;
 	avatarImgId: number | null;
 }
 
@@ -686,7 +730,7 @@ export interface TournamentOrganizationSeries {
 	organizationId: number;
 	name: string;
 	description: string | null;
-	substringMatches: ColumnType<string[], string, string>;
+	substringMatches: JSONColumnType<string[]>;
 	showLeaderboard: Generated<number>;
 }
 
@@ -734,6 +778,11 @@ export interface UserMapModePreferences {
 	}>;
 }
 
+export interface QWeaponPool {
+	weaponSplId: MainWeaponId;
+	isFavorite: number;
+}
+
 export const BUILD_SORT_IDENTIFIERS = [
 	"UPDATED_AT",
 	"TOP_500",
@@ -750,6 +799,11 @@ export const BUILD_SORT_IDENTIFIERS = [
 
 export type BuildSort = (typeof BUILD_SORT_IDENTIFIERS)[number];
 
+export interface UserPreferences {
+	disableBuildAbilitySorting?: boolean;
+	disallowScrimPickupsFromUntrusted?: boolean;
+}
+
 export interface User {
 	/** 1 = permabanned, timestamp = ban active till then */
 	banned: Generated<number | null>;
@@ -758,7 +812,7 @@ export interface User {
 	commissionsOpen: Generated<number | null>;
 	commissionText: string | null;
 	country: string | null;
-	css: ColumnType<Record<string, string> | null, string | null, string | null>;
+	css: JSONColumnTypeNullable<Record<string, string>>;
 	customUrl: string | null;
 	discordAvatar: string | null;
 	discordId: string;
@@ -767,7 +821,8 @@ export interface User {
 	/** coalesce(customName, discordName) */
 	username: ColumnType<string, never, never>;
 	discordUniqueName: string | null;
-	favoriteBadgeId: number | null;
+	/** User's favorite badges they want to show on the front page of the badge display. Index = 0 big badge. */
+	favoriteBadgeIds: ColumnType<number[] | null, string | null, string | null>;
 	id: GeneratedAlways<number>;
 	inGameName: string | null;
 	isArtist: Generated<number | null>;
@@ -781,21 +836,22 @@ export interface User {
 	showDiscordUniqueName: Generated<number>;
 	stickSens: number | null;
 	twitch: string | null;
-	twitter: string | null;
 	bsky: string | null;
 	battlefy: string | null;
 	vc: Generated<"YES" | "NO" | "LISTEN_ONLY">;
 	youtubeId: string | null;
-	mapModePreferences: ColumnType<
-		UserMapModePreferences | null,
-		string | null,
-		string | null
-	>;
-	qWeaponPool: ColumnType<MainWeaponId[] | null, string | null, string | null>;
+	mapModePreferences: JSONColumnTypeNullable<UserMapModePreferences>;
+	qWeaponPool: JSONColumnTypeNullable<QWeaponPool[]>;
 	plusSkippedForSeasonNth: number | null;
 	noScreen: Generated<number>;
-	buildSorting: ColumnType<BuildSort[] | null, string | null, string | null>;
+	buildSorting: JSONColumnTypeNullable<BuildSort[]>;
+	preferences: JSONColumnTypeNullable<UserPreferences>;
 }
+
+/** Represents User joined with PlusTier table */
+export type UserWithPlusTier = Tables["User"] & {
+	plusTier: PlusTier["tier"] | null;
+};
 
 export interface UserResultHighlight {
 	teamId: number;
@@ -805,7 +861,7 @@ export interface UserResultHighlight {
 export interface UserSubmittedImage {
 	id: GeneratedAlways<number>;
 	submitterUserId: number | null;
-	url: string | null;
+	url: string;
 	validatedAt: number | null;
 }
 
@@ -827,12 +883,12 @@ export interface UserFriendCode {
 export interface Video {
 	eventId: number | null;
 	id: GeneratedAlways<number>;
-	submitterUserId: number | null;
-	title: string | null;
-	type: string | null;
+	submitterUserId: number;
+	title: string;
+	type: "SCRIM" | "TOURNAMENT" | "MATCHMAKING" | "CAST" | "SENDOUQ";
 	validatedAt: number | null;
-	youtubeDate: number | null;
-	youtubeId: string | null;
+	youtubeDate: number;
+	youtubeId: string;
 }
 
 export interface VideoMatch {
@@ -862,14 +918,98 @@ export interface XRankPlacement {
 	playerId: number;
 	power: number;
 	rank: number;
-	region: string;
+	region: "WEST" | "JPN";
 	title: string;
 	weaponSplId: MainWeaponId;
 	year: number;
 }
 
+export interface ScrimPost {
+	id: GeneratedAlways<number>;
+	/** When is the scrim scheduled to happen */
+	at: number;
+	/** Highest LUTI div accepted */
+	maxDiv: number | null;
+	/** Lowest LUTI div accepted */
+	minDiv: number | null;
+	/** Who sees the post */
+	visibility: JSONColumnTypeNullable<AssociationVisibility>;
+	/** Any additional info */
+	text: string | null;
+	/** The key to access the scrim chat, used after scrim is scheduled with another team */
+	chatCode: string;
+	/** Refers to the team looking for the team (can also be a pick-up) */
+	teamId: number | null;
+	createdAt: GeneratedAlways<number>;
+	updatedAt: Generated<number>;
+}
+
+export interface ScrimPostUser {
+	scrimPostId: number;
+	userId: number;
+	/** User is the author of the post */
+	isOwner: number;
+}
+
+export interface ScrimPostRequest {
+	id: GeneratedAlways<number>;
+	scrimPostId: number;
+	teamId: number | null;
+	isAccepted: Generated<number>;
+	createdAt: GeneratedAlways<number>;
+}
+
+export interface ScrimPostRequestUser {
+	scrimPostRequestId: number;
+	userId: number;
+	/** User made the request */
+	isOwner: number;
+}
+
+export interface Association {
+	id: GeneratedAlways<number>;
+	name: string;
+	inviteCode: string;
+	createdAt: GeneratedAlways<number>;
+}
+
+export interface AssociationMember {
+	userId: number;
+	associationId: number;
+	role: "MEMBER" | "ADMIN";
+}
+
+export interface Notification {
+	id: GeneratedAlways<number>;
+	type: NotificationValue["type"];
+	meta: JSONColumnTypeNullable<Record<string, number | string>>;
+	pictureUrl: string | null;
+	createdAt: GeneratedAlways<number>;
+}
+
+export interface NotificationUser {
+	notificationId: number;
+	userId: number;
+	seen: Generated<number>;
+}
+
+export interface NotificationSubscription {
+	endpoint: string;
+	keys: {
+		auth: string;
+		p256dh: string;
+	};
+}
+
+export interface NotificationUserSubscription {
+	id: GeneratedAlways<number>;
+	userId: number;
+	subscription: JSONColumnType<NotificationSubscription>;
+}
+
 export type Tables = { [P in keyof DB]: Selectable<DB[P]> };
 export type TablesInsertable = { [P in keyof DB]: Insertable<DB[P]> };
+export type TablesUpdatable = { [P in keyof DB]: Updateable<DB[P]> };
 
 export interface DB {
 	AllTeam: Team;
@@ -945,4 +1085,13 @@ export interface DB {
 	VideoMatch: VideoMatch;
 	VideoMatchPlayer: VideoMatchPlayer;
 	XRankPlacement: XRankPlacement;
+	ScrimPost: ScrimPost;
+	ScrimPostUser: ScrimPostUser;
+	ScrimPostRequest: ScrimPostRequest;
+	ScrimPostRequestUser: ScrimPostRequestUser;
+	Association: Association;
+	AssociationMember: AssociationMember;
+	Notification: Notification;
+	NotificationUser: NotificationUser;
+	NotificationUserSubscription: NotificationUserSubscription;
 }

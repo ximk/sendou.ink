@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { dbInsertUsers, dbReset, wrappedAction } from "~/utils/Test";
+import {
+	assertResponseErrored,
+	dbInsertUsers,
+	dbReset,
+	wrappedAction,
+} from "~/utils/Test";
 import { action as teamIndexPageAction } from "../actions/t.server";
 import { action as _editTeamAction } from "../routes/t.$customUrl.edit";
 import type { createTeamSchema, editTeamSchema } from "../team-schemas.server";
@@ -11,6 +16,10 @@ const createTeamAction = wrappedAction<typeof createTeamSchema>({
 const editTeamAction = wrappedAction<typeof editTeamSchema>({
 	action: _editTeamAction,
 });
+
+const DEFAULT_FIELDS = {
+	bio: null,
+} as any;
 
 describe("team creation", () => {
 	beforeEach(async () => {
@@ -28,10 +37,7 @@ describe("team creation", () => {
 			{
 				_action: "EDIT",
 				name: "Team 2",
-				bio: null,
-				bsky: null,
-				css: null,
-				twitter: null,
+				...DEFAULT_FIELDS,
 			},
 			{ user: "regular", params: { customUrl: "team-1" } },
 		);
@@ -42,18 +48,15 @@ describe("team creation", () => {
 	it("prevents editing team name to only special characters", async () => {
 		await createTeamAction({ name: "Team 1" }, { user: "regular" });
 
-		await expect(
-			editTeamAction(
-				{
-					_action: "EDIT",
-					name: "𝓢𝓲𝓵",
-					bio: null,
-					bsky: null,
-					css: null,
-					twitter: null,
-				},
-				{ user: "regular", params: { customUrl: "team-1" } },
-			),
-		).rejects.toThrow("status code: 400");
+		const response = await editTeamAction(
+			{
+				_action: "EDIT",
+				name: "𝓢𝓲𝓵",
+				...DEFAULT_FIELDS,
+			},
+			{ user: "regular", params: { customUrl: "team-1" } },
+		);
+
+		assertResponseErrored(response);
 	});
 });

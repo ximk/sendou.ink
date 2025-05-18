@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "vitest";
-import { Status } from "~/db/types";
+import { TournamentMatchStatus } from "~/db/tables";
 import { InMemoryDatabase } from "~/modules/brackets-memory-db";
 import { BracketsManager } from "../manager";
 
@@ -91,65 +91,6 @@ describe("Create single elimination stage", () => {
 		expect(storage.select<any>("match")!.length).toBe(7);
 	});
 
-	test("should determine the number property of created stages", () => {
-		manager.create({
-			name: "Stage 1",
-			tournamentId: 0,
-			type: "single_elimination",
-			settings: { size: 2 },
-		});
-
-		expect(storage.select<any>("stage", 0).number).toBe(1);
-
-		manager.create({
-			name: "Stage 2",
-			tournamentId: 0,
-			type: "single_elimination",
-			settings: { size: 2 },
-		});
-
-		expect(storage.select<any>("stage", 1).number).toBe(2);
-
-		manager.delete.stage(0);
-
-		manager.create({
-			name: "Stage 3",
-			tournamentId: 0,
-			type: "single_elimination",
-			settings: { size: 2 },
-		});
-
-		expect(storage.select<any>("stage", 2).number).toBe(3);
-	});
-
-	test("should create a stage with the given number property", () => {
-		manager.create({
-			name: "Stage 1",
-			tournamentId: 0,
-			type: "single_elimination",
-			settings: { size: 2 },
-		});
-
-		manager.create({
-			name: "Stage 2",
-			tournamentId: 0,
-			type: "single_elimination",
-			settings: { size: 2 },
-		});
-
-		manager.delete.stage(0);
-
-		manager.create({
-			name: "Stage 1 (new)",
-			tournamentId: 0,
-			type: "single_elimination",
-			number: 1,
-			settings: { size: 2 },
-		});
-
-		expect(storage.select<any>("stage", 2).number).toBe(1);
-	});
-
 	test("should throw if the given number property already exists", () => {
 		manager.create({
 			name: "Stage 1",
@@ -219,8 +160,12 @@ describe("Previous and next match update", () => {
 		expect(storage.select<any>("match", 3).opponent2.id).toBe(
 			storage.select<any>("match", 1).opponent1.id,
 		);
-		expect(storage.select<any>("match", 2).status).toBe(Status.Ready);
-		expect(storage.select<any>("match", 3).status).toBe(Status.Ready);
+		expect(storage.select<any>("match", 2).status).toBe(
+			TournamentMatchStatus.Ready,
+		);
+		expect(storage.select<any>("match", 3).status).toBe(
+			TournamentMatchStatus.Ready,
+		);
 	});
 
 	test("should play both the final and consolation final in parallel", () => {
@@ -250,8 +195,12 @@ describe("Previous and next match update", () => {
 			opponent2: { score: 9 },
 		});
 
-		expect(storage.select<any>("match", 2).status).toBe(Status.Running);
-		expect(storage.select<any>("match", 3).status).toBe(Status.Ready);
+		expect(storage.select<any>("match", 2).status).toBe(
+			TournamentMatchStatus.Running,
+		);
+		expect(storage.select<any>("match", 3).status).toBe(
+			TournamentMatchStatus.Ready,
+		);
 
 		manager.update.match({
 			id: 3, // Consolation final
@@ -259,8 +208,12 @@ describe("Previous and next match update", () => {
 			opponent2: { score: 9 },
 		});
 
-		expect(storage.select<any>("match", 2).status).toBe(Status.Running);
-		expect(storage.select<any>("match", 3).status).toBe(Status.Running);
+		expect(storage.select<any>("match", 2).status).toBe(
+			TournamentMatchStatus.Running,
+		);
+		expect(storage.select<any>("match", 3).status).toBe(
+			TournamentMatchStatus.Running,
+		);
 
 		manager.update.match({
 			id: 3, // Consolation final
@@ -268,7 +221,9 @@ describe("Previous and next match update", () => {
 			opponent2: { score: 9 },
 		});
 
-		expect(storage.select<any>("match", 2).status).toBe(Status.Running);
+		expect(storage.select<any>("match", 2).status).toBe(
+			TournamentMatchStatus.Running,
+		);
 
 		manager.update.match({
 			id: 2, // Final

@@ -1,18 +1,21 @@
+import * as R from "remeda";
 import type {
 	Tables,
 	TournamentStage,
 	TournamentStageSettings,
 } from "~/db/tables";
-import { TOURNAMENT } from "~/features/tournament";
 import type * as Progression from "~/features/tournament-bracket/core/Progression";
 import * as Standings from "~/features/tournament/core/Standings";
+import {
+	LEAGUES,
+	TOURNAMENT,
+} from "~/features/tournament/tournament-constants";
 import { tournamentIsRanked } from "~/features/tournament/tournament-utils";
 import type { TournamentManagerDataSet } from "~/modules/brackets-manager/types";
 import type { Match, Stage } from "~/modules/brackets-model";
 import type { ModeShort } from "~/modules/in-game-lists";
 import { modesShort, rankedModesShort } from "~/modules/in-game-lists/modes";
-import { isAdmin } from "~/permissions";
-import { removeDuplicates } from "~/utils/arrays";
+import { isAdmin } from "~/modules/permissions/utils";
 import {
 	databaseTimestampNow,
 	databaseTimestampToDate,
@@ -24,7 +27,7 @@ import { assertUnreachable } from "~/utils/types";
 import { userSubmittedImage } from "~/utils/urls";
 import {
 	fillWithNullTillPowerOfTwo,
-	groupNumberToLetter,
+	groupNumberToLetters,
 } from "../tournament-bracket-utils";
 import { Bracket } from "./Bracket";
 import * as Swiss from "./Swiss";
@@ -219,7 +222,7 @@ export class Tournament {
 						requiresCheckIn,
 					});
 
-				const checkedInTeamsWithReplaysAvoided =
+				const { teams: checkedInTeamsWithReplaysAvoided, preseeded } =
 					this.avoidReplaysOfPreviousBracketOpponent(
 						checkedInTeams,
 						{
@@ -239,7 +242,12 @@ export class Tournament {
 						name,
 						requiresCheckIn,
 						startTime: startTime ? databaseTimestampToDate(startTime) : null,
-						settings: settings ?? null,
+						settings: settings
+							? {
+									...settings,
+									seedOrdering: preseeded ? ["natural"] : undefined,
+								}
+							: null,
 						type,
 						sources,
 						createdAt: null,
@@ -273,27 +281,31 @@ export class Tournament {
 				allRelevantMatchesFinished = false;
 			}
 
-			const excludedOverridenTeams = sourcedTeams.filter(
+			// exclude teams that would be going to this bracket according
+			// to the bracket progression rules, but have been overridden
+			// by the TO to go somewhere else or get eliminated (in the case of destinationBracketIdx = -1)
+			const withOverriddenTeamsExcluded = sourcedTeams.filter(
 				(teamId) =>
 					!this.ctx.bracketProgressionOverrides.some(
 						(override) =>
 							override.sourceBracketIdx === source.bracketIdx &&
 							override.tournamentTeamId === teamId &&
-							// "no progression" override
-							override.destinationBracketIdx !== -1 &&
-							// redundant override
 							override.destinationBracketIdx !== bracketIdx,
 					),
 			);
 
-			teams.push(...excludedOverridenTeams);
+			teams.push(...withOverriddenTeamsExcluded);
 		}
 
 		const teamsFromOverride: { id: number; sourceBracketIdx: number }[] = [];
 		for (const source of sources) {
 			for (const override of this.ctx.bracketProgressionOverrides) {
-				if (override.sourceBracketIdx !== source.bracketIdx) continue;
-				if (override.destinationBracketIdx !== bracketIdx) continue;
+				if (
+					override.sourceBracketIdx !== source.bracketIdx ||
+					override.destinationBracketIdx !== bracketIdx
+				) {
+					continue;
+				}
 
 				teamsFromOverride.push({
 					id: override.tournamentTeamId,
@@ -364,27 +376,46 @@ export class Tournament {
 			type: Tables["TournamentStage"]["type"];
 		},
 		settings: TournamentStageSettings,
-	) {
-		// rather arbitrary limit, but with smaller brackets avoiding replays is not possible
-		// and then later while loop hits iteration limit
-		if (teams.length < 8) return teams;
-
+	): { teams: (number | null)[]; preseeded: boolean } {
 		// can't have replays from previous brackets in the first bracket
 		// & no support yet for avoiding replays if many sources
-		if (bracket.sources?.length !== 1) return teams;
+		if (bracket.sources?.length !== 1) return { teams, preseeded: false };
 
 		const sourceBracket = this.bracketByIdx(bracket.sources[0].bracketIdx);
 		if (!sourceBracket) {
 			logger.warn(
 				"avoidReplaysOfPreviousBracketOpponent: Source bracket not found",
 			);
-			return teams;
+			return { teams, preseeded: false };
 		}
 
 		// should not happen but just in case
 		if (bracket.type === "round_robin" || bracket.type === "swiss") {
-			return teams;
+			return { teams, preseeded: false };
 		}
+
+		// special case for LUTI, not optimal for other brackets as it puts all the top seeds in one side of the bracket
+		// in LUTI this is okay because teams are more grouped by region
+		// eventually a robust solution should be developed possibly by arranging teams in groups in a specific way https://github.com/Drarig29/brackets-manager.js/issues/8
+		if (
+			sourceBracket.type === "round_robin" &&
+			["single_elimination", "double_elimination"].includes(bracket.type) &&
+			bracket.sources[0].placements.length === 2 &&
+			teams.length > 4 &&
+			this.isLeagueDivision
+		) {
+			// if the source bracket is round robin and the team is seeded in the same group
+			// as the other team, we can't avoid replays
+
+			return {
+				teams: this.optimizeTeamOrderFromRoundRobin(teams),
+				preseeded: true,
+			};
+		}
+
+		// rather arbitrary limit, but with smaller brackets avoiding replays is not possible
+		// and then later while loop hits iteration limit
+		if (teams.length < 8) return { teams, preseeded: false };
 
 		const sourceBracketEncounters = sourceBracket.data.match.reduce(
 			(acc, cur) => {
@@ -453,7 +484,7 @@ export class Tournament {
 					"avoidReplaysOfPreviousBracketOpponent: Avoiding replays failed, too many iterations",
 				);
 
-				return teams;
+				return { teams, preseeded: false };
 			}
 
 			const [oneId, twoId] = replays[0];
@@ -469,7 +500,7 @@ export class Tournament {
 					`Avoiding replays failed, no potential switch candidates found in match: ${oneId} vs. ${twoId}`,
 				);
 
-				return teams;
+				return { teams, preseeded: false };
 			}
 
 			for (const candidate of potentialSwitchCandidates) {
@@ -499,7 +530,47 @@ export class Tournament {
 			}
 		}
 
-		return newOrder;
+		return { teams: newOrder, preseeded: false };
+	}
+
+	/** Set teams in optimal order when they come from RR avoiding replays as late as possible
+	 *
+	 * Teams come in order of their group placement e.g. Group A 1st, Group B 1st, Group C 1st, Group A 2nd, Group B 2nd, Group C 2nd
+	 * and the order is optimized so that every winner plays 2nd placer in first round and replays happen as lately as possible i.e.
+	 * every groups 1st and 2nd placer are in the different halves of the bracket.
+	 * If teams is not a power of two, nulls are added to represent byes, ensuring no bye is against another bye in the first round.
+	 */
+	private optimizeTeamOrderFromRoundRobin(_teams: number[]): (number | null)[] {
+		invariant(_teams.length > 4, "Not enough teams to optimize");
+
+		// adds BYEs represented with null at the end of the array if needed
+		const teams = fillWithNullTillPowerOfTwo(_teams);
+
+		const teamsPerHalf = Math.ceil(teams.length / 2);
+		const groupWinners = teams.slice(0, teamsPerHalf);
+		const groupRunnersUp = teams.slice(teamsPerHalf);
+
+		invariant(
+			groupWinners.length === groupRunnersUp.length,
+			"1st and 2nd placer count not even",
+		);
+
+		/*
+		E.g. here 'A' is the winner of group A and 'a' is the second place finisher of group A
+		A B C D d c b a
+
+		turns into pairings:
+
+		A B C D
+		d c b a
+		*/
+		const optimizedOrder: (number | null)[] = [];
+		for (let i = 0; i < teamsPerHalf; i++) {
+			optimizedOrder.push(groupWinners[i]);
+			optimizedOrder.push(groupRunnersUp[teamsPerHalf - i - 1]);
+		}
+
+		return optimizedOrder;
 	}
 
 	private divideTeamsToCheckedInAndNotCheckedIn({
@@ -565,30 +636,35 @@ export class Tournament {
 		switch (type) {
 			case "single_elimination": {
 				if (participantsCount < 4) {
-					return { consolationFinal: false };
+					return {
+						consolationFinal: false,
+						seedOrdering: selectedSettings?.seedOrdering,
+					};
 				}
 
 				return {
 					consolationFinal:
 						selectedSettings?.thirdPlaceMatch ??
-						this.ctx.settings.thirdPlaceMatch ??
-						true,
+						TOURNAMENT.SE_DEFAULT_HAS_THIRD_PLACE_MATCH,
+					seedOrdering: selectedSettings?.seedOrdering,
 				};
 			}
 			case "double_elimination": {
 				return {
 					grandFinal: "double",
+					seedOrdering: selectedSettings?.seedOrdering,
 				};
 			}
 			case "round_robin": {
 				const teamsPerGroup =
 					selectedSettings?.teamsPerGroup ??
-					this.ctx.settings.teamsPerGroup ??
-					TOURNAMENT.DEFAULT_TEAM_COUNT_PER_RR_GROUP;
+					TOURNAMENT.RR_DEFAULT_TEAM_COUNT_PER_GROUP;
 
 				return {
 					groupCount: Math.ceil(participantsCount / teamsPerGroup),
-					seedOrdering: ["groups.seed_optimized"],
+					seedOrdering: selectedSettings?.seedOrdering ?? [
+						"groups.seed_optimized",
+					],
 				};
 			}
 			case "swiss": {
@@ -599,7 +675,10 @@ export class Tournament {
 									groupCount: selectedSettings.groupCount,
 									roundCount: selectedSettings.roundCount,
 								}
-							: this.ctx.settings.swiss,
+							: {
+									groupCount: TOURNAMENT.SWISS_DEFAULT_GROUP_COUNT,
+									roundCount: TOURNAMENT.SWISS_DEFAULT_ROUND_COUNT,
+								},
 				};
 			}
 			default: {
@@ -613,7 +692,13 @@ export class Tournament {
 			isSetAsRanked: this.ctx.settings.isRanked,
 			startTime: this.ctx.startTime,
 			minMembersPerTeam: this.minMembersPerTeam,
+			isTest: this.isTest,
 		});
+	}
+
+	/** Run as test tournament which don't show on calendar, give out results etc., default false */
+	get isTest() {
+		return this.ctx.settings.isTest ?? false;
 	}
 
 	/** What seeding skill rating this tournament counts for */
@@ -657,7 +742,7 @@ export class Tournament {
 				return ["CB"];
 			}
 			default: {
-				const pickedModes = removeDuplicates(
+				const pickedModes = R.unique(
 					this.ctx.toSetMapPool.map((map) => map.mode),
 				);
 				if (pickedModes.length === 0) {
@@ -681,27 +766,39 @@ export class Tournament {
 
 	resolvePoolCode({
 		hostingTeamId,
-		groupLetter,
+		groupLetters,
 		bracketNumber,
 	}: {
 		hostingTeamId: number;
-		groupLetter?: string;
+		groupLetters?: string;
 		bracketNumber?: number;
 	}) {
 		const tournamentNameWithoutOnlyLetters = this.ctx.name.replace(
 			/[^a-zA-Z ]/g,
 			"",
 		);
-		const prefix = tournamentNameWithoutOnlyLetters
+		let prefix = tournamentNameWithoutOnlyLetters
 			.split(" ")
 			.map((word) => word[0])
 			.join("")
 			.toUpperCase()
 			.slice(0, 3);
 
+		// handle tournament name not having letters by using a default prefix
+		if (!prefix) {
+			prefix = ["AB", "CD", "EF", "GH", "IJ", "KL", "MN", "OP", "QR", "ST"][
+				this.ctx.id % 10
+			];
+		}
+
+		// for small tournaments there should be no risk that the pool gets full
+		// so to make it more convenient just use same suffix every match
+		const globalSuffix = this.ctx.teams.length <= 20 ? this.ctx.id % 10 : null;
+
 		return {
 			prefix,
-			suffix: groupLetter ?? bracketNumber ?? hostingTeamId % 10,
+			suffix:
+				globalSuffix ?? groupLetters ?? bracketNumber ?? hostingTeamId % 10,
 		};
 	}
 
@@ -818,18 +915,21 @@ export class Tournament {
 		invariant(team, "Team not found");
 
 		if (!this.regularCheckInIsOpen && !this.regularCheckInHasEnded) {
-			return false;
+			return { isFulfilled: false, reason: "Check in has not yet started" };
 		}
 
 		if (team.members.length < this.minMembersPerTeam) {
-			return false;
+			return {
+				isFulfilled: false,
+				reason: `Team needs at least ${this.minMembersPerTeam} members`,
+			};
 		}
 
 		if (this.teamsPrePickMaps && (!team.mapPool || team.mapPool.length === 0)) {
-			return false;
+			return { isFulfilled: false, reason: "Team has no map pool set" };
 		}
 
-		return true;
+		return { isFulfilled: true, reason: null };
 	}
 
 	get isInvitational() {
@@ -855,7 +955,14 @@ export class Tournament {
 		// special format
 		if (this.minMembersPerTeam !== 4) return this.minMembersPerTeam;
 
-		const maxMembersBeforeStart = this.isInvitational ? 5 : 6;
+		if (this.isLeagueSignup || this.isLeagueDivision) return 8;
+
+		// TODO: retire this hack by making it user configurable
+		if (this.ctx.organization?.id === 19 && this.ctx.name.includes("FLUTI")) {
+			return 8;
+		}
+
+		const maxMembersBeforeStart = 6;
 
 		if (this.hasStarted) {
 			return maxMembersBeforeStart + 1;
@@ -896,11 +1003,23 @@ export class Tournament {
 	}
 
 	get registrationOpen() {
+		if (this.isInvitational) return false;
+
 		return this.registrationClosesAt > new Date();
 	}
 
 	get autonomousSubs() {
 		return this.ctx.settings.autonomousSubs ?? true;
+	}
+
+	get isLeagueSignup() {
+		return Object.values(LEAGUES)
+			.flat()
+			.some((entry) => entry.tournamentId === this.ctx.id);
+	}
+
+	get isLeagueDivision() {
+		return Boolean(this.ctx.parentTournamentId);
 	}
 
 	matchNameById(matchId: number) {
@@ -922,7 +1041,7 @@ export class Tournament {
 							(round) => round.id === match.round_id,
 						);
 
-						roundName = `Groups ${group?.number ? groupNumberToLetter(group.number) : ""}${round?.number ?? ""}.${match.number}`;
+						roundName = `Groups ${group?.number ? groupNumberToLetters(group.number) : ""}${round?.number ?? ""}.${match.number}`;
 					} else if (bracket.type === "swiss") {
 						const group = bracket.data.group.find(
 							(group) => group.id === match.group_id,
@@ -933,7 +1052,7 @@ export class Tournament {
 
 						const oneGroupOnly = bracket.data.group.length === 1;
 
-						roundName = `Swiss${oneGroupOnly ? "" : " Group"} ${group?.number && !oneGroupOnly ? groupNumberToLetter(group.number) : ""} ${round?.number ?? ""}.${match.number}`;
+						roundName = `Swiss${oneGroupOnly ? "" : " Group"} ${group?.number && !oneGroupOnly ? groupNumberToLetters(group.number) : ""} ${round?.number ?? ""}.${match.number}`;
 					} else if (
 						bracket.type === "single_elimination" ||
 						bracket.type === "double_elimination"
@@ -955,14 +1074,14 @@ export class Tournament {
 							const specifier = () => {
 								if (
 									[
-										"WB Finals",
-										"Grand Finals",
-										"Bracket Reset",
-										"Finals",
-										"LB Finals",
-										"LB Semis",
-										"3rd place match",
-									].includes(round.name)
+										TOURNAMENT.ROUND_NAMES.WB_FINALS,
+										TOURNAMENT.ROUND_NAMES.GRAND_FINALS,
+										TOURNAMENT.ROUND_NAMES.BRACKET_RESET,
+										TOURNAMENT.ROUND_NAMES.FINALS,
+										TOURNAMENT.ROUND_NAMES.LB_FINALS,
+										TOURNAMENT.ROUND_NAMES.LB_SEMIS,
+										TOURNAMENT.ROUND_NAMES.THIRD_PLACE_MATCH,
+									].includes(round.name as any)
 								) {
 									return "";
 								}
@@ -988,7 +1107,7 @@ export class Tournament {
 			if (!roundName) return;
 
 			if (roundName.includes("Semis")) {
-				return roundName.replace(/\d/g, "");
+				return roundName.replace(/\d/g, "").trim();
 			}
 
 			return roundName.split(".")[0];
@@ -1126,9 +1245,11 @@ export class Tournament {
 		}
 
 		if (team.checkIns.length === 0 && this.regularCheckInIsOpen) {
-			const canCheckIn = this.checkInConditionsFulfilledByTeamId(team.id);
-
-			return { type: "CHECKIN", canCheckIn } as const;
+			return {
+				type: "CHECKIN",
+				canCheckIn: this.checkInConditionsFulfilledByTeamId(team.id)
+					.isFulfilled,
+			} as const;
 		}
 
 		for (const [bracketIdx, bracket] of this.brackets.entries()) {
@@ -1140,7 +1261,7 @@ export class Tournament {
 		for (const bracket of this.brackets) {
 			if (!bracket.preview) continue;
 
-			const isParticipant = bracket.seeding?.includes(team.id);
+			const isParticipant = bracket.tournamentTeamIds.includes(team.id);
 
 			if (isParticipant) {
 				return { type: "WAITING_FOR_BRACKET" } as const;
@@ -1150,10 +1271,7 @@ export class Tournament {
 		for (const bracket of this.brackets) {
 			if (bracket.preview || bracket.type !== "swiss") continue;
 
-			// TODO: both seeding and participantTournamentTeamIds are used for the same thing
-			const isParticipant = bracket.participantTournamentTeamIds.includes(
-				team.id,
-			);
+			const isParticipant = bracket.tournamentTeamIds.includes(team.id);
 
 			const setsGeneratedCount = bracket.data.match.filter(
 				(match) =>
@@ -1243,7 +1361,7 @@ export class Tournament {
 		}
 
 		const participantInAnotherBracket = ongoingFollowUpBrackets
-			.flatMap((b) => b.participantTournamentTeamIds)
+			.flatMap((b) => b.tournamentTeamIds)
 			.some(
 				(tournamentTeamId) =>
 					tournamentTeamId === match.opponent1?.id ||

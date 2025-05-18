@@ -1,59 +1,134 @@
 import type { MetaFunction } from "@remix-run/node";
 import {
 	Form,
+	Link,
 	useFetcher,
 	useLoaderData,
 	useNavigation,
+	useSearchParams,
 } from "@remix-run/react";
 import * as React from "react";
+import { Avatar } from "~/components/Avatar";
 import { Button } from "~/components/Button";
 import { Catcher } from "~/components/Catcher";
 import { Input } from "~/components/Input";
 import { Main } from "~/components/Main";
+import { NewTabs } from "~/components/NewTabs";
 import { SubmitButton } from "~/components/SubmitButton";
-import { UserSearch } from "~/components/UserSearch";
-import { useUser } from "~/features/auth/core/user";
+import { UserSearch } from "~/components/elements/UserSearch";
+import { SearchIcon } from "~/components/icons/Search";
 import { FRIEND_CODE_REGEXP_PATTERN } from "~/features/sendouq/q-constants";
-import { isAdmin, isMod } from "~/permissions";
-import type { SendouRouteHandle } from "~/utils/remix.server";
-import { makeTitle } from "~/utils/strings";
-import { SEED_URL, STOP_IMPERSONATING_URL, impersonateUrl } from "~/utils/urls";
+import { useHasRole } from "~/modules/permissions/hooks";
+import { metaTags } from "~/utils/remix";
+import {
+	SEED_URL,
+	STOP_IMPERSONATING_URL,
+	impersonateUrl,
+	userPage,
+} from "~/utils/urls";
 
 import { action } from "../actions/admin.server";
 import { loader } from "../loaders/admin.server";
-export { action, loader };
+export { loader, action };
 
-export const meta: MetaFunction = () => {
-	return [{ title: makeTitle("Admin page") }];
-};
-
-export const handle: SendouRouteHandle = {
-	navItemName: "admin",
+export const meta: MetaFunction = (args) => {
+	return metaTags({
+		title: "Admin Panel",
+		location: args.location,
+	});
 };
 
 export default function AdminPage() {
-	const user = useUser();
+	return (
+		<Main>
+			<NewTabs
+				tabs={[
+					{
+						label: "Actions",
+					},
+					{
+						label: "Friend code look-up",
+					},
+				]}
+				content={[
+					{
+						key: "actions",
+						element: <AdminActions />,
+					},
+					{
+						key: "friend-code-look-up",
+						element: <FriendCodeLookUp />,
+					},
+				]}
+			/>
+		</Main>
+	);
+}
+
+function FriendCodeLookUp() {
+	const data = useLoaderData<typeof loader>();
+	const [searchParams, setSearchParams] = useSearchParams();
+	const [friendCode, setFriendCode] = React.useState(
+		searchParams.get("friendCode") ?? "",
+	);
+	const fetcher = useFetcher();
 
 	return (
-		<Main className="stack lg">
+		<div>
+			<div className="stack md horizontal justify-center">
+				<Input
+					placeholder="1234-5678-9101"
+					name="friendCode"
+					value={friendCode}
+					onChange={(e) => setFriendCode(e.target.value)}
+				/>
+				<SubmitButton
+					state={fetcher.state}
+					icon={<SearchIcon />}
+					onClick={() => setSearchParams({ friendCode })}
+				>
+					Search
+				</SubmitButton>
+			</div>
+			<div className="stack lg">
+				{data.friendCodeSearchUsers?.map((user) => (
+					<Link
+						key={user.id}
+						to={userPage(user)}
+						className="stack horizontal sm text-main-forced items-center"
+					>
+						<Avatar user={user} size="sm" />
+						{user.username}
+					</Link>
+				))}
+			</div>
+		</div>
+	);
+}
+
+function AdminActions() {
+	const isStaff = useHasRole("STAFF");
+	const isAdmin = useHasRole("ADMIN");
+
+	return (
+		<div className="stack lg">
 			{process.env.NODE_ENV !== "production" && <Seed />}
-
-			{isMod(user) ? <LinkPlayer /> : null}
-			{isMod(user) ? <GiveArtist /> : null}
-			{isMod(user) ? <GiveVideoAdder /> : null}
-			{isMod(user) ? <GiveTournamentOrganizer /> : null}
-			{isMod(user) ? <UpdateFriendCode /> : null}
-
-			{process.env.NODE_ENV !== "production" || isAdmin(user) ? (
+			{process.env.NODE_ENV !== "production" || isAdmin ? (
 				<Impersonate />
 			) : null}
-			{isMod(user) ? <MigrateUser /> : null}
-			{isAdmin(user) ? <ForcePatron /> : null}
-			{isMod(user) ? <BanUser /> : null}
-			{isMod(user) ? <UnbanUser /> : null}
-			{isAdmin(user) ? <RefreshPlusTiers /> : null}
-			{isAdmin(user) ? <CleanUp /> : null}
-		</Main>
+
+			{isStaff ? <LinkPlayer /> : null}
+			{isStaff ? <GiveArtist /> : null}
+			{isStaff ? <GiveVideoAdder /> : null}
+			{isStaff ? <GiveTournamentOrganizer /> : null}
+			{isStaff ? <UpdateFriendCode /> : null}
+			{isStaff ? <MigrateUser /> : null}
+			{isAdmin ? <ForcePatron /> : null}
+			{isStaff ? <BanUser /> : null}
+			{isStaff ? <UnbanUser /> : null}
+			{isAdmin ? <RefreshPlusTiers /> : null}
+			{isAdmin ? <CleanUp /> : null}
+		</div>
 	);
 }
 
@@ -69,13 +144,10 @@ function Impersonate() {
 			reloadDocument
 		>
 			<h2>Impersonate user</h2>
-			<div>
-				<label>User to log in as</label>
-				<UserSearch
-					inputName="user"
-					onChange={(newUser) => setUserId(newUser.id)}
-				/>
-			</div>
+			<UserSearch
+				label="User to log in as"
+				onChange={(newUser) => setUserId(newUser.id)}
+			/>
 			<div className="stack horizontal md">
 				<Button type="submit" disabled={!userId}>
 					Go
@@ -107,20 +179,16 @@ function MigrateUser() {
 		<fetcher.Form className="stack md" method="post">
 			<h2>Migrate user data</h2>
 			<div className="stack horizontal md">
-				<div>
-					<label>Old user</label>
-					<UserSearch
-						inputName="old-user"
-						onChange={(newUser) => setOldUserId(newUser.id)}
-					/>
-				</div>
-				<div>
-					<label>New user</label>
-					<UserSearch
-						inputName="new-user"
-						onChange={(newUser) => setNewUserId(newUser.id)}
-					/>
-				</div>
+				<UserSearch
+					label="Old user"
+					name="old-user"
+					onChange={(newUser) => setOldUserId(newUser.id)}
+				/>
+				<UserSearch
+					label="New user"
+					name="new-user"
+					onChange={(newUser) => setNewUserId(newUser.id)}
+				/>
 			</div>
 			<div className="stack horizontal md">
 				<SubmitButton
@@ -143,10 +211,7 @@ function LinkPlayer() {
 		<fetcher.Form className="stack md" method="post">
 			<h2>Link player</h2>
 			<div className="stack horizontal md">
-				<div>
-					<label>User</label>
-					<UserSearch inputName="user" />
-				</div>
+				<UserSearch label="User" name="user" />
 				<div>
 					<label>Player ID</label>
 					<input type="number" name="playerId" />
@@ -168,10 +233,7 @@ function GiveArtist() {
 		<fetcher.Form className="stack md" method="post">
 			<h2>Add as artist</h2>
 			<div className="stack horizontal md">
-				<div>
-					<label>User</label>
-					<UserSearch inputName="user" />
-				</div>
+				<UserSearch label="User" name="user" />
 			</div>
 			<div className="stack horizontal md">
 				<SubmitButton type="submit" _action="ARTIST" state={fetcher.state}>
@@ -189,10 +251,7 @@ function GiveVideoAdder() {
 		<fetcher.Form className="stack md" method="post">
 			<h2>Give video adder</h2>
 			<div className="stack horizontal md">
-				<div>
-					<label>User</label>
-					<UserSearch inputName="user" />
-				</div>
+				<UserSearch label="User" name="user" />
 			</div>
 			<div className="stack horizontal md">
 				<SubmitButton type="submit" _action="VIDEO_ADDER" state={fetcher.state}>
@@ -209,12 +268,7 @@ function GiveTournamentOrganizer() {
 	return (
 		<fetcher.Form className="stack md" method="post">
 			<h2>Give tournament organizer</h2>
-			<div className="stack horizontal md">
-				<div>
-					<label>User</label>
-					<UserSearch inputName="user" />
-				</div>
-			</div>
+			<UserSearch label="User" name="user" />
 			<div className="stack horizontal md">
 				<SubmitButton
 					type="submit"
@@ -235,10 +289,7 @@ function UpdateFriendCode() {
 		<fetcher.Form className="stack md" method="post">
 			<h2>Update friend code</h2>
 			<div className="stack horizontal md">
-				<div>
-					<label>User</label>
-					<UserSearch inputName="user" />
-				</div>
+				<UserSearch label="User" name="user" />
 				<div>
 					<label>Friend code</label>
 					<Input
@@ -270,10 +321,7 @@ function ForcePatron() {
 		<fetcher.Form className="stack md" method="post">
 			<h2>Force patron</h2>
 			<div className="stack horizontal md">
-				<div>
-					<label>User</label>
-					<UserSearch inputName="user" />
-				</div>
+				<UserSearch label="User" name="user" />
 
 				<div>
 					<label>Tier</label>
@@ -309,10 +357,7 @@ function BanUser() {
 		<fetcher.Form className="stack md" method="post">
 			<h2 className="text-warning">Ban user</h2>
 			<div className="stack horizontal md">
-				<div>
-					<label>User</label>
-					<UserSearch inputName="user" />
-				</div>
+				<UserSearch label="User" name="user" />
 
 				<div>
 					<label>Banned till</label>
@@ -339,10 +384,7 @@ function UnbanUser() {
 	return (
 		<fetcher.Form className="stack md" method="post">
 			<h2 className="text-warning">Unban user</h2>
-			<div>
-				<label>User</label>
-				<UserSearch inputName="user" />
-			</div>
+			<UserSearch label="User" name="user" />
 			<div className="stack horizontal md">
 				<SubmitButton type="submit" _action="UNBAN_USER" state={fetcher.state}>
 					Save

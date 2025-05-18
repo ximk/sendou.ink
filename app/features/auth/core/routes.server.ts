@@ -3,57 +3,80 @@ import { redirect } from "@remix-run/node";
 import { isbot } from "isbot";
 import { z } from "zod";
 import * as UserRepository from "~/features/user-page/UserRepository.server";
-import { canAccessLohiEndpoint, canPerformAdminActions } from "~/permissions";
-import { parseSearchParams, validate } from "~/utils/remix.server";
+import { requireRole } from "~/modules/permissions/guards.server";
+import { logger } from "~/utils/logger";
+import {
+	canAccessLohiEndpoint,
+	errorToastIfFalsy,
+	parseSearchParams,
+} from "~/utils/remix.server";
 import { ADMIN_PAGE, authErrorUrl } from "~/utils/urls";
 import { createLogInLink } from "../queries/createLogInLink.server";
 import { deleteLogInLinkByCode } from "../queries/deleteLogInLinkByCode.server";
 import { userIdByLogInLinkCode } from "../queries/userIdByLogInLinkCode.server";
 import {
-	DISCORD_AUTH_KEY,
 	IMPERSONATED_SESSION_KEY,
 	SESSION_KEY,
 	authenticator,
 } from "./authenticator.server";
 import { authSessionStorage } from "./session.server";
-import { getUserId } from "./user.server";
+import { getUserId, requireUser } from "./user.server";
 
 export const callbackLoader: LoaderFunction = async ({ request }) => {
 	const url = new URL(request.url);
 	if (url.searchParams.get("error") === "access_denied") {
 		// The user denied the authentication request
-		// This is part of the oauth2 protocol, but remix-auth-oauth2 doesn't do
-		// nice error handling for this case.
 		// https://www.oauth.com/oauth2-servers/server-side-apps/possible-errors/
 
 		throw redirect(authErrorUrl("aborted"));
 	}
 
-	await authenticator.authenticate(DISCORD_AUTH_KEY, request, {
-		successRedirect: "/",
-		failureRedirect: authErrorUrl("unknown"),
-	});
+	try {
+		const userId = await authenticator.authenticate("discord", request);
 
-	throw new Response("Unknown authentication state", { status: 500 });
+		const session = await authSessionStorage.getSession(
+			request.headers.get(SESSION_KEY),
+		);
+
+		session.set(SESSION_KEY, userId);
+
+		return redirect("/", {
+			headers: {
+				"Set-Cookie": await authSessionStorage.commitSession(session),
+			},
+		});
+	} catch (error) {
+		if (error instanceof Error) {
+			logger.error("Error during authentication:", error);
+			throw redirect(authErrorUrl("unknown"));
+		}
+
+		throw error;
+	}
 };
 
 export const logOutAction: ActionFunction = async ({ request }) => {
-	await authenticator.logout(request, { redirectTo: "/" });
+	const session = await authSessionStorage.getSession(
+		request.headers.get(SESSION_KEY),
+	);
+	return redirect("/", {
+		headers: { "Set-Cookie": await authSessionStorage.destroySession(session) },
+	});
 };
 
 export const logInAction: ActionFunction = async ({ request }) => {
-	validate(
+	errorToastIfFalsy(
 		process.env.LOGIN_DISABLED !== "true",
 		"Login is temporarily disabled",
 	);
 
-	return await authenticator.authenticate(DISCORD_AUTH_KEY, request);
+	return await authenticator.authenticate("discord", request);
 };
 
 export const impersonateAction: ActionFunction = async ({ request }) => {
-	const user = await getUserId(request);
-	if (!canPerformAdminActions(user)) {
-		throw new Response(null, { status: 403 });
+	if (process.env.NODE_ENV === "production") {
+		const user = await requireUser(request);
+		requireRole(user, "ADMIN");
 	}
 
 	const session = await authSessionStorage.getSession(

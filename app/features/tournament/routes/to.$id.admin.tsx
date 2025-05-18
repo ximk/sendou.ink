@@ -12,7 +12,8 @@ import { Label } from "~/components/Label";
 import { containerClassName } from "~/components/Main";
 import { Redirect } from "~/components/Redirect";
 import { SubmitButton } from "~/components/SubmitButton";
-import { UserSearch } from "~/components/UserSearch";
+import { SendouDialog } from "~/components/elements/Dialog";
+import { UserSearch } from "~/components/elements/UserSearch";
 import { TrashIcon } from "~/components/icons/Trash";
 import { USER } from "~/constants";
 import { useUser } from "~/features/auth/core/user";
@@ -23,11 +24,10 @@ import invariant from "~/utils/invariant";
 import { assertUnreachable } from "~/utils/types";
 import {
 	calendarEventPage,
+	teamPage,
 	tournamentEditPage,
 	tournamentPage,
 } from "~/utils/urls";
-import { Alert } from "../../../components/Alert";
-import { Dialog } from "../../../components/Dialog";
 import { BracketProgressionSelector } from "../../calendar/components/BracketProgressionSelector";
 import { useTournament } from "./to.$id";
 
@@ -62,22 +62,24 @@ export default function TournamentAdminPage() {
 					>
 						Edit event info
 					</LinkButton>
-					<FormWithConfirm
-						dialogHeading={t("calendar:actions.delete.confirm", {
-							name: tournament.ctx.name,
-						})}
-						action={calendarEventPage(tournament.ctx.eventId)}
-						submitButtonTestId="delete-submit-button"
-					>
-						<Button
-							className="ml-auto"
-							size="tiny"
-							variant="minimal-destructive"
-							type="submit"
+					{!tournament.isLeagueSignup ? (
+						<FormWithConfirm
+							dialogHeading={t("calendar:actions.delete.confirm", {
+								name: tournament.ctx.name,
+							})}
+							action={calendarEventPage(tournament.ctx.eventId)}
+							submitButtonTestId="delete-submit-button"
 						>
-							{t("calendar:actions.delete")}
-						</Button>
-					</FormWithConfirm>
+							<Button
+								className="ml-auto"
+								size="tiny"
+								variant="minimal-destructive"
+								type="submit"
+							>
+								{t("calendar:actions.delete")}
+							</Button>
+						</FormWithConfirm>
+					) : null}
 				</div>
 			) : null}
 			{tournament.isAdmin(user) &&
@@ -111,8 +113,12 @@ export default function TournamentAdminPage() {
 			<CastTwitchAccounts />
 			<Divider smallText>Participant list download</Divider>
 			<DownloadParticipants />
-			<Divider smallText>Bracket reset</Divider>
-			<BracketReset />
+			{!tournament.isLeagueSignup ? (
+				<>
+					<Divider smallText>Bracket reset</Divider>
+					<BracketReset />
+				</>
+			) : null}
 		</div>
 	);
 }
@@ -202,7 +208,6 @@ function TeamActions() {
 			? actions.find((a) => a.when.length === 0)!
 			: actions[0],
 	);
-	const [selectedUserId, setSelectedUserId] = React.useState<number>();
 
 	const selectedTeam = tournament.teamById(selectedTeamId);
 
@@ -253,18 +258,6 @@ function TeamActions() {
 		return true;
 	});
 
-	const showAlreadyInTeamAlert = () => {
-		if (selectedAction.type !== "ADD_MEMBER") return false;
-		if (
-			!selectedUserId ||
-			!tournament.teamMemberOfByUser({ id: selectedUserId })
-		) {
-			return false;
-		}
-
-		return true;
-	};
-
 	return (
 		<div className="stack md">
 			<fetcher.Form
@@ -281,7 +274,6 @@ function TeamActions() {
 							setSelectedAction(
 								actions.find((a) => a.type === e.target.value)!,
 							);
-							setSelectedUserId(undefined);
 						}}
 					>
 						{actionsToShow.map((action) => (
@@ -331,12 +323,7 @@ function TeamActions() {
 				) : null}
 				{selectedAction.inputs.includes("USER") ? (
 					<div>
-						<label htmlFor="user">User</label>
-						<UserSearch
-							inputName="userId"
-							id="user"
-							onChange={(newUser) => setSelectedUserId(newUser.id)}
-						/>
+						<UserSearch name="userId" label="User" />
 					</div>
 				) : null}
 				{selectedAction.inputs.includes("BRACKET") ? (
@@ -380,9 +367,6 @@ function TeamActions() {
 					Go
 				</SubmitButton>
 			</fetcher.Form>
-			{showAlreadyInTeamAlert() ? (
-				<Alert variation="INFO">This player is already in a team</Alert>
-			) : null}
 		</div>
 	);
 }
@@ -436,39 +420,29 @@ function CastTwitchAccounts() {
 
 function StaffAdder() {
 	const fetcher = useFetcher();
-	const tournament = useTournament();
 
 	return (
 		<fetcher.Form method="post" className="stack sm">
-			<div className="stack horizontal sm flex-wrap items-end">
+			<div className="stack horizontal sm flex-wrap items-start">
 				<div>
-					<Label htmlFor="staff-user">New staffer</Label>
-					<UserSearch
-						inputName="userId"
-						id="staff-user"
-						required
-						userIdsToOmit={
-							new Set([
-								tournament.ctx.author.id,
-								...tournament.ctx.staff.map((s) => s.id),
-							])
-						}
-					/>
+					<UserSearch name="userId" label="New staffer" isRequired />
 				</div>
-				<div>
-					<Label htmlFor="staff-role">Role</Label>
-					<select name="role" id="staff-role" className="w-max">
-						<option value="ORGANIZER">Organizer</option>
-						<option value="STREAMER">Streamer</option>
-					</select>
+				<div className="stack horizontal sm items-end">
+					<div>
+						<Label htmlFor="staff-role">Role</Label>
+						<select name="role" id="staff-role" className="w-max">
+							<option value="ORGANIZER">Organizer</option>
+							<option value="STREAMER">Streamer</option>
+						</select>
+					</div>
+					<SubmitButton
+						state={fetcher.state}
+						_action="ADD_STAFF"
+						testId="add-staff-button"
+					>
+						Add
+					</SubmitButton>
 				</div>
-				<SubmitButton
-					state={fetcher.state}
-					_action="ADD_STAFF"
-					testId="add-staff-button"
-				>
-					Add
-				</SubmitButton>
 			</div>
 			<FormMessage type="info">
 				Organizer has same permissions as you expect adding/removing staff,
@@ -521,7 +495,7 @@ function RemoveStaffButton({
 				["userId", staff.id],
 				["_action", "REMOVE_STAFF"],
 			]}
-			deleteButtonText="Remove"
+			submitButtonText="Remove"
 		>
 			<Button
 				variant="minimal-destructive"
@@ -609,6 +583,35 @@ function DownloadParticipants() {
 			.join("\n");
 	}
 
+	function leagueFormat() {
+		const memberColumnsCount = tournament.ctx.teams.reduce(
+			(max, team) => Math.max(max, team.members.length),
+			0,
+		);
+		const header = `Team id,Team name,Team page URL,Div${Array.from({
+			length: memberColumnsCount,
+		})
+			.map((_, i) => `,Member ${i + 1} name,Member${i + 1} URL`)
+			.join("")}`;
+
+		return `${header}\n${tournament.ctx.teams
+			.map((team) => {
+				return `${team.id},${team.name},${team.team ? teamPage(team.team.customUrl) : ""},,${team.members
+					.map(
+						(member) =>
+							`${member.username},https://sendou.ink/u/${member.discordId}`,
+					)
+					.join(",")}${Array(
+					memberColumnsCount - team.members.length === 0
+						? 0
+						: memberColumnsCount - team.members.length + 1,
+				)
+					.fill(",")
+					.join("")}`;
+			})
+			.join("\n")}`;
+	}
+
 	return (
 		<div>
 			<div className="stack horizontal sm flex-wrap">
@@ -656,6 +659,19 @@ function DownloadParticipants() {
 				>
 					Simple list in seeded order
 				</Button>
+				{tournament.isLeagueSignup ? (
+					<Button
+						size="tiny"
+						onClick={() =>
+							handleDownload({
+								filename: "league-format.csv",
+								content: leagueFormat(),
+							})
+						}
+					>
+						League format
+					</Button>
+				) : null}
 			</div>
 		</div>
 	);
@@ -755,7 +771,11 @@ function BracketProgressionEditDialog({ close }: { close: () => void }) {
 		.map((bracket) => bracket.idx);
 
 	return (
-		<Dialog isOpen className="w-max">
+		<SendouDialog
+			isFullScreen
+			onClose={close}
+			heading="Editing bracket progression"
+		>
 			<fetcher.Form method="post">
 				<BracketProgressionSelector
 					initialBrackets={Progression.validatedBracketsToInputFormat(
@@ -766,6 +786,7 @@ function BracketProgressionEditDialog({ close }: { close: () => void }) {
 					}))}
 					isInvitationalTournament={tournament.isInvitational}
 					setErrored={setBracketProgressionErrored}
+					isTournamentInProgress
 				/>
 				<div className="stack md horizontal justify-center mt-6">
 					<SubmitButton
@@ -774,11 +795,8 @@ function BracketProgressionEditDialog({ close }: { close: () => void }) {
 					>
 						Save changes
 					</SubmitButton>
-					<Button variant="destructive" onClick={close}>
-						Cancel
-					</Button>
 				</div>
 			</fetcher.Form>
-		</Dialog>
+		</SendouDialog>
 	);
 }

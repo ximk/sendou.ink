@@ -1,6 +1,7 @@
 import { type Locator, type Page, expect } from "@playwright/test";
 import { ADMIN_ID } from "~/constants";
 import type { SeedVariation } from "~/features/api-private/routes/seed";
+import { tournamentBracketsPage } from "./urls";
 
 export async function selectWeapon({
 	page,
@@ -23,12 +24,15 @@ export async function selectUser({
 	userName: string;
 	labelName: string;
 }) {
-	const combobox = page.getByLabel(labelName);
-	await expect(combobox).not.toBeDisabled();
+	const comboboxButton = page.getByLabel(labelName);
+	const searchInput = page.getByTestId("user-search-input");
+	const option = page.getByTestId("user-search-item").first();
 
-	await combobox.clear();
-	await combobox.fill(userName);
-	await expect(page.getByTestId("combobox-option-0")).toBeVisible();
+	await expect(comboboxButton).not.toBeDisabled();
+
+	await comboboxButton.click();
+	await searchInput.fill(userName);
+	await expect(option).toBeVisible();
 	await page.keyboard.press("Enter");
 }
 
@@ -90,3 +94,16 @@ export async function fetchSendouInk<T>(url: string) {
 
 	return res.json() as T;
 }
+
+export const startBracket = async (page: Page, tournamentId = 2) => {
+	await seed(page);
+	await impersonate(page);
+
+	await navigate({
+		page,
+		url: tournamentBracketsPage({ tournamentId }),
+	});
+
+	await page.getByTestId("finalize-bracket-button").click();
+	await page.getByTestId("confirm-finalize-bracket-button").click();
+};

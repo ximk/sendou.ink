@@ -1,16 +1,9 @@
-import type {
-	ActionFunction,
-	LoaderFunctionArgs,
-	MetaFunction,
-	SerializeFrom,
-} from "@remix-run/node";
-import { redirect } from "@remix-run/node";
+import type { MetaFunction, SerializeFrom } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { Link } from "@remix-run/react/dist/components";
 import clsx from "clsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
 import { Avatar } from "~/components/Avatar";
 import { Button, LinkButton } from "~/components/Button";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
@@ -21,28 +14,10 @@ import { Placement } from "~/components/Placement";
 import { Section } from "~/components/Section";
 import { Table } from "~/components/Table";
 import { useUser } from "~/features/auth/core/user";
-import { requireUserId } from "~/features/auth/core/user.server";
-import * as CalendarRepository from "~/features/calendar/CalendarRepository.server";
-import * as ShowcaseTournaments from "~/features/front-page/core/ShowcaseTournaments.server";
 import { MapPool } from "~/features/map-list-generator/core/map-pool";
-import {
-	clearTournamentDataCache,
-	tournamentManagerData,
-} from "~/features/tournament-bracket/core/Tournament.server";
 import { useIsMounted } from "~/hooks/useIsMounted";
-import { i18next } from "~/modules/i18n/i18next.server";
-import {
-	canDeleteCalendarEvent,
-	canEditCalendarEvent,
-	canReportCalendarEventWinners,
-} from "~/permissions";
 import { databaseTimestampToDate } from "~/utils/dates";
-import {
-	type SendouRouteHandle,
-	notFoundIfFalsy,
-	validate,
-} from "~/utils/remix.server";
-import { makeTitle } from "~/utils/strings";
+import type { SendouRouteHandle } from "~/utils/remix.server";
 import {
 	CALENDAR_PAGE,
 	calendarEditPage,
@@ -51,62 +26,34 @@ import {
 	navIconUrl,
 	readonlyMapsPage,
 	resolveBaseUrl,
-	tournamentPage,
 	userPage,
 } from "~/utils/urls";
-import { actualNumber, id } from "~/utils/zod";
+import { metaTags } from "../../../utils/remix";
+import {
+	canDeleteCalendarEvent,
+	canEditCalendarEvent,
+	canReportCalendarEventWinners,
+} from "../calendar-utils";
 import { Tags } from "../components/Tags";
 
+import { action } from "../actions/calendar.$id.server";
+import { loader } from "../loaders/calendar.$id.server";
+export { loader, action };
+
 import "~/styles/calendar-event.css";
-import "~/styles/maps.css";
-
-export const action: ActionFunction = async ({ params, request }) => {
-	const user = await requireUserId(request);
-	const parsedParams = z
-		.object({ id: z.preprocess(actualNumber, id) })
-		.parse(params);
-	const event = notFoundIfFalsy(
-		await CalendarRepository.findById({ id: parsedParams.id }),
-	);
-
-	if (event.tournamentId) {
-		validate(
-			tournamentManagerData(event.tournamentId).stage.length === 0,
-			"Tournament has already started",
-		);
-	} else {
-		validate(
-			canDeleteCalendarEvent({
-				user,
-				event,
-				startTime: databaseTimestampToDate(event.startTimes[0]),
-			}),
-		);
-	}
-
-	await CalendarRepository.deleteById({
-		eventId: event.eventId,
-		tournamentId: event.tournamentId,
-	});
-
-	if (event.tournamentId) {
-		clearTournamentDataCache(event.tournamentId);
-		ShowcaseTournaments.clearParticipationInfoMap();
-		ShowcaseTournaments.clearCachedTournaments();
-	}
-
-	throw redirect(CALENDAR_PAGE);
-};
 
 export const meta: MetaFunction = (args) => {
 	const data = args.data as SerializeFrom<typeof loader>;
 
 	if (!data) return [];
 
-	return [
-		{ title: data.title },
-		{ name: "description", content: data.event.description },
-	];
+	return metaTags({
+		title: data.event.name,
+		location: args.location,
+		description:
+			data.event.description ??
+			`Splatoon competitive event hosted on ${resolveBaseUrl(data.event.bracketUrl)}`,
+	});
 };
 
 export const handle: SendouRouteHandle = {
@@ -129,30 +76,6 @@ export const handle: SendouRouteHandle = {
 			},
 		];
 	},
-};
-
-export const loader = async ({ params, request }: LoaderFunctionArgs) => {
-	const t = await i18next.getFixedT(request);
-	const parsedParams = z
-		.object({ id: z.preprocess(actualNumber, id) })
-		.parse(params);
-	const event = notFoundIfFalsy(
-		await CalendarRepository.findById({
-			id: parsedParams.id,
-			includeBadgePrizes: true,
-			includeMapPool: true,
-		}),
-	);
-
-	if (event.tournamentId) {
-		throw redirect(tournamentPage(event.tournamentId));
-	}
-
-	return {
-		event,
-		title: makeTitle([event.name, t("pages.calendar")]),
-		results: await CalendarRepository.findResultsByEventId(parsedParams.id),
-	};
 };
 
 export default function CalendarEventPage() {
