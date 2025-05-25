@@ -525,9 +525,7 @@ abbr[title] {
 
 .tab__buttons-container__sticky {
 	position: sticky;
-	/* TODO: uncomment when top nav is sticky again */
-	/* top: 47px; */
-	top: 0;
+	top: 47px;
 	z-index: 1;
 	background-color: var(--bg);
 }
@@ -598,6 +596,9 @@ abbr[title] {
 	padding: var(--s-0-5);
 	width: 28px;
 	height: 28px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .react-aria-Button.info-popover__trigger__tiny {
@@ -711,6 +712,18 @@ abbr[title] {
 	list-style: none;
 }
 
+.calendar__event__tags.small {
+	font-size: var(--fonts-xxxs);
+}
+
+.calendar__event__tags.centered {
+	justify-content: center;
+}
+
+.calendar__event__tags.small > li {
+	padding: 0 var(--s-1);
+}
+
 .calendar__event__tags > li {
 	display: flex;
 	align-items: center;
@@ -721,20 +734,6 @@ abbr[title] {
 
 .calendar__event__tag {
 	color: var(--black-text);
-}
-
-.calendar__event__badge-tag {
-	color: var(--badge-text);
-}
-
-.calendar__event__ranked-tag {
-	background-color: var(--theme-info-transparent);
-	color: var(--theme-info);
-}
-
-.calendar__event__unranked-tag {
-	background-color: var(--theme-success-transparent);
-	color: var(--theme-success);
 }
 
 .calendar__event__tag-delete-button {
