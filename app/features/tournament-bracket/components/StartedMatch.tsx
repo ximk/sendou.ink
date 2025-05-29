@@ -326,15 +326,15 @@ function FancyStageBanner({
 			{inBanPhase ? (
 				<div className="tournament-bracket__locked-banner">
 					<div className="stack sm items-center">
-						<div className="text-lg text-center font-bold">Banning phase</div>
-						<div>Waiting for {banPickingTeam()?.name}</div>
+						<div className="text-lg text-center font-bold">{t(`tournament:pickInfo.banPhase`)}</div>
+						<div>{t(`tournament:match.alert.waitingOn`)}{" "}{banPickingTeam()?.name}</div>
 					</div>
 				</div>
 			) : !stage ? (
 				<div className="tournament-bracket__locked-banner">
 					<div className="stack sm items-center">
-						<div className="text-lg text-center font-bold">Counterpick</div>
-						<div>Waiting for {banPickingTeam()?.name}</div>
+						<div className="text-lg text-center font-bold">{t(`tournament:pickInfo.counterpick`)}</div>
+						<div>{t(`tournament:match.alert.waitingOn`)}{" "}{banPickingTeam()?.name}</div>
 						{children}
 					</div>
 				</div>
@@ -370,10 +370,10 @@ function FancyStageBanner({
 							className="text-lg text-center font-bold"
 							data-testid="active-roster-needed-text"
 						>
-							Active rosters need to be selected
+							{t(`tournament:match.alert.activeRosters`)}
 						</div>
 						<div>
-							Waiting on{" "}
+							{t(`tournament:match.alert.waitingOn`)}{" "}
 							{waitingForActiveRosterSelectionFor === "BOTH"
 								? "both teams"
 								: waitingForActiveRosterSelectionFor}
@@ -576,6 +576,7 @@ function StartedMatchTabs({
 }) {
 	const user = useUser();
 	const tournament = useTournament();
+	const { t } = useTranslation(["tournament"]);
 	const data = useLoaderData<TournamentMatchLoaderData>();
 	const [_unseenMessages, setUnseenMessages] = React.useState(0);
 	const [chatVisible, setChatVisible] = React.useState(false);
@@ -680,15 +681,15 @@ function StartedMatchTabs({
 			<NewTabs
 				tabs={[
 					{
-						label: "Chat",
+						label: t("tournament:match.tabs.chat"),
 						number: unseenMessages,
 						hidden: !showChat,
 					},
 					{
-						label: "Rosters",
+						label: t("tournament:match.tabs.rosters"),
 					},
 					{
-						label: presentational ? "Score" : "Actions",
+						label: presentational ? t("tournament:match.tabs.score") : t("tournament:match.tabs.actions"),
 					},
 				]}
 				disappearing

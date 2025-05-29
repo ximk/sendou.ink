@@ -9,6 +9,7 @@ import { useUser } from "~/features/auth/core/user";
 import { inGameNameWithoutDiscriminator } from "~/utils/strings";
 import { tournamentTeamPage, userPage } from "~/utils/urls";
 import { useTournament } from "../../tournament/routes/to.$id";
+import { useTranslation } from "react-i18next";
 import type { TournamentDataTeam } from "../core/Tournament.server";
 import type { TournamentMatchLoaderData } from "../loaders/to.$id.matches.$mid.server";
 import { tournamentTeamToActiveRosterUserIds } from "../tournament-bracket-utils";
@@ -250,6 +251,7 @@ export function TeamRosterHeader({
 	team: TournamentDataTeam;
 	tournamentId: number;
 }) {
+	const { t } = useTranslation(["tournament"]);
 	return (
 		<>
 			<div className="text-xs text-lighter font-semi-bold stack horizontal xs items-center justify-center">
@@ -260,7 +262,7 @@ export function TeamRosterHeader({
 							: "tournament-bracket__team-two-dot"
 					}
 				/>
-				Team {idx + 1}
+				{idx === 0 ? t("tournament:match.teamOne") : t("tournament:match.teamTwo")}
 			</div>
 			<h4>
 				{team.seed ? (
@@ -299,6 +301,7 @@ function WinnerRadio({
 	invisible: boolean;
 }) {
 	const id = React.useId();
+	const { t } = useTranslation(["tournament"]);
 
 	if (presentational) {
 		return (
@@ -309,7 +312,7 @@ function WinnerRadio({
 					"text-theme-secondary": team === 2,
 				})}
 			>
-				Winner
+				{t("tournament:match.winner")}
 			</div>
 		);
 	}
@@ -331,7 +334,7 @@ function WinnerRadio({
 				data-testid={`winner-radio-${team}`}
 			/>
 			<Label className="mb-0 ml-2" htmlFor={`${teamId}-${id}`}>
-				Winner
+				{t("tournament:match.winner")}
 			</Label>
 		</div>
 	);
@@ -352,6 +355,7 @@ export function PointInput({
 }) {
 	const [focused, setFocused] = React.useState(false);
 	const id = React.useId();
+	const { t } = useTranslation(["tournament"]);
 
 	if (presentational) {
 		return (
@@ -384,7 +388,7 @@ export function PointInput({
 				spaced={false}
 				className={clsx({ "text-lighter": disabled })}
 			>
-				Score
+				{t("tournament:match.tabs.score")}
 			</Label>
 		</div>
 	);
@@ -487,6 +491,7 @@ function RosterFormWithButtons({
 	valid: boolean;
 }) {
 	const fetcher = useFetcher();
+	const { t } = useTranslation(["common", "tournament"]);
 
 	if (!editingRoster) {
 		return (
@@ -498,7 +503,7 @@ function RosterFormWithButtons({
 					variant="minimal"
 					testId="edit-active-roster-button"
 				>
-					Edit active roster
+					{t("tournament:match.editActiveRoster")}
 				</Button>
 			</div>
 		);
@@ -522,7 +527,7 @@ function RosterFormWithButtons({
 				disabled={!valid}
 				testId="save-active-roster-button"
 			>
-				Save
+				{t("common:actions.save")}
 			</SubmitButton>
 			{showCancelButton ? (
 				<Button
@@ -532,7 +537,7 @@ function RosterFormWithButtons({
 						setEditingRoster(false);
 					}}
 				>
-					Cancel
+					{t("common:actions.cancel")}
 				</Button>
 			) : null}
 		</fetcher.Form>

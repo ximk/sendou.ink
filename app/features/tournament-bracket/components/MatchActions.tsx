@@ -6,6 +6,7 @@ import { SubmitButton } from "~/components/SubmitButton";
 import { EditIcon } from "~/components/icons/Edit";
 import { useUser } from "~/features/auth/core/user";
 import { useTournament } from "~/features/tournament/routes/to.$id";
+import { useTranslation } from "react-i18next";
 import { resolveLeagueRoundStartDate } from "~/features/tournament/tournament-utils";
 import invariant from "~/utils/invariant";
 import * as PickBan from "../core/PickBan";
@@ -35,6 +36,7 @@ export function MatchActions({
 }) {
 	const user = useUser();
 	const tournament = useTournament();
+	const { t } = useTranslation(["tournament"]);
 	const data = useLoaderData<TournamentMatchLoaderData>();
 
 	const [checkedPlayers, setCheckedPlayers] = React.useState<
@@ -182,7 +184,7 @@ export function MatchActions({
 			{!result && presentational ? (
 				<div className="tournament-bracket__during-match-actions__actions">
 					<p className="tournament-bracket__during-match-actions__amount-warning-paragraph">
-						No permissions to report score
+						{t("tournament:match.warning.canNotReportScore")}
 					</p>
 				</div>
 			) : null}
@@ -227,11 +229,12 @@ function ReportScoreButtons({
 	const data = useLoaderData<TournamentMatchLoaderData>();
 	const user = useUser();
 	const tournament = useTournament();
+	const { t } = useTranslation(["tournament"]);
 	const confirmCheckId = React.useId();
 	const pointConfirmCheckId = React.useId();
 	const [endConfirmation, setEndConfirmation] = React.useState(false);
 	const [pointConfirmation, setPointConfirmation] = React.useState(false);
-
+	
 	const leagueRoundStartDate = resolveLeagueRoundStartDate(
 		tournament,
 		data.match.roundId,
@@ -239,7 +242,7 @@ function ReportScoreButtons({
 	if (leagueRoundStartDate && leagueRoundStartDate > new Date()) {
 		return (
 			<p className="tournament-bracket__during-match-actions__amount-warning-paragraph">
-				League round has not started yet
+				{t("tournament:match.warning.leagueRoundNotStarted")}
 			</p>
 		);
 	}
@@ -247,7 +250,7 @@ function ReportScoreButtons({
 	if (matchLocked) {
 		return (
 			<p className="tournament-bracket__during-match-actions__amount-warning-paragraph">
-				Match is pending to be casted. Please wait a bit
+				{t("tournament:match.warning.toBeCasted")}
 			</p>
 		);
 	}
@@ -259,7 +262,7 @@ function ReportScoreButtons({
 	) {
 		return (
 			<p className="tournament-bracket__during-match-actions__amount-warning-paragraph">
-				Winner should have higher score than loser
+				{t("tournament:match.warning.winnerHigherScore")}
 			</p>
 		);
 	}
@@ -271,7 +274,7 @@ function ReportScoreButtons({
 	) {
 		return (
 			<p className="tournament-bracket__during-match-actions__amount-warning-paragraph">
-				If there was a KO (100 score), other team should have 0 score
+				{t("tournament:match.warning.KOScores")}
 			</p>
 		);
 	}
@@ -279,7 +282,7 @@ function ReportScoreButtons({
 	if (typeof winnerIdx !== "number") {
 		return (
 			<p className="tournament-bracket__during-match-actions__amount-warning-paragraph">
-				Please select the winner of this map
+				{t("tournament:match.selectMapWinner")}
 			</p>
 		);
 	}
@@ -314,9 +317,12 @@ function ReportScoreButtons({
 						data-testid="end-confirmation"
 					/>
 					<Label spaced={false} htmlFor={confirmCheckId}>
-						<span className="text-main-forced">Set over?</span>{" "}
+						<span className="text-main-forced">{t("tournament:match.setOver")}</span>{" "}
 						<span className={confirmationClass()}>
-							({newScore.join("-")} win for {winnerOfSetName})
+							{t("tournament:match.winFor", {
+							score: newScore.join("-"),
+							winningTeam: winnerOfSetName,
+							})}
 						</span>
 					</Label>
 				</div>
@@ -330,8 +336,9 @@ function ReportScoreButtons({
 						id={pointConfirmCheckId}
 					/>
 					<Label spaced={false} htmlFor={pointConfirmCheckId}>
-						Confirm reporting of low score value (
-						{points!.map((p) => `${p}p`).join(" & ")})
+						{t("tournament:match.lowScoreCheck", {
+							score: points!.map((p) => `${p}p`).join(" & "),
+							})}
 					</Label>
 				</div>
 			) : null}
@@ -341,7 +348,7 @@ function ReportScoreButtons({
 				testId="report-score-button"
 				disabled={submitButtonDisabled()}
 			>
-				{wouldEndSet ? "Report & end set" : "Report"}
+				{wouldEndSet ? t("tournament:match.reportAndEnd") : t("tournament:match.report")}
 			</SubmitButton>
 		</div>
 	);
@@ -363,6 +370,7 @@ function EditScoreForm({
 	submitDisabled: boolean;
 }) {
 	const fetcher = useFetcher();
+	const { t } = useTranslation(["common"]);
 
 	if (editing) {
 		return (
@@ -386,14 +394,14 @@ function EditScoreForm({
 					disabled={submitDisabled}
 					testId="save-revise-button"
 				>
-					Save
+					{t("common:actions.save")}
 				</SubmitButton>
 				<Button
 					variant="destructive"
 					size="tiny"
 					onClick={() => setEditing(false)}
 				>
-					Cancel
+					{t("common:actions.cancel")}
 				</Button>
 			</fetcher.Form>
 		);
@@ -409,7 +417,7 @@ function EditScoreForm({
 				onClick={() => setEditing(true)}
 				testId="revise-button"
 			>
-				Edit
+				{t("common:actions.edit")}
 			</Button>
 		</div>
 	);

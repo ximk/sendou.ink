@@ -69,6 +69,7 @@ function MapPicker({
 	const user = useUser();
 	const data = useLoaderData<TournamentMatchLoaderData>();
 	const tournament = useTournament();
+	const { t } = useTranslation(["tournament"]);
 
 	const pickBanMapPool = PickBan.mapsListWithLegality({
 		toSetMapPool: tournament.ctx.toSetMapPool,
@@ -172,7 +173,7 @@ function MapPicker({
 						</div>
 						{pickersLastWonMode === mode && modes.length > 1 ? (
 							<div className="text-error text-xs text-center mt-2">
-								Can&apos;t pick the same mode team last won on
+								{t("tournament:match.error.canNotPickSameMode")}
 							</div>
 						) : null}
 					</div>
@@ -254,7 +255,7 @@ function CounterpickSubmitter({
 	pickBan: NonNullable<TournamentRoundMaps["pickBan"]>;
 }) {
 	const fetcher = useFetcher();
-	const { t } = useTranslation(["game-misc"]);
+	const { t } = useTranslation(["common", "game-misc", "tournament"]);
 	const user = useUser();
 	const tournament = useTournament();
 
@@ -266,7 +267,9 @@ function CounterpickSubmitter({
 	if (!picking) {
 		return (
 			<div className="mt-6 text-lighter text-sm text-center">
-				Waiting for captain of {pickingTeam.name} to make their selection
+				{t("tournament:match.awaitingSelection", {
+					teamName: pickingTeam.name,
+				})}
 			</div>
 		);
 	}
@@ -275,9 +278,9 @@ function CounterpickSubmitter({
 		return (
 			<div className="mt-6 text-lighter text-sm text-center">
 				{pickBan === "BAN_2" ? (
-					<>Please select your team&apos;s ban above</>
+					<>{t("tournament:match.selectBan")}</>
 				) : (
-					<>Please select your team&apos;s counterpick above</>
+					<>{t("tournament:match.selectCounterpick")}</>
 				)}
 			</div>
 		);
@@ -292,7 +295,7 @@ function CounterpickSubmitter({
 					"text-warning": pickBan === "BAN_2",
 				})}
 			>
-				{pickBan === "BAN_2" ? <>Ban</> : <>Counterpick</>}:{" "}
+				{pickBan === "BAN_2" ? <>{t("tournament:pickInfo.ban")}</> : <>{t("tournament:pickInfo.ban")}</>}:{" "}
 				{t(`game-misc:MODE_SHORT_${selected.mode}`)}{" "}
 				{t(`game-misc:STAGE_${selected.stageId}`)}
 			</div>
@@ -307,7 +310,7 @@ function CounterpickSubmitter({
 			<fetcher.Form method="post">
 				<input type="hidden" name="stageId" value={selected.stageId} />
 				<input type="hidden" name="mode" value={selected.mode} />
-				<SubmitButton _action="BAN_PICK">Confirm</SubmitButton>
+				<SubmitButton _action="BAN_PICK">{t("common:actions.confirm")}</SubmitButton>
 			</fetcher.Form>
 		</div>
 	);

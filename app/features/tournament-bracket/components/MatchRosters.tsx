@@ -2,6 +2,7 @@ import { Link, useLoaderData } from "@remix-run/react";
 import clsx from "clsx";
 import { Avatar } from "~/components/Avatar";
 import { useTournament } from "~/features/tournament/routes/to.$id";
+import { useTranslation } from "react-i18next";
 import { tournamentTeamPage, userPage } from "~/utils/urls";
 import type { TournamentMatchLoaderData } from "../loaders/to.$id.matches.$mid.server";
 
@@ -14,6 +15,7 @@ export function MatchRosters({
 }) {
 	const data = useLoaderData<TournamentMatchLoaderData>();
 	const tournament = useTournament();
+	const { t } = useTranslation(["tournament"]);
 
 	const teamOne = teams[0] ? tournament.teamById(teams[0]) : undefined;
 	const teamTwo = teams[1] ? tournament.teamById(teams[1]) : undefined;
@@ -43,7 +45,7 @@ export function MatchRosters({
 			<div className="stack xxs">
 				<div className="stack xs horizontal items-center text-lighter">
 					<div className="tournament-bracket__team-one-dot" />
-					Team 1
+					{t("tournament:match.teamOne")}
 				</div>
 				<h2
 					className={clsx("text-sm", {
@@ -97,7 +99,7 @@ export function MatchRosters({
 			<div className="stack xxs">
 				<div className="stack xs horizontal items-center text-lighter">
 					<div className="tournament-bracket__team-two-dot" />
-					Team 2
+					{t("tournament:match.teamTwo")}
 				</div>
 				<h2
 					className={clsx("text-sm", {

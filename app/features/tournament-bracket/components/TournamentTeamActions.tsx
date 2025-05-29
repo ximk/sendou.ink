@@ -9,11 +9,13 @@ import { SendouPopover } from "~/components/elements/Popover";
 import { CheckmarkIcon } from "~/components/icons/Checkmark";
 import { useUser } from "~/features/auth/core/user";
 import { useTournament } from "~/features/tournament/routes/to.$id";
+import { useTranslation } from "react-i18next";
 import { logger } from "~/utils/logger";
 import { tournamentMatchPage, tournamentRegisterPage } from "~/utils/urls";
 
 export function TournamentTeamActions() {
 	const tournament = useTournament();
+	const { t } = useTranslation(["tournament"]);
 	const user = useUser();
 	const fetcher = useFetcher();
 
@@ -44,7 +46,7 @@ export function TournamentTeamActions() {
 		if (!bracket) {
 			return (
 				<Container spaced="very">
-					Your team needs to check-in
+					{t("tournament:pre.checkIn.notice")}
 					<fetcher.Form
 						method="post"
 						action={tournamentRegisterPage(tournament.ctx.id)}
@@ -58,13 +60,13 @@ export function TournamentTeamActions() {
 								state={fetcher.state}
 								testId="check-in-bracket-button"
 							>
-								Check-in now
+								{t("tournament:pre.checkIn.now")}
 							</SubmitButton>
 						) : (
 							<SendouPopover
 								trigger={
 									<SendouButton variant="minimal" size="small">
-										Check-in now
+										{t("tournament:pre.checkIn.now")}
 									</SendouButton>
 								}
 							>
@@ -80,7 +82,7 @@ export function TournamentTeamActions() {
 
 		return (
 			<Container spaced="very">
-				{bracket.name} check-in
+				{bracket.name}{" "}{t("tournament:pre.steps.check-in")}
 				{bracket.canCheckIn(user) ? (
 					<fetcher.Form method="post">
 						<input type="hidden" name="bracketIdx" value={status.bracketIdx} />
@@ -91,7 +93,7 @@ export function TournamentTeamActions() {
 							state={fetcher.state}
 							testId="check-in-bracket-button"
 						>
-							Check-in
+							{t("tournament:pre.steps.check-in")}
 						</SubmitButton>
 					</fetcher.Form>
 				) : bracket.startTime && bracket.startTime > new Date() ? (
