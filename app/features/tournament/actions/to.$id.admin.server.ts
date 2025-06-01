@@ -297,6 +297,21 @@ export const action: ActionFunction = async ({ request, params }) => {
 
 			break;
 		}
+		case "UPDATE_LOGO": {
+			validateIsTournamentOrganizer();
+			const team = tournament.teamById(data.teamId);
+			errorToastIfFalsy(team, "Invalid team id");
+
+			// TODO: add functionality for non-hardcoded values
+			TournamentTeamRepository.updateTeamLogo({
+  				tournamentTeamId: team.id,
+  				logoId: 1,
+			});
+
+			message = "Team logo updated";
+
+			break;
+		}
 		case "ADD_STAFF": {
 			validateIsTournamentAdmin();
 
@@ -485,6 +500,10 @@ export const adminActionSchema = z.union([
 	}),
 	z.object({
 		_action: _action("DELETE_TEAM"),
+		teamId: id,
+	}),
+	z.object({
+		_action: _action("UPDATE_LOGO"),
 		teamId: id,
 	}),
 	z.object({

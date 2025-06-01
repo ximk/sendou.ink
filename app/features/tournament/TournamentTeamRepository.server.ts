@@ -324,6 +324,21 @@ export function deleteLogo(tournamentTeamId: number) {
 		.execute();
 }
 
+// TODO: add functionality for non-hardcoded values
+export function updateTeamLogo({
+	tournamentTeamId,
+	logoId,
+}: {
+	tournamentTeamId: number;
+	logoId: number;
+}) {
+	return db
+		.updateTable("TournamentTeam")
+		.set({ avatarImgId: logoId })
+		.where("TournamentTeam.id", "=", tournamentTeamId)
+		.execute();
+}
+
 export function updateStartingBrackets(
 	startingBrackets: {
 		tournamentTeamId: number;

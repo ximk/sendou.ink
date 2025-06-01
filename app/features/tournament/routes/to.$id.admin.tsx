@@ -30,6 +30,7 @@ import {
 } from "~/utils/urls";
 import { BracketProgressionSelector } from "../../calendar/components/BracketProgressionSelector";
 import { useTournament } from "./to.$id";
+import { TournamentLogoUpload } from "./to.$id.register";
 
 import { action } from "../actions/to.$id.admin.server";
 export { action };
@@ -129,7 +130,8 @@ type InputType =
 	| "USER"
 	| "ROSTER_MEMBER"
 	| "BRACKET"
-	| "IN_GAME_NAME";
+	| "IN_GAME_NAME"
+	| "LOGO";
 const actions = [
 	{
 		type: "ADD_TEAM",
@@ -191,11 +193,16 @@ const actions = [
 		inputs: ["REGISTERED_TEAM"] as InputType[],
 		when: [],
 	},
+	{
+		type: "UPDATE_LOGO",
+		inputs: ["REGISTERED_TEAM", "LOGO"] as InputType[],
+		when: [],
+	},
 ] as const;
 
 function TeamActions() {
 	const fetcher = useFetcher();
-	const { t } = useTranslation(["tournament"]);
+	const { t } = useTranslation(["common", "tournament"]);
 	const tournament = useTournament();
 	const [selectedTeamId, setSelectedTeamId] = React.useState(
 		tournament.ctx.teams[0]?.id,
@@ -210,6 +217,14 @@ function TeamActions() {
 	);
 
 	const selectedTeam = tournament.teamById(selectedTeamId);
+
+	const [uploadedAvatar, setUploadedAvatar] = React.useState<File | null>(null);
+
+		const avatarUrl = (() => {
+			if (uploadedAvatar) return URL.createObjectURL(uploadedAvatar);
+	
+			return null;
+		})();
 
 	const actionsToShow = actions.filter((action) => {
 		for (const when of action.when) {
@@ -357,6 +372,24 @@ function TeamActions() {
 						</div>
 					</div>
 				) : null}
+				{selectedTeam && selectedAction.inputs.includes("LOGO") ? (
+					<div className="tournament__section__input-container">
+						<Label htmlFor="logo">Logo</Label>
+						{avatarUrl ? (
+						<div className="stack horizontal md items-center">
+							<Avatar size="xsm" url={avatarUrl} />
+							<Button
+							variant="minimal"
+							size="tiny"
+							onClick={() => setUploadedAvatar(null)}
+							>
+							{t("common:actions.edit")}
+							</Button>
+						</div>
+						) : <TournamentLogoUpload onChange={setUploadedAvatar} />
+						}
+					</div>
+				): null}
 				<SubmitButton
 					_action={selectedAction.type}
 					state={fetcher.state}
@@ -368,7 +401,7 @@ function TeamActions() {
 				</SubmitButton>
 			</fetcher.Form>
 		</div>
-	);
+	)
 }
 
 function Staff() {

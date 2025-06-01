@@ -65,6 +65,8 @@
 	"admin.actions.UNDO_DROP_TEAM_OUT": "Undo drop out",
 	"admin.actions.UPDATE_IN_GAME_NAME": "Update player IGN",
 	"admin.actions.DELETE_LOGO": "Delete logo",
+	"admin.actions.UPDATE_LOGO": "Update logo",
+
 	"staff.role.ORGANIZER": "organizer",
 	"staff.role.STREAMER": "streamer",
 	"actions.addSub": "Add sub",

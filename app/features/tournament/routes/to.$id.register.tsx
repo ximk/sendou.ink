@@ -850,7 +850,7 @@ function TeamInfo({
 }
 
 const logoDimensions = imgTypeToDimensions["team-pfp"];
-function TournamentLogoUpload({
+export function TournamentLogoUpload({
 	onChange,
 }: {
 	onChange: (file: File | null) => void;
