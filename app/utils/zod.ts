@@ -1,6 +1,6 @@
-import type { ZodType } from "zod";
-import { z } from "zod";
-import { CUSTOM_CSS_VAR_COLORS, INVITE_CODE_LENGTH } from "~/constants";
+import type { ZodType } from "zod/v4";
+import { z } from "zod/v4";
+import { CUSTOM_CSS_VAR_COLORS } from "~/features/user-page/user-page-constants";
 import {
 	abilities,
 	type abilitiesShort,
@@ -8,6 +8,7 @@ import {
 import { stageIds } from "~/modules/in-game-lists/stage-ids";
 import { mainWeaponIds } from "~/modules/in-game-lists/weapon-ids";
 import { FRIEND_CODE_REGEXP } from "../features/sendouq/q-constants";
+import { SHORT_NANOID_LENGTH } from "./id";
 import type { Unpacked } from "./types";
 import { assertType } from "./types";
 
@@ -17,7 +18,7 @@ export const idObject = z.object({
 });
 export const optionalId = z.coerce.number().int().positive().optional();
 
-export const inviteCode = z.string().length(INVITE_CODE_LENGTH);
+export const inviteCode = z.string().length(SHORT_NANOID_LENGTH);
 export const inviteCodeObject = z.object({
 	inviteCode,
 });
@@ -143,7 +144,7 @@ export function safeJSONParse(value: unknown): unknown {
 		if (typeof value !== "string") return value;
 		const parsedValue = z.string().parse(value);
 		return JSON.parse(parsedValue);
-	} catch (e) {
+	} catch {
 		return undefined;
 	}
 }
@@ -317,7 +318,7 @@ export function checkboxValueToDbBoolean(value: unknown) {
 	return 0;
 }
 
-export const _action = <T extends z.Primitive>(value: T) =>
+export const _action = <T extends string>(value: T) =>
 	z.preprocess(deduplicate, z.literal(value));
 
 // Fix bug at least in Safari 15 where SubmitButton value might get sent twice
@@ -340,9 +341,10 @@ export function numericEnum<TValues extends readonly number[]>(
 	return z.number().superRefine((val, ctx) => {
 		if (!values.includes(val)) {
 			ctx.addIssue({
-				code: z.ZodIssueCode.invalid_enum_value,
-				options: [...values],
-				received: val,
+				code: z.ZodIssueCode.invalid_value,
+				input: val,
+				values: [...values],
+				message: `Expected one of: ${values.join(", ")}, received ${val}`,
 			});
 		}
 	}) as ZodType<TValues[number]>;

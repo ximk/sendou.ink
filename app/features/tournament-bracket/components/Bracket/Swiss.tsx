@@ -1,6 +1,6 @@
 import { useFetcher } from "@remix-run/react";
 import clsx from "clsx";
-import { Button } from "~/components/Button";
+import { SendouButton } from "~/components/elements/Button";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { SubmitButton } from "~/components/SubmitButton";
 import { useUser } from "~/features/auth/core/user";
@@ -102,9 +102,9 @@ export function SwissBracket({
 				{groups.length > 1 && (
 					<div className="stack horizontal">
 						{groups.map((g) => (
-							<Button
+							<SendouButton
 								key={g.groupId}
-								onClick={() => setSelectedGroupId(g.groupId)}
+								onPress={() => setSelectedGroupId(g.groupId)}
 								className={clsx(
 									"tournament-bracket__bracket-nav__link tournament-bracket__bracket-nav__link__big",
 									{
@@ -112,10 +112,10 @@ export function SwissBracket({
 											selectedGroupId === g.groupId,
 									},
 								)}
-								testId={`group-${g.groupName.split(" ")[1]}-button`}
+								data-testid={`group-${g.groupName.split(" ")[1]}-button`}
 							>
 								{g.groupName.split(" ")[1]}
-							</Button>
+							</SendouButton>
 						))}
 					</div>
 				)}
@@ -190,15 +190,15 @@ export function SwissBracket({
 												["_action", "UNADVANCE_BRACKET"],
 											]}
 										>
-											<Button
+											<SendouButton
 												variant="minimal-destructive"
 												type="submit"
-												className="build__small-text mb-4"
-												size="tiny"
-												testId="reset-round-button"
+												className="small-text mb-4"
+												size="small"
+												data-testid="reset-round-button"
 											>
 												Reset round
-											</Button>
+											</SendouButton>
 										</FormWithConfirm>
 									) : null}
 								</div>

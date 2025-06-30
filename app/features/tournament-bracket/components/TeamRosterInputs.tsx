@@ -2,7 +2,7 @@ import { Link, useFetcher, useLoaderData } from "@remix-run/react";
 import clsx from "clsx";
 import * as React from "react";
 import { Avatar } from "~/components/Avatar";
-import { Button } from "~/components/Button";
+import { SendouButton } from "~/components/elements/Button";
 import { Label } from "~/components/Label";
 import { SubmitButton } from "~/components/SubmitButton";
 import { useUser } from "~/features/auth/core/user";
@@ -356,7 +356,7 @@ export function PointInput({
 	if (presentational) {
 		return (
 			<div className="text-xs text-lighter">
-				{value === 100 ? <>KO</> : <>{value}p</>}
+				{value === 100 ? "KO" : <>{value}p</>}
 			</div>
 		);
 	}
@@ -491,15 +491,15 @@ function RosterFormWithButtons({
 	if (!editingRoster) {
 		return (
 			<div className="tournament-bracket__roster-buttons__container">
-				<Button
-					size="tiny"
-					onClick={() => setEditingRoster(true)}
+				<SendouButton
+					size="small"
+					onPress={() => setEditingRoster(true)}
 					className="tournament-bracket__edit-roster-button"
 					variant="minimal"
-					testId="edit-active-roster-button"
+					data-testid="edit-active-roster-button"
 				>
 					Edit active roster
-				</Button>
+				</SendouButton>
 			</div>
 		);
 	}
@@ -517,23 +517,23 @@ function RosterFormWithButtons({
 			<input type="hidden" name="teamId" value={teamId} />
 			<SubmitButton
 				state={fetcher.state}
-				size="tiny"
+				size="small"
 				_action="SET_ACTIVE_ROSTER"
-				disabled={!valid}
+				isDisabled={!valid}
 				testId="save-active-roster-button"
 			>
 				Save
 			</SubmitButton>
 			{showCancelButton ? (
-				<Button
-					size="tiny"
+				<SendouButton
+					size="small"
 					variant="destructive"
-					onClick={() => {
+					onPress={() => {
 						setEditingRoster(false);
 					}}
 				>
 					Cancel
-				</Button>
+				</SendouButton>
 			) : null}
 		</fetcher.Form>
 	);

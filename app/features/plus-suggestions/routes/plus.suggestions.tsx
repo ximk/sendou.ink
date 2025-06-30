@@ -4,11 +4,11 @@ import { Link, Outlet, useLoaderData, useSearchParams } from "@remix-run/react";
 import clsx from "clsx";
 import { Alert } from "~/components/Alert";
 import { Avatar } from "~/components/Avatar";
-import { Button, LinkButton } from "~/components/Button";
 import { Catcher } from "~/components/Catcher";
+import { LinkButton, SendouButton } from "~/components/elements/Button";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
-import { RelativeTime } from "~/components/RelativeTime";
 import { TrashIcon } from "~/components/icons/Trash";
+import { RelativeTime } from "~/components/RelativeTime";
 import type { Tables } from "~/db/tables";
 import { useUser } from "~/features/auth/core/user";
 import type * as PlusSuggestionRepository from "~/features/plus-suggestions/PlusSuggestionRepository.server";
@@ -20,14 +20,13 @@ import { databaseTimestampToDate } from "~/utils/dates";
 import invariant from "~/utils/invariant";
 import { metaTags } from "~/utils/remix";
 import { userPage } from "~/utils/urls";
+import { action } from "../actions/plus.suggestions.server";
+import { loader } from "../loaders/plus.suggestions.server";
 import {
 	canAddCommentToSuggestionFE,
 	canDeleteComment,
 	canSuggestNewUser,
 } from "../plus-suggestions-utils";
-
-import { action } from "../actions/plus.suggestions.server";
-import { loader } from "../loaders/plus.suggestions.server";
 export { action, loader };
 
 export const meta: MetaFunction = (args) => {
@@ -175,14 +174,14 @@ function SuggestedForInfo() {
 							]}
 							dialogHeading={`Delete your suggestion to +${tier}? You won't appear in next voting.`}
 						>
-							<Button
+							<SendouButton
 								key={tier}
-								size="tiny"
+								size="small"
 								variant="destructive"
 								type="submit"
 							>
-								Delete your +{tier} suggestion
-							</Button>
+								Delete
+							</SendouButton>
 						</FormWithConfirm>
 					))}
 				</div>
@@ -220,7 +219,7 @@ function SuggestedUser({
 				}) ? (
 					<LinkButton
 						className="plus__comment-button"
-						size="tiny"
+						size="small"
 						variant="outlined"
 						to={`comment/${tier}/${suggestion.suggested.id}?tier=${tier}`}
 						prefetch="render"
@@ -325,7 +324,7 @@ function CommentDeleteButton({
 					: `Delete your comment to ${suggestedUsername}'s +${tier} suggestion?`
 			}
 		>
-			<Button
+			<SendouButton
 				className="plus__delete-button"
 				icon={<TrashIcon />}
 				variant="minimal-destructive"

@@ -4,15 +4,17 @@ import type { ArtSource } from "~/features/art/art-types";
 import type { AuthErrorCode } from "~/features/auth/core/errors";
 import { serializeBuild } from "~/features/build-analyzer";
 import type { CalendarFilters } from "~/features/calendar/calendar-types";
+import type { MapPool } from "~/features/map-list-generator/core/map-pool";
 import type { StageBackgroundStyle } from "~/features/map-planner";
 import type { TierName } from "~/features/mmr/mmr-constants";
 import { JOIN_CODE_SEARCH_PARAM_KEY } from "~/features/sendouq/q-constants";
-import type { ModeShort } from "~/modules/in-game-lists/types";
 import type {
 	Ability,
 	AbilityWithUnknown,
+	BrandId,
 	BuildAbilitiesTupleWithUnknown,
 	MainWeaponId,
+	ModeShort,
 	ModeShortWithSpecial,
 	SpecialWeaponId,
 	StageId,
@@ -28,7 +30,7 @@ const staticAssetsUrl = ({
 	folder: string;
 	fileName: string;
 }) =>
-	`https://raw.githubusercontent.com/Sendouc/sendou-ink-assets/main/${folder}/${fileName}`;
+	`https://raw.githubusercontent.com/sendou-ink/assets/main/${folder}/${fileName}`;
 
 export const discordAvatarUrl = ({
 	discordId,
@@ -46,10 +48,10 @@ export const discordAvatarUrl = ({
 export const SENDOU_INK_BASE_URL = "https://sendou.ink";
 
 export const BADGES_DOC_LINK =
-	"https://github.com/Sendouc/sendou.ink/blob/rewrite/docs/badges.md";
+	"https://github.com/sendou-ink/sendou.ink/blob/rewrite/docs/badges.md";
 
 export const CREATING_TOURNAMENT_DOC_LINK =
-	"https://github.com/Sendouc/sendou.ink/blob/rewrite/docs/tournament-creation.md";
+	"https://github.com/sendou-ink/sendou.ink/blob/rewrite/docs/tournament-creation.md";
 
 const USER_SUBMITTED_IMAGE_ROOT =
 	"https://sendou.nyc3.cdn.digitaloceanspaces.com";
@@ -66,9 +68,9 @@ export const NINTENDO_COMMUNITY_TOURNAMENTS_GUIDELINES_URL =
 	"https://en-americas-support.nintendo.com/app/answers/detail/a_id/63454";
 export const PATREON_HOW_TO_CONNECT_DISCORD_URL =
 	"https://support.patreon.com/hc/en-us/articles/212052266-How-do-I-connect-Discord-to-Patreon-Patron-";
-export const SENDOU_INK_GITHUB_URL = "https://github.com/Sendouc/sendou.ink";
+export const SENDOU_INK_GITHUB_URL = "https://github.com/sendou-ink/sendou.ink";
 export const GITHUB_CONTRIBUTORS_URL =
-	"https://github.com/Sendouc/sendou.ink/graphs/contributors";
+	"https://github.com/sendou-ink/sendou.ink/graphs/contributors";
 export const ipLabsMaps = (pool: string) =>
 	`https://maps.iplabs.ink/?3&pool=${pool}`;
 export const SPLATOON_3_INK = "https://splatoon3.ink/";
@@ -139,7 +141,6 @@ export const THIRD_PLACEMENT_ICON_PATH =
 export const soundPath = (fileName: string) =>
 	`/static-assets/sounds/${fileName}.wav`;
 
-export const GET_ALL_EVENTS_WITH_MAP_POOLS_ROUTE = "/calendar/map-pool-events";
 export const GET_TRUSTERS_ROUTE = "/trusters";
 export const PATRONS_LIST_ROUTE = "/patrons-list";
 
@@ -174,6 +175,7 @@ export const newVodPage = (vodToEditId?: number) =>
 	`${VODS_PAGE}/new${vodToEditId ? `?vod=${vodToEditId}` : ""}`;
 export const userResultsEditHighlightsPage = (user: UserLinkArgs) =>
 	`${userResultsPage(user)}/highlights`;
+export const userAdminPage = (user: UserLinkArgs) => `${userPage(user)}/admin`;
 export const artPage = (tag?: string) => `/art${tag ? `?tag=${tag}` : ""}`;
 export const userArtPage = (
 	user: UserLinkArgs,
@@ -246,7 +248,10 @@ export const badgePage = (badgeId: number) => `${BADGES_PAGE}/${badgeId}`;
 export const plusSuggestionPage = ({
 	tier,
 	showAlert,
-}: { tier?: string | number; showAlert?: boolean } = {}) => {
+}: {
+	tier?: string | number;
+	showAlert?: boolean;
+} = {}) => {
 	const params = new URLSearchParams();
 	if (tier) {
 		params.set("tier", String(tier));
@@ -370,7 +375,10 @@ export const tournamentStreamsPage = (tournamentId: number) => {
 export const tournamentOrganizationPage = ({
 	organizationSlug,
 	tournamentName,
-}: { organizationSlug: string; tournamentName?: string }) =>
+}: {
+	organizationSlug: string;
+	tournamentName?: string;
+}) =>
 	`/org/${organizationSlug}${tournamentName ? `?source=${decodeURIComponent(tournamentName)}` : ""}`;
 export const tournamentOrganizationEditPage = (organizationSlug: string) =>
 	`${tournamentOrganizationPage({ organizationSlug })}/edit`;
@@ -416,10 +424,8 @@ export const getWeaponUsage = ({
 	return `/weapon-usage?userId=${userId}&season=${season}&modeShort=${modeShort}&stageId=${stageId}`;
 };
 
-export const mapsPage = (eventId?: Tables["MapPoolMap"]["calendarEventId"]) =>
-	`/maps${eventId ? `?eventId=${eventId}` : ""}`;
-export const readonlyMapsPage = (eventId: Tables["CalendarEvent"]["id"]) =>
-	`/maps?readonly&eventId=${eventId}`;
+export const mapsPageWithMapPool = (mapPool: MapPool) =>
+	`/maps?readonly&pool=${mapPool.serialized}`;
 export const articlePage = (slug: string) => `${ARTICLES_MAIN_PAGE}/${slug}`;
 export const analyzerPage = (args?: {
 	weaponId: MainWeaponId;
@@ -470,6 +476,10 @@ export const weaponCategoryUrl = (
 ) => `/static-assets/img/weapon-categories/${category}`;
 export const mainWeaponImageUrl = (mainWeaponSplId: MainWeaponId) =>
 	`/static-assets/img/main-weapons/${mainWeaponSplId}`;
+export const mainWeaponVariantImageUrl = (
+	mainWeaponSplId: MainWeaponId,
+	variant: "launched",
+) => `/static-assets/img/main-weapons/variants/${mainWeaponSplId}-${variant}`;
 export const outlinedMainWeaponImageUrl = (mainWeaponSplId: MainWeaponId) =>
 	`/static-assets/img/main-weapons-outlined/${mainWeaponSplId}`;
 export const outlinedFiveStarMainWeaponImageUrl = (
@@ -479,14 +489,19 @@ export const subWeaponImageUrl = (subWeaponSplId: SubWeaponId) =>
 	`/static-assets/img/sub-weapons/${subWeaponSplId}`;
 export const specialWeaponImageUrl = (specialWeaponSplId: SpecialWeaponId) =>
 	`/static-assets/img/special-weapons/${specialWeaponSplId}`;
+export const specialWeaponVariantImageUrl = (
+	specialWeaponSplId: SpecialWeaponId,
+	variant: "weakpoints",
+) =>
+	`/static-assets/img/special-weapons/variants/${specialWeaponSplId}-${variant}`;
 export const abilityImageUrl = (ability: AbilityWithUnknown) =>
 	`/static-assets/img/abilities/${ability}`;
+export const brandImageUrl = (brand: BrandId) =>
+	`/static-assets/img/brands/${brand}`;
 export const modeImageUrl = (mode: ModeShortWithSpecial) =>
 	`/static-assets/img/modes/${mode}`;
 export const stageImageUrl = (stageId: StageId) =>
 	`/static-assets/img/stages/${stageId}`;
-export const brandImageUrl = (brand: "tentatek" | "takoroka") =>
-	`/static-assets/img/layout/${brand}`;
 export const tierImageUrl = (tier: TierName | "CALCULATING") =>
 	`/static-assets/img/tiers/${tier.toLowerCase()}`;
 export const preferenceEmojiUrl = (preference?: Preference) => {

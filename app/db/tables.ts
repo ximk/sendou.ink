@@ -15,7 +15,7 @@ import type { Notification as NotificationValue } from "~/features/notifications
 import type { TEAM_MEMBER_ROLES } from "~/features/team/team-constants";
 import type * as PickBan from "~/features/tournament-bracket/core/PickBan";
 import type * as Progression from "~/features/tournament-bracket/core/Progression";
-import type { ParticipantResult, SeedOrdering } from "~/modules/brackets-model";
+import type { ParticipantResult } from "~/modules/brackets-model";
 import type {
 	Ability,
 	MainWeaponId,
@@ -483,6 +483,8 @@ export interface Tournament {
 	rules: string | null;
 	/** Related "parent tournament", the tournament that contains the original sign-ups (for leagues) */
 	parentTournamentId: number | null;
+	/** Is the tournament finalized meaning all the matches are played and TO has locked it making it read-only */
+	isFinalized: Generated<DBBoolean>;
 }
 
 export interface PreparedMaps {
@@ -621,9 +623,6 @@ export interface TournamentStageSettings {
 	groupCount?: number;
 	// SWISS
 	roundCount?: number;
-
-	// Not exposed as user setting currently, applies to all brackets except swiss
-	seedOrdering?: SeedOrdering[];
 }
 
 export const TOURNAMENT_STAGE_TYPES = [
@@ -744,6 +743,13 @@ export interface TournamentBracketProgressionOverride {
 	tournamentId: number;
 }
 
+export interface TournamentOrganizationBannedUser {
+	organizationId: number;
+	userId: number;
+	privateNote: string | null;
+	updatedAt: Generated<number>;
+}
+
 /** Indicates a user trusts another. Allows direct adding to groups/teams without invite links. */
 export interface TrustRelationship {
 	trustGiverUserId: number;
@@ -853,6 +859,8 @@ export interface User {
 	noScreen: Generated<DBBoolean>;
 	buildSorting: JSONColumnTypeNullable<BuildSort[]>;
 	preferences: JSONColumnTypeNullable<UserPreferences>;
+	/** User creation date. Can be null because we did not always save this. */
+	createdAt: number | null;
 }
 
 /** Represents User joined with PlusTier table */
@@ -885,6 +893,24 @@ export interface UserFriendCode {
 	userId: number;
 	submitterUserId: number;
 	createdAt: GeneratedAlways<number>;
+}
+
+export interface BanLog {
+	id: GeneratedAlways<number>;
+	userId: number;
+	banned: number | null;
+	bannedReason: string | null;
+	bannedByUserId: number;
+	createdAt: GeneratedAlways<number>;
+}
+
+export interface ModNote {
+	id: GeneratedAlways<number>;
+	userId: number;
+	authorId: number;
+	text: string;
+	createdAt: GeneratedAlways<number>;
+	isDeleted: Generated<DBBoolean>;
 }
 
 export interface Video {
@@ -947,6 +973,16 @@ export interface ScrimPost {
 	chatCode: string;
 	/** Refers to the team looking for the team (can also be a pick-up) */
 	teamId: number | null;
+	/** Indicates if anyone in the post can manage it */
+	managedByAnyone: DBBoolean;
+	/** When the scrim was canceled */
+	canceledAt: number | null;
+	/** User id who canceled the scrim */
+	canceledByUserId: number | null;
+	/** Reason for canceling the scrim */
+	cancelReason: string | null;
+	/** When the post was made was it scheduled for a future time slot (as opposed to looking now) */
+	isScheduledForFuture: Generated<DBBoolean>;
 	createdAt: GeneratedAlways<number>;
 	updatedAt: Generated<number>;
 }
@@ -1030,6 +1066,8 @@ export interface DB {
 	BadgeManager: BadgeManager;
 	BadgeOwner: BadgeOwner;
 	TournamentBadgeOwner: TournamentBadgeOwner;
+	BanLog: BanLog;
+	ModNote: ModNote;
 	Build: Build;
 	BuildAbility: BuildAbility;
 	BuildWeapon: BuildWeapon;
@@ -1081,6 +1119,7 @@ export interface DB {
 	TournamentOrganizationBadge: TournamentOrganizationBadge;
 	TournamentOrganizationSeries: TournamentOrganizationSeries;
 	TournamentBracketProgressionOverride: TournamentBracketProgressionOverride;
+	TournamentOrganizationBannedUser: TournamentOrganizationBannedUser;
 	TrustRelationship: TrustRelationship;
 	UnvalidatedUserSubmittedImage: UnvalidatedUserSubmittedImage;
 	UnvalidatedVideo: UnvalidatedVideo;

@@ -1,21 +1,26 @@
+import clsx from "clsx";
 import { useTranslation } from "react-i18next";
 import { Ability } from "~/components/Ability";
-import { Button } from "~/components/Button";
+import { SendouButton } from "~/components/elements/Button";
 import { ModeImage } from "~/components/Image";
 import { CrossIcon } from "~/components/icons/Cross";
-import { PATCHES } from "~/constants";
 import { possibleApValues } from "~/features/build-analyzer";
 import { abilities } from "~/modules/in-game-lists/abilities";
 import { modesShort } from "~/modules/in-game-lists/modes";
-import type { ModeShort } from "~/modules/in-game-lists/types";
-import type { Ability as AbilityType } from "~/modules/in-game-lists/types";
+import type {
+	Ability as AbilityType,
+	ModeShort,
+} from "~/modules/in-game-lists/types";
 import { dateToYYYYMMDD } from "~/utils/dates";
+import { PATCHES } from "../builds-constants";
 import type {
 	AbilityBuildFilter,
 	BuildFilter,
 	DateBuildFilter,
 	ModeBuildFilter,
 } from "../builds-types";
+
+import styles from "./FilterSection.module.css";
 
 export function FilterSection({
 	number,
@@ -40,13 +45,13 @@ export function FilterSection({
 					{nthOfSame > 1 ? nthOfSame : ""}
 				</div>
 				<div>
-					<Button
+					<SendouButton
 						icon={<CrossIcon />}
-						size="tiny"
+						size="small"
 						variant="minimal-destructive"
-						onClick={remove}
+						onPress={remove}
 						aria-label="Delete filter"
-						testId="delete-filter-button"
+						data-testid="delete-filter-button"
 					/>
 				</div>
 			</div>
@@ -74,8 +79,8 @@ function AbilityFilter({
 	const abilityObject = abilities.find((a) => a.name === filter.ability)!;
 
 	return (
-		<div className="build__filter">
-			<div className="build__filter__ability">
+		<div className={styles.filter}>
+			<div className={styles.abilityContainer}>
 				<Ability ability={filter.ability} size="TINY" />
 			</div>
 			<select
@@ -125,7 +130,7 @@ function AbilityFilter({
 			{abilityObject.type === "STACKABLE" ? (
 				<div className="stack horizontal sm items-center">
 					<select
-						className="build__filter__ap-select"
+						className={styles.apSelect}
 						value={typeof filter.value === "number" ? filter.value : "0"}
 						onChange={(e) => onChange({ value: Number(e.target.value) })}
 					>
@@ -156,7 +161,7 @@ function ModeFilter({
 	const inputId = (mode: ModeShort) => `${number}-${mode}`;
 
 	return (
-		<div className="build__filter build__filter__mode">
+		<div className={clsx(styles.filter, styles.filterMode)}>
 			{modesShort.map((mode) => {
 				return (
 					<div
@@ -213,10 +218,10 @@ function DateFilter({
 	);
 
 	return (
-		<div className="build__filter build__filter__date">
+		<div className={clsx(styles.filter, styles.filterDate)}>
 			<label className="mb-0">{t("builds:filters.date.since")}</label>
 			<select
-				className="build__filter__date-select"
+				className={styles.dateSelect}
 				value={selectValue()}
 				data-testid="date-select"
 				onChange={(e) =>

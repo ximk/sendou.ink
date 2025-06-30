@@ -1,16 +1,17 @@
 import type { ActionFunction } from "@remix-run/node";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { requireUser } from "~/features/auth/core/user.server";
 import { userIsBanned } from "~/features/ban/core/banned.server";
 import { bracketProgressionSchema } from "~/features/calendar/calendar-schemas";
 import * as ShowcaseTournaments from "~/features/front-page/core/ShowcaseTournaments.server";
 import { notify } from "~/features/notifications/core/notify.server";
+import * as TournamentTeamRepository from "~/features/tournament/TournamentTeamRepository.server";
 import * as Progression from "~/features/tournament-bracket/core/Progression";
 import {
 	clearTournamentDataCache,
 	tournamentFromDB,
 } from "~/features/tournament-bracket/core/Tournament.server";
-import * as TournamentTeamRepository from "~/features/tournament/TournamentTeamRepository.server";
+import { USER } from "~/features/user-page/user-page-constants";
 import invariant from "~/utils/invariant";
 import { logger } from "~/utils/logger";
 import {
@@ -21,13 +22,12 @@ import {
 	successToast,
 } from "~/utils/remix.server";
 import { assertUnreachable } from "~/utils/types";
-import { USER } from "../../../constants";
 import { _action, id, idObject } from "../../../utils/zod";
 import { bracketIdx } from "../../tournament-bracket/tournament-bracket-schemas.server";
-import * as TournamentRepository from "../TournamentRepository.server";
 import { changeTeamOwner } from "../queries/changeTeamOwner.server";
 import { deleteTeam } from "../queries/deleteTeam.server";
 import { joinTeam, leaveTeam } from "../queries/joinLeaveTeam.server";
+import * as TournamentRepository from "../TournamentRepository.server";
 import { teamName } from "../tournament-schemas.server";
 import { inGameNameIfNeeded } from "../tournament-utils.server";
 
@@ -190,6 +190,13 @@ export const action: ActionFunction = async ({ request, params }) => {
 						.some((p) => p.userId === data.memberId),
 				"Cannot remove player that has participated in the tournament",
 			);
+
+			if (team.activeRosterUserIds?.includes(data.memberId)) {
+				await TournamentTeamRepository.setActiveRoster({
+					teamId: team.id,
+					activeRosterUserIds: null,
+				});
+			}
 
 			leaveTeam({
 				userId: data.memberId,

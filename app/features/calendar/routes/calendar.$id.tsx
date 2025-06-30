@@ -5,7 +5,7 @@ import clsx from "clsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "~/components/Avatar";
-import { Button, LinkButton } from "~/components/Button";
+import { LinkButton, SendouButton } from "~/components/elements/Button";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { Image } from "~/components/Image";
 import { Main } from "~/components/Main";
@@ -23,20 +23,19 @@ import {
 	calendarEditPage,
 	calendarEventPage,
 	calendarReportWinnersPage,
+	mapsPageWithMapPool,
 	navIconUrl,
-	readonlyMapsPage,
 	resolveBaseUrl,
 	userPage,
 } from "~/utils/urls";
 import { metaTags } from "../../../utils/remix";
+import { action } from "../actions/calendar.$id.server";
 import {
 	canDeleteCalendarEvent,
 	canEditCalendarEvent,
 	canReportCalendarEventWinners,
 } from "../calendar-utils";
 import { Tags } from "../components/Tags";
-
-import { action } from "../actions/calendar.$id.server";
 import { loader } from "../loaders/calendar.$id.server";
 export { loader, action };
 
@@ -127,7 +126,7 @@ export default function CalendarEventPage() {
 							<LinkButton
 								to={data.event.discordUrl}
 								variant="outlined"
-								size="tiny"
+								size="small"
 								isExternal
 							>
 								Discord
@@ -136,13 +135,16 @@ export default function CalendarEventPage() {
 						<LinkButton
 							to={data.event.bracketUrl}
 							variant="outlined"
-							size="tiny"
+							size="small"
 							isExternal
 						>
 							{resolveBaseUrl(data.event.bracketUrl)}
 						</LinkButton>
 						{canEditCalendarEvent({ user, event: data.event }) && (
-							<LinkButton size="tiny" to={calendarEditPage(data.event.eventId)}>
+							<LinkButton
+								size="small"
+								to={calendarEditPage(data.event.eventId)}
+							>
 								{t("common:actions.edit")}
 							</LinkButton>
 						)}
@@ -152,7 +154,7 @@ export default function CalendarEventPage() {
 							startTimes: data.event.startTimes,
 						}) && (
 							<LinkButton
-								size="tiny"
+								size="small"
 								to={calendarReportWinnersPage(data.event.eventId)}
 							>
 								{t("calendar:actions.reportWinners")}
@@ -175,14 +177,14 @@ export default function CalendarEventPage() {
 							name: data.event.name,
 						})}
 					>
-						<Button
+						<SendouButton
 							className="ml-auto"
-							size="tiny"
+							size="small"
 							variant="minimal-destructive"
 							type="submit"
 						>
 							{t("calendar:actions.delete")}
-						</Button>
+						</SendouButton>
 					</FormWithConfirm>
 				) : null}
 			</div>
@@ -267,15 +269,17 @@ function MapPoolInfo() {
 
 	if (!data.event.mapPool || data.event.mapPool.length === 0) return null;
 
+	const mapPool = new MapPool(data.event.mapPool);
+
 	return (
 		<Section title={t("calendar:forms.mapPool")}>
 			<div className="event__map-pool-section">
-				<MapPoolStages mapPool={new MapPool(data.event.mapPool)} />
+				<MapPoolStages mapPool={mapPool} />
 				<LinkButton
 					className="event__create-map-list-link"
-					to={readonlyMapsPage(data.event.eventId)}
+					to={mapsPageWithMapPool(mapPool)}
 					variant="outlined"
-					size="tiny"
+					size="small"
 				>
 					<Image alt="" path={navIconUrl("maps")} width={22} height={22} />
 					{t("calendar:createMapList")}

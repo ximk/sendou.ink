@@ -1,6 +1,6 @@
-import { type Page, expect, test } from "@playwright/test";
-import { ADMIN_DISCORD_ID } from "~/constants";
+import { expect, type Page, test } from "@playwright/test";
 import { NZAP_TEST_ID } from "~/db/seed/constants";
+import { ADMIN_DISCORD_ID } from "~/features/admin/admin-constants";
 import {
 	impersonate,
 	isNotVisible,
@@ -47,7 +47,7 @@ const reportResult = async ({
 		await page.getByTestId("points-input-2").fill(String(points[1]));
 	};
 
-	await page.getByTestId("tab-Actions").click();
+	await page.getByTestId("actions-tab").click();
 
 	if (
 		sidesWithMoreThanFourPlayers.includes("first") &&
@@ -145,7 +145,7 @@ test.describe("Tournament bracket", () => {
 		});
 		await expect(page.getByTestId("active-roster-needed-text")).toBeVisible();
 
-		await page.getByTestId("tab-Actions").click();
+		await page.getByTestId("actions-tab").click();
 
 		await page.getByTestId("player-checkbox-0").last().click();
 		await page.getByTestId("player-checkbox-1").last().click();
@@ -161,7 +161,7 @@ test.describe("Tournament bracket", () => {
 		});
 		await isNotVisible(page.getByTestId("active-roster-needed-text"));
 
-		await page.getByTestId("tab-Actions").click();
+		await page.getByTestId("actions-tab").click();
 		await page.getByTestId("edit-active-roster-button").click();
 		await page.getByTestId("player-checkbox-3").last().click();
 		await page.getByTestId("player-checkbox-4").last().click();
@@ -439,6 +439,8 @@ test.describe("Tournament bracket", () => {
 		await page.getByTestId("result-team-name").first().click();
 		await page.getByTestId("team-member-name").first().click();
 
+		await expect(page).toHaveURL(/\/u\//);
+
 		await page.getByText("Results").click();
 		await expect(
 			page.getByTestId("tournament-name-cell").first(),
@@ -579,7 +581,7 @@ test.describe("Tournament bracket", () => {
 			points: [100, 0],
 		});
 
-		await page.getByTestId("tab-Score").click();
+		await page.getByTestId("actions-tab").click();
 		await page.getByTestId("revise-button").click();
 		await page.getByTestId("player-checkbox-3").first().click();
 		await page.getByTestId("player-checkbox-4").first().click();
@@ -970,7 +972,7 @@ test.describe("Tournament bracket", () => {
 						page,
 						url: tournamentMatchPage({ tournamentId, matchId }),
 					});
-					await page.getByTestId("tab-Actions").click();
+					await page.getByTestId("actions-tab").click();
 
 					await page.getByTestId("pick-ban-button").first().click();
 					await page.getByTestId("submit-button").click();
@@ -988,7 +990,7 @@ test.describe("Tournament bracket", () => {
 				url: tournamentMatchPage({ tournamentId, matchId }),
 			});
 
-			await page.getByTestId("tab-Actions").click();
+			await page.getByTestId("actions-tab").click();
 			await page.getByTestId("winner-radio-2").click();
 			await page.getByTestId("points-input-2").fill("100");
 			await page.getByTestId("report-score-button").click();
@@ -1005,7 +1007,7 @@ test.describe("Tournament bracket", () => {
 				url: tournamentMatchPage({ tournamentId, matchId }),
 			});
 
-			await page.getByTestId("tab-Actions").click();
+			await page.getByTestId("actions-tab").click();
 			await page.getByTestId("winner-radio-1").click();
 			await page.getByTestId("points-input-1").fill("100");
 			await page.getByTestId("report-score-button").click();

@@ -3,6 +3,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { AbilityWithUnknown } from "~/modules/in-game-lists/types";
 import { abilityImageUrl } from "~/utils/urls";
+import styles from "./Ability.module.css";
 import { Image } from "./Image";
 
 const sizeMap = {
@@ -56,12 +57,12 @@ export function Ability({
 	return (
 		<AbilityTag
 			className={clsx(
-				"build__ability",
+				styles.ability,
 				{
-					"is-drag-target": isDragTarget,
-					"drag-started": dragStarted,
-					"drop-allowed": dropAllowed,
-					readonly,
+					[styles.isDragTarget]: isDragTarget,
+					[styles.dragStarted]: dragStarted,
+					[styles.dropAllowed]: dropAllowed,
+					[styles.readonly]: readonly,
 				},
 				className,
 			)}

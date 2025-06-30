@@ -7,6 +7,7 @@ export type LutiDiv = (typeof LUTI_DIVS)[number];
 export interface ScrimPost {
 	id: number;
 	at: number;
+	createdAt: number;
 	visibility: AssociationVisibility | null;
 	text: string | null;
 	divs: {
@@ -24,7 +25,16 @@ export interface ScrimPost {
 	permissions: {
 		MANAGE_REQUESTS: number[];
 		DELETE_POST: number[];
+		CANCEL: number[];
 	};
+	managedByAnyone: boolean;
+	/** When the post was made was it scheduled for a future time slot (as opposed to looking now) */
+	isScheduledForFuture: boolean;
+	canceled: {
+		at: number;
+		byUser: ScrimPostUser;
+		reason: string;
+	} | null;
 }
 
 export interface ScrimPostRequest {
@@ -38,7 +48,7 @@ export interface ScrimPostRequest {
 	createdAt: number;
 }
 
-interface ScrimPostUser extends CommonUser {
+export interface ScrimPostUser extends CommonUser {
 	isOwner: boolean;
 }
 

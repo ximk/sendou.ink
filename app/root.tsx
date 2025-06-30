@@ -21,8 +21,7 @@ import {
 import generalI18next from "i18next";
 import NProgress from "nprogress";
 import * as React from "react";
-import { I18nProvider } from "react-aria-components";
-import { RouterProvider } from "react-aria-components";
+import { I18nProvider, RouterProvider } from "react-aria-components";
 import { ErrorBoundary as ClientErrorBoundary } from "react-error-boundary";
 import { useTranslation } from "react-i18next";
 import type { NavigateOptions } from "react-router-dom";
@@ -35,14 +34,13 @@ import { Catcher } from "./components/Catcher";
 import { SendouToastRegion, toastQueue } from "./components/elements/Toast";
 import { Layout } from "./components/layout";
 import { Ramp } from "./components/ramp/Ramp";
-import { CUSTOMIZED_CSS_VARS_NAME } from "./constants";
 import { getUser } from "./features/auth/core/user.server";
 import { userIsBanned } from "./features/ban/core/banned.server";
 import {
+	isTheme,
 	Theme,
 	ThemeHead,
 	ThemeProvider,
-	isTheme,
 	useTheme,
 } from "./features/theme/core/provider";
 import { getThemeSession } from "./features/theme/core/session.server";
@@ -279,6 +277,8 @@ function usePreloadTranslation() {
 		void generalI18next.loadNamespaces(namespaceJsonsToPreload);
 	}, []);
 }
+
+const CUSTOMIZED_CSS_VARS_NAME = "css";
 
 function useCustomizedCSSVars() {
 	const matches = useMatches();

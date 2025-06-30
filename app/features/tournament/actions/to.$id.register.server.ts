@@ -5,11 +5,11 @@ import { MapPool } from "~/features/map-list-generator/core/map-pool";
 import { notify } from "~/features/notifications/core/notify.server";
 import * as QRepository from "~/features/sendouq/QRepository.server";
 import * as TeamRepository from "~/features/team/TeamRepository.server";
+import * as TournamentTeamRepository from "~/features/tournament/TournamentTeamRepository.server";
 import {
 	clearTournamentDataCache,
 	tournamentFromDB,
 } from "~/features/tournament-bracket/core/Tournament.server";
-import * as TournamentTeamRepository from "~/features/tournament/TournamentTeamRepository.server";
 import * as UserRepository from "~/features/user-page/UserRepository.server";
 import { logger } from "~/utils/logger";
 import {
@@ -32,7 +32,10 @@ import {
 	isOneModeTournamentOf,
 	validateCounterPickMapPool,
 } from "../tournament-utils";
-import { inGameNameIfNeeded } from "../tournament-utils.server";
+import {
+	inGameNameIfNeeded,
+	requireNotBannedByOrganization,
+} from "../tournament-utils.server";
 
 export const action: ActionFunction = async ({ request, params }) => {
 	const user = await requireUser(request);
@@ -93,6 +96,11 @@ export const action: ActionFunction = async ({ request, params }) => {
 					},
 				});
 			} else {
+				await requireNotBannedByOrganization({
+					tournament,
+					user,
+				});
+
 				errorToastIfFalsy(!tournament.isInvitational, "Event is invite only");
 				errorToastIfFalsy(
 					(await UserRepository.findLeanById(user.id))?.friendCode,
@@ -257,6 +265,12 @@ export const action: ActionFunction = async ({ request, params }) => {
 				"No friend code",
 			);
 			errorToastIfFalsy(tournament.registrationOpen, "Registration is closed");
+
+			await requireNotBannedByOrganization({
+				tournament,
+				user: { id: data.userId },
+				message: "The user is banned from events hosted by this organization",
+			});
 
 			joinTeam({
 				userId: data.userId,

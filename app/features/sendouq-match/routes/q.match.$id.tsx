@@ -13,31 +13,33 @@ import { Flipped, Flipper } from "react-flip-toolkit";
 import { useTranslation } from "react-i18next";
 import { Alert } from "~/components/Alert";
 import { Avatar } from "~/components/Avatar";
-import { Button, LinkButton } from "~/components/Button";
-import { WeaponCombobox } from "~/components/Combobox";
 import { Divider } from "~/components/Divider";
-import { FormWithConfirm } from "~/components/FormWithConfirm";
-import { Image, ModeImage, StageImage, WeaponImage } from "~/components/Image";
-import { Main } from "~/components/Main";
-import { NewTabs } from "~/components/NewTabs";
-import { SubmitButton } from "~/components/SubmitButton";
-import { SendouButton } from "~/components/elements/Button";
+import { LinkButton, SendouButton } from "~/components/elements/Button";
 import { SendouPopover } from "~/components/elements/Popover";
 import { SendouSwitch } from "~/components/elements/Switch";
+import {
+	SendouTab,
+	SendouTabList,
+	SendouTabPanel,
+	SendouTabs,
+} from "~/components/elements/Tabs";
+import { FormWithConfirm } from "~/components/FormWithConfirm";
+import { Image, ModeImage, StageImage, WeaponImage } from "~/components/Image";
 import { ArchiveBoxIcon } from "~/components/icons/ArchiveBox";
-import { CrossIcon } from "~/components/icons/Cross";
 import { DiscordIcon } from "~/components/icons/Discord";
 import { RefreshArrowsIcon } from "~/components/icons/RefreshArrows";
 import { ScaleIcon } from "~/components/icons/Scale";
+import { Main } from "~/components/Main";
+import { SubmitButton } from "~/components/SubmitButton";
+import { WeaponSelect } from "~/components/WeaponSelect";
 import type { Tables } from "~/db/tables";
 import { useUser } from "~/features/auth/core/user";
 import { Chat, type ChatProps, useChat } from "~/features/chat/components/Chat";
 import * as Seasons from "~/features/mmr/core/Seasons";
-import { AddPrivateNoteDialog } from "~/features/sendouq-match/components/AddPrivateNoteDialog";
-import type { ReportedWeaponForMerging } from "~/features/sendouq-match/core/reported-weapons.server";
 import { GroupCard } from "~/features/sendouq/components/GroupCard";
 import { FULL_GROUP_SIZE } from "~/features/sendouq/q-constants";
-import { useRecentlyReportedWeapons } from "~/features/sendouq/q-hooks";
+import { AddPrivateNoteDialog } from "~/features/sendouq-match/components/AddPrivateNoteDialog";
+import type { ReportedWeaponForMerging } from "~/features/sendouq-match/core/reported-weapons.server";
 import { resolveRoomPass } from "~/features/tournament-bracket/tournament-bracket-utils";
 import { useIsMounted } from "~/hooks/useIsMounted";
 import { useWindowSize } from "~/hooks/useWindowSize";
@@ -55,19 +57,18 @@ import { inGameNameWithoutDiscriminator } from "~/utils/strings";
 import type { Unpacked } from "~/utils/types";
 import { assertUnreachable } from "~/utils/types";
 import {
-	SENDOUQ_PAGE,
-	SENDOUQ_RULES_PAGE,
-	SENDOU_INK_DISCORD_URL,
 	navIconUrl,
 	preferenceEmojiUrl,
+	SENDOU_INK_DISCORD_URL,
+	SENDOUQ_PAGE,
+	SENDOUQ_RULES_PAGE,
 	sendouQMatchPage,
 	specialWeaponImageUrl,
 	teamPage,
 	userSubmittedImage,
 } from "~/utils/urls";
-import { matchEndedAtIndex } from "../core/match";
-
 import { action } from "../actions/q.match.$id.server";
+import { matchEndedAtIndex } from "../core/match";
 import { loader } from "../loaders/q.match.$id.server";
 export { loader, action };
 
@@ -381,15 +382,15 @@ function AfterMatchActions({
 					</SubmitButton>
 				) : null}
 				{showWeaponsFormButton ? (
-					<Button
+					<SendouButton
 						icon={<ArchiveBoxIcon />}
-						onClick={() => setShowWeaponsForm(!showWeaponsForm)}
+						onPress={() => setShowWeaponsForm(!showWeaponsForm)}
 						variant={showWeaponsForm ? "destructive" : undefined}
 					>
 						{showWeaponsForm
 							? t("q:match.actions.stopReportingWeapons")
 							: t("q:match.actions.reportWeapons")}
-					</Button>
+					</SendouButton>
 				) : null}
 			</lookAgainFetcher.Form>
 			{showWeaponsForm ? <ReportWeaponsForm /> : null}
@@ -409,8 +410,6 @@ function ReportWeaponsForm() {
 	const [reportingMode, setReportingMode] = React.useState<
 		"ALL" | "MYSELF" | "MY_TEAM"
 	>("MYSELF");
-	const { recentlyReportedWeapons, addRecentlyReportedWeapon } =
-		useRecentlyReportedWeapons();
 
 	const playedMaps = data.match.mapList.filter((m) => m.winnerGroupId);
 	const winners = playedMaps.map((m) =>
@@ -474,7 +473,7 @@ function ReportWeaponsForm() {
 				name="weapons"
 				value={JSON.stringify(weaponsUsage)}
 			/>
-			<div className="stack horizontal sm justify-between w-max mx-auto">
+			<div className="stack horizontal md justify-between w-max mx-auto">
 				<h3 className="text-md">{t("q:match.report.whoToReport")}</h3>
 				<label className="stack horizontal xs items-center mb-0">
 					{t("q:match.report.whoToReport.me")}
@@ -515,17 +514,17 @@ function ReportWeaponsForm() {
 								showReportedOwnWeapon={false}
 							/>
 							{i !== 0 && reportingMode !== "MYSELF" ? (
-								<Button
-									size="tiny"
+								<SendouButton
+									size="small"
 									variant="outlined"
 									className="self-center"
-									onClick={handleCopyWeaponsFromPreviousMap({
+									onPress={handleCopyWeaponsFromPreviousMap({
 										groupMatchMapId,
 										mapIndex: i,
 									})}
 								>
 									{t("q:match.report.copyWeapons")}
-								</Button>
+								</SendouButton>
 							) : null}
 							<div className="stack sm">
 								{playersToReport().map((member, j) => {
@@ -568,27 +567,9 @@ function ReportWeaponsForm() {
 													)}
 												</div>
 												<div className="stack horizontal sm items-center">
-													<WeaponImage
-														weaponSplId={weaponSplId ?? 0}
-														variant="badge"
-														width={32}
-														className={clsx("ml-auto", {
-															invisible: typeof weaponSplId !== "number",
-														})}
-													/>
-													<WeaponCombobox
-														inputName="weapon"
-														value={weaponSplId}
-														quickSelectWeaponIds={recentlyReportedWeapons}
-														onChange={(weapon) => {
-															if (!weapon) return;
-
-															const weaponSplId = Number(
-																weapon.value,
-															) as MainWeaponId;
-
-															addRecentlyReportedWeapon(weaponSplId);
-
+													<WeaponSelect
+														value={weaponSplId ?? undefined}
+														onChange={(weaponSplId) => {
 															setWeaponsUsage((val) => {
 																const result = val.filter(
 																	(reportedWeapon) =>
@@ -677,6 +658,12 @@ function BottomSection({
 		].filter(Boolean) as ChatProps["rooms"];
 	}, [data.matchChatCode, data.groupChatCode]);
 
+	const chatHidden = chatRooms.length === 0;
+
+	const [selectedTabKey, setSelectedTabKey] = React.useState<string>(
+		chatHidden ? "report" : "chat",
+	);
+
 	const ownWeaponsReported = data.rawReportedWeapons?.some(
 		(rw) => rw.userId === user?.id,
 	);
@@ -748,7 +735,7 @@ function BottomSection({
 		<LinkButton
 			to={SENDOUQ_RULES_PAGE}
 			variant="outlined"
-			size="tiny"
+			size="small"
 			icon={<ScaleIcon />}
 		>
 			{t("q:front.nav.rules.title")}
@@ -760,7 +747,7 @@ function BottomSection({
 			isExternal
 			to={SENDOU_INK_DISCORD_URL}
 			variant="outlined"
-			size="tiny"
+			size="small"
 			icon={<DiscordIcon />}
 		>
 			{t("q:match.helpdesk")}
@@ -779,15 +766,15 @@ function BottomSection({
 				submitButtonText={t("common:actions.cancel")}
 				fetcher={cancelFetcher}
 			>
-				<Button
+				<SendouButton
 					variant="minimal-destructive"
-					size="tiny"
+					size="small"
 					type="submit"
-					disabled={ownTeamReported && !data.match.mapList[0].winnerGroupId}
-					className="build__small-text mt-4"
+					isDisabled={ownTeamReported && !data.match.mapList[0].winnerGroupId}
+					className="small-text mt-4"
 				>
 					{t("q:match.cancelMatch")}
-				</Button>
+				</SendouButton>
 			</FormWithConfirm>
 		) : null;
 
@@ -795,8 +782,6 @@ function BottomSection({
 		data.banScreen !== null ? (
 			<ScreenLegalityInfo ban={data.banScreen} />
 		) : null;
-
-	const chatHidden = chatRooms.length === 0;
 
 	if (!showMid && chatHidden) {
 		return mapListElement;
@@ -816,32 +801,29 @@ function BottomSection({
 				</div>
 
 				<div>
-					<NewTabs
-						sticky
-						tabs={[
-							{
-								label: t("q:looking.columns.chat"),
-								number: unseenMessages,
-								hidden: chatHidden,
-							},
-							{
-								label: t("q:match.tabs.reportScore"),
-							},
-						]}
-						disappearing
-						content={[
-							{
-								key: "chat",
-								hidden: chatHidden,
-								element: chatElement,
-							},
-							{
-								key: "report",
-								element: mapListElement,
-								unmount: false,
-							},
-						]}
-					/>
+					<SendouTabs
+						selectedKey={selectedTabKey}
+						onSelectionChange={(key) => setSelectedTabKey(key as string)}
+					>
+						<SendouTabList sticky>
+							{!chatHidden && (
+								<SendouTab id="chat" number={unseenMessages}>
+									{t("q:looking.columns.chat")}
+								</SendouTab>
+							)}
+							<SendouTab id="report">{t("q:match.tabs.reportScore")}</SendouTab>
+						</SendouTabList>
+						<SendouTabPanel id="chat">{chatElement}</SendouTabPanel>
+						<SendouTabPanel
+							id="report"
+							shouldForceMount
+							className={clsx({
+								hidden: selectedTabKey !== "report",
+							})}
+						>
+							{mapListElement}
+						</SendouTabPanel>
+					</SendouTabs>
 				</div>
 			</div>
 		);
@@ -947,8 +929,6 @@ function MapList({
 	const [ownWeaponsUsage, setOwnWeaponsUsage] = React.useState<
 		ReportedWeaponForMerging[]
 	>([]);
-	const { recentlyReportedWeapons, addRecentlyReportedWeapon } =
-		useRecentlyReportedWeapons();
 
 	const previouslyReportedWinners = isResubmission
 		? data.match.mapList
@@ -994,11 +974,6 @@ function MapList({
 								setWinners={setWinners}
 								weapons={data.reportedWeapons?.[i]}
 								showReportedOwnWeapon={!ownWeaponReported}
-								recentlyReportedWeapons={recentlyReportedWeapons}
-								addRecentlyReportedWeapon={addRecentlyReportedWeapon}
-								ownWeapon={
-									ownWeaponsUsage.find((w) => w.mapIndex === i)?.weaponSplId
-								}
 								onOwnWeaponSelected={(newReportedWeapon) => {
 									if (!newReportedWeapon) return;
 
@@ -1054,11 +1029,8 @@ function MapListMap({
 	setWinners,
 	canReportScore,
 	weapons,
-	ownWeapon,
 	onOwnWeaponSelected,
 	showReportedOwnWeapon,
-	recentlyReportedWeapons,
-	addRecentlyReportedWeapon,
 }: {
 	i: number;
 	map: Unpacked<SerializeFrom<typeof loader>["match"]["mapList"]>;
@@ -1066,11 +1038,8 @@ function MapListMap({
 	setWinners?: (winners: ("ALPHA" | "BRAVO")[]) => void;
 	canReportScore: boolean;
 	weapons?: (MainWeaponId | null)[] | null;
-	ownWeapon?: MainWeaponId | null;
 	onOwnWeaponSelected?: (weapon: ReportedWeaponForMerging | null) => void;
 	showReportedOwnWeapon: boolean;
-	recentlyReportedWeapons?: MainWeaponId[];
-	addRecentlyReportedWeapon?: (weapon: MainWeaponId) => void;
 }) {
 	const user = useUser();
 	const data = useLoaderData<typeof loader>();
@@ -1224,15 +1193,6 @@ function MapListMap({
 						<label className="mb-0 text-theme-secondary">
 							{t("q:match.report.winnerLabel")}
 						</label>
-						<div className="stack items-center">
-							<div
-								className={clsx("q-match__result-dot", {
-									"q-match__result-dot__won": winners[i] === data.groupMemberOf,
-									"q-match__result-dot__lost":
-										winners[i] && winners[i] !== data.groupMemberOf,
-								})}
-							/>
-						</div>
 						<div className="stack sm horizontal items-center">
 							<div className="stack sm horizontal items-center font-semi-bold">
 								<input
@@ -1244,7 +1204,14 @@ function MapListMap({
 									onChange={handleReportScore(i, "ALPHA")}
 								/>
 								<label className="mb-0" htmlFor={`alpha-${i}`}>
-									{`${t("q:match.sides.alpha")}${relativeSideText("ALPHA")}`}
+									{t("q:match.sides.alpha")}
+									<span
+										className={clsx({
+											"text-success": data.groupMemberOf === "ALPHA",
+										})}
+									>
+										{relativeSideText("ALPHA")}
+									</span>
 								</label>
 							</div>
 							<div className="stack sm horizontal items-center font-semi-bold">
@@ -1257,7 +1224,14 @@ function MapListMap({
 									onChange={handleReportScore(i, "BRAVO")}
 								/>
 								<label className="mb-0" htmlFor={`bravo-${i}`}>
-									{`${t("q:match.sides.bravo")}${relativeSideText("BRAVO")}`}
+									{t("q:match.sides.bravo")}
+									<span
+										className={clsx({
+											"text-success": data.groupMemberOf === "BRAVO",
+										})}
+									>
+										{relativeSideText("BRAVO")}
+									</span>
 								</label>
 							</div>
 						</div>
@@ -1267,68 +1241,24 @@ function MapListMap({
 								<label className="mb-0 text-theme-secondary">
 									{t("q:match.report.weaponLabel")}
 								</label>
-								<div
-									className={clsx({ invisible: typeof ownWeapon !== "number" })}
-								>
-									{typeof ownWeapon === "number" ? (
-										<WeaponImage
-											weaponSplId={ownWeapon}
-											variant="badge"
-											size={36}
-										/>
-									) : (
-										<WeaponImage
-											weaponSplId={0}
-											variant="badge"
-											size={36}
-											className="invisible"
-										/>
-									)}
-								</div>
-								{typeof ownWeapon === "number" ? (
-									<div className="font-bold stack sm horizontal">
-										{t(`weapons:MAIN_${ownWeapon}`)}
-										<Button
-											size="tiny"
-											icon={<CrossIcon />}
-											variant="minimal-destructive"
-											onClick={() => {
-												const userId = user!.id;
-												const groupMatchMapId = map.id;
+								<WeaponSelect
+									clearable
+									onChange={(weaponSplId) => {
+										const userId = user!.id;
+										const groupMatchMapId = map.id;
 
-												onOwnWeaponSelected({
-													mapIndex: i,
-													groupMatchMapId,
-													userId,
-												});
-											}}
-										/>
-									</div>
-								) : (
-									<WeaponCombobox
-										inputName="weapon"
-										quickSelectWeaponIds={recentlyReportedWeapons}
-										onChange={(weapon) => {
-											const userId = user!.id;
-											const groupMatchMapId = map.id;
-
-											const weaponSplId = Number(weapon?.value) as MainWeaponId;
-
-											addRecentlyReportedWeapon?.(weaponSplId);
-
-											onOwnWeaponSelected(
-												weapon
-													? {
-															weaponSplId,
-															mapIndex: i,
-															groupMatchMapId,
-															userId,
-														}
-													: null,
-											);
-										}}
-									/>
-								)}
+										onOwnWeaponSelected(
+											typeof weaponSplId === "number"
+												? {
+														weaponSplId,
+														mapIndex: i,
+														groupMatchMapId,
+														userId,
+													}
+												: null,
+										);
+									}}
+								/>
 							</>
 						) : null}
 					</div>

@@ -4,11 +4,13 @@ import { useTranslation } from "react-i18next";
 import { Main } from "~/components/Main";
 import { SubNav, SubNavLink } from "~/components/SubNav";
 import { useUser } from "~/features/auth/core/user";
+import { useHasRole } from "~/modules/permissions/hooks";
 import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import {
-	USER_SEARCH_PAGE,
 	navIconUrl,
+	USER_SEARCH_PAGE,
+	userAdminPage,
 	userArtPage,
 	userBuildsPage,
 	userEditProfilePage,
@@ -19,8 +21,8 @@ import {
 } from "~/utils/urls";
 
 import {
-	type UserPageLoaderData,
 	loader,
+	type UserPageLoaderData,
 } from "../loaders/u.$identifier.server";
 export { loader };
 
@@ -61,6 +63,7 @@ export const handle: SendouRouteHandle = {
 export default function UserPageLayout() {
 	const data = useLoaderData<typeof loader>();
 	const user = useUser();
+	const isStaff = useHasRole("STAFF");
 	const location = useLocation();
 	const { t } = useTranslation(["common", "user"]);
 
@@ -88,7 +91,7 @@ export default function UserPageLayout() {
 						{t("common:results")} ({allResultsCount})
 					</SubNavLink>
 				)}
-				{data.user.buildsCount > 0 && (
+				{(data.user.buildsCount > 0 || isOwnPage) && (
 					<SubNavLink
 						to={userBuildsPage(data.user)}
 						prefetch="intent"
@@ -97,15 +100,18 @@ export default function UserPageLayout() {
 						{t("common:pages.builds")} ({data.user.buildsCount})
 					</SubNavLink>
 				)}
-				{data.user.vodsCount > 0 && (
+				{(data.user.vodsCount > 0 || isOwnPage) && (
 					<SubNavLink to={userVodsPage(data.user)}>
 						{t("common:pages.vods")} ({data.user.vodsCount})
 					</SubNavLink>
 				)}
-				{data.user.artCount > 0 && (
+				{(data.user.artCount > 0 || isOwnPage) && (
 					<SubNavLink to={userArtPage(data.user)} end={false}>
 						{t("common:pages.art")} ({data.user.artCount})
 					</SubNavLink>
+				)}
+				{isStaff && (
+					<SubNavLink to={userAdminPage(data.user)}>Admin</SubNavLink>
 				)}
 			</SubNav>
 			<Outlet />

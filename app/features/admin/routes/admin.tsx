@@ -9,21 +9,26 @@ import {
 } from "@remix-run/react";
 import * as React from "react";
 import { Avatar } from "~/components/Avatar";
-import { Button } from "~/components/Button";
 import { Catcher } from "~/components/Catcher";
-import { Input } from "~/components/Input";
-import { Main } from "~/components/Main";
-import { NewTabs } from "~/components/NewTabs";
-import { SubmitButton } from "~/components/SubmitButton";
+import { SendouButton } from "~/components/elements/Button";
+import {
+	SendouTab,
+	SendouTabList,
+	SendouTabPanel,
+	SendouTabs,
+} from "~/components/elements/Tabs";
 import { UserSearch } from "~/components/elements/UserSearch";
+import { Input } from "~/components/Input";
 import { SearchIcon } from "~/components/icons/Search";
+import { Main } from "~/components/Main";
+import { SubmitButton } from "~/components/SubmitButton";
 import { FRIEND_CODE_REGEXP_PATTERN } from "~/features/sendouq/q-constants";
 import { useHasRole } from "~/modules/permissions/hooks";
 import { metaTags } from "~/utils/remix";
 import {
+	impersonateUrl,
 	SEED_URL,
 	STOP_IMPERSONATING_URL,
-	impersonateUrl,
 	userPage,
 } from "~/utils/urls";
 
@@ -41,26 +46,18 @@ export const meta: MetaFunction = (args) => {
 export default function AdminPage() {
 	return (
 		<Main>
-			<NewTabs
-				tabs={[
-					{
-						label: "Actions",
-					},
-					{
-						label: "Friend code look-up",
-					},
-				]}
-				content={[
-					{
-						key: "actions",
-						element: <AdminActions />,
-					},
-					{
-						key: "friend-code-look-up",
-						element: <FriendCodeLookUp />,
-					},
-				]}
-			/>
+			<SendouTabs>
+				<SendouTabList>
+					<SendouTab id="actions">Actions</SendouTab>
+					<SendouTab id="friend-code-look-up">Friend code look-up</SendouTab>
+				</SendouTabList>
+				<SendouTabPanel id="actions">
+					<AdminActions />
+				</SendouTabPanel>
+				<SendouTabPanel id="friend-code-look-up">
+					<FriendCodeLookUp />
+				</SendouTabPanel>
+			</SendouTabs>
 		</Main>
 	);
 }
@@ -85,7 +82,7 @@ function FriendCodeLookUp() {
 				<SubmitButton
 					state={fetcher.state}
 					icon={<SearchIcon />}
-					onClick={() => setSearchParams({ friendCode })}
+					onPress={() => setSearchParams({ friendCode })}
 				>
 					Search
 				</SubmitButton>
@@ -149,13 +146,13 @@ function Impersonate() {
 				onChange={(newUser) => setUserId(newUser.id)}
 			/>
 			<div className="stack horizontal md">
-				<Button type="submit" disabled={!userId}>
+				<SendouButton type="submit" isDisabled={!userId}>
 					Go
-				</Button>
+				</SendouButton>
 				{isImpersonating ? (
-					<Button type="submit" formAction={STOP_IMPERSONATING_URL}>
+					<SendouButton type="submit" formAction={STOP_IMPERSONATING_URL}>
 						Stop impersonating
-					</Button>
+					</SendouButton>
 				) : null}
 			</div>
 		</Form>
@@ -167,13 +164,6 @@ function MigrateUser() {
 	const [newUserId, setNewUserId] = React.useState<number>();
 	const navigation = useNavigation();
 	const fetcher = useFetcher();
-
-	const submitButtonText =
-		navigation.state === "submitting"
-			? "Migrating..."
-			: navigation.state === "loading"
-				? "Migrated!"
-				: "Migrate";
 
 	return (
 		<fetcher.Form className="stack md" method="post">
@@ -193,11 +183,11 @@ function MigrateUser() {
 			<div className="stack horizontal md">
 				<SubmitButton
 					type="submit"
-					disabled={!oldUserId || !newUserId || navigation.state !== "idle"}
+					isDisabled={!oldUserId || !newUserId || navigation.state !== "idle"}
 					_action="MIGRATE"
 					state={fetcher.state}
 				>
-					{submitButtonText}
+					Migrate
 				</SubmitButton>
 			</div>
 		</fetcher.Form>
@@ -284,6 +274,7 @@ function GiveTournamentOrganizer() {
 
 function UpdateFriendCode() {
 	const fetcher = useFetcher();
+	const id = React.useId();
 
 	return (
 		<fetcher.Form className="stack md" method="post">
@@ -291,10 +282,10 @@ function UpdateFriendCode() {
 			<div className="stack horizontal md">
 				<UserSearch label="User" name="user" />
 				<div>
-					<label>Friend code</label>
+					<label htmlFor={id}>Friend code</label>
 					<Input
 						leftAddon="SW-"
-						id="friendCode"
+						id={id}
 						name="friendCode"
 						pattern={FRIEND_CODE_REGEXP_PATTERN}
 						placeholder="1234-5678-9012"

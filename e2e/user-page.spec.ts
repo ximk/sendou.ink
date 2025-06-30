@@ -1,6 +1,6 @@
-import { type Page, expect, test } from "@playwright/test";
-import { ADMIN_DISCORD_ID } from "~/constants";
+import { expect, type Page, test } from "@playwright/test";
 import { NZAP_TEST_DISCORD_ID, NZAP_TEST_ID } from "~/db/seed/constants";
+import { ADMIN_DISCORD_ID } from "~/features/admin/admin-constants";
 import {
 	impersonate,
 	isNotVisible,
@@ -115,7 +115,7 @@ test.describe("User page", () => {
 		await page.getByText("Stick 0 / Motion -5").isVisible();
 	});
 
-	test("customizes user page colors", async ({ page }) => {
+	test("customizes user page colors and resets them", async ({ page }) => {
 		await seed(page);
 		await impersonate(page);
 		await navigate({
@@ -133,6 +133,8 @@ test.describe("User page", () => {
 
 		await goToEditPage(page);
 
+		await page.locator("span").filter({ hasText: "Custom colors" }).click();
+
 		await page.getByTestId("color-input-bg").fill("#4a412a");
 
 		// also test filling this because it's a special case as it also changes bg-lightest
@@ -144,6 +146,23 @@ test.describe("User page", () => {
 		await expect(page).not.toHaveURL(/edit/);
 		await page.reload();
 		await expect(bodyColor()).resolves.toMatch(/#4a412a/);
+
+		// then lets test resetting the colors is possible
+		await goToEditPage(page);
+		await page.locator("span").filter({ hasText: "Custom colors" }).click();
+
+		for (const button of await page
+			.getByRole("button", { name: "Reset" })
+			.all()) {
+			await button.click();
+		}
+
+		await submitEditForm(page);
+
+		// got redirected
+		await expect(page).not.toHaveURL(/edit/);
+		await page.reload();
+		await expect(bodyColor()).resolves.toMatch(/#ebebf0/);
 	});
 
 	test("edits weapon pool", async ({ page }) => {

@@ -1,23 +1,23 @@
 // @ts-nocheck
 
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { DAMAGE_RECEIVERS } from "~/features/object-damage-calculator/calculator-constants";
 import {
 	mainWeaponIds,
 	specialWeaponIds,
 	subWeaponIds,
-} from "~/modules/in-game-lists/types";
-import weapons from "./dicts/WeaponInfoMain.json";
-import specialWeapons from "./dicts/WeaponInfoSpecial.json";
-import subWeapons from "./dicts/WeaponInfoSub.json";
+} from "~/modules/in-game-lists/weapon-ids";
 // 1) WeaponInfoMain.json inside dicts
 // 2) WeaponInfoSub.json inside dicts
 // 3) WeaponInfoSpecial.json inside dicts
 // 4) misc/spl__DamageRateInfoConfig.pp__CombinationDataTableData.json
 import params from "./dicts/spl__DamageRateInfoConfig.pp__CombinationDataTableData.json";
+import weapons from "./dicts/WeaponInfoMain.json";
+import specialWeapons from "./dicts/WeaponInfoSpecial.json";
+import subWeapons from "./dicts/WeaponInfoSub.json";
 
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -76,10 +76,26 @@ for (const cell of Object.values(params.CellList)) {
 		rate: cell.DamageRate,
 	});
 
+	// add a second rate for launched versions, since they have double health
+	if (
+		cell.ColumnKey.includes("BulletUmbrellaCanopyNormal") ||
+		cell.ColumnKey.includes("BulletUmbrellaCanopyWide")
+	) {
+		result[cell.RowKey].rates.push({
+			target: `${cell.ColumnKey}_Launched`,
+			rate: cell.DamageRate,
+		});
+	}
+
 	// if it has special damage rates for Splat Brella, add the same value for Recycled Brella
 	if (cell.ColumnKey === "BulletUmbrellaCanopyNormal") {
 		result[cell.RowKey].rates.push({
 			target: "BulletShelterCanopyFocus",
+			rate: cell.DamageRate,
+		});
+
+		result[cell.RowKey].rates.push({
+			target: "BulletShelterCanopyFocus_Launched",
 			rate: cell.DamageRate,
 		});
 	}

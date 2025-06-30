@@ -450,7 +450,6 @@
 
 .tournament-bracket__bracket-nav__link__selected {
 	color: var(--text);
-	background-color: var(--bg);
 	background-color: var(--bg-lighter);
 }
 
@@ -509,7 +508,7 @@
 	border-radius: var(--rounded);
 }
 
-.tournament-bracket__compactify-button .button-icon {
+.tournament-bracket__compactify-button svg {
 	width: 0.85rem;
 }
 

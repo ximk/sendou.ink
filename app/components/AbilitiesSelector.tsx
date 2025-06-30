@@ -4,6 +4,7 @@ import { abilities } from "~/modules/in-game-lists/abilities";
 import type { BuildAbilitiesTupleWithUnknown } from "~/modules/in-game-lists/types";
 import invariant from "~/utils/invariant";
 import { abilityImageUrl } from "~/utils/urls";
+import styles from "./AbilitiesSelector.module.css";
 import { Ability } from "./Ability";
 import { Image } from "./Image";
 
@@ -79,8 +80,8 @@ export function AbilitiesSelector({
 		};
 
 	return (
-		<div className="ability-selector__container" data-testid="ability-selector">
-			<div className="ability-selector__slots">
+		<div className={styles.container} data-testid="ability-selector">
+			<div className={styles.slots}>
 				{selectedAbilities.map((row, rowI) =>
 					row.map((ability, abilityI) => (
 						<Ability
@@ -99,12 +100,12 @@ export function AbilitiesSelector({
 					)),
 				)}
 			</div>
-			<div className="ability-selector__ability-buttons">
+			<div className={styles.abilityButtons}>
 				{abilities.map((ability) => (
 					<button
 						key={ability.name}
-						className={clsx("ability-selector__ability-button", {
-							"is-dragging": ability.name === draggingAbility?.name,
+						className={clsx(styles.abilityButton, {
+							[styles.isDragging]: ability.name === draggingAbility?.name,
 						})}
 						type="button"
 						onClick={() => onButtonClick(ability)}

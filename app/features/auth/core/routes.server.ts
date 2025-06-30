@@ -1,7 +1,7 @@
 import type { ActionFunction, LoaderFunction } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
 import { isbot } from "isbot";
-import { z } from "zod";
+import { z } from "zod/v4";
 import * as UserRepository from "~/features/user-page/UserRepository.server";
 import { requireRole } from "~/modules/permissions/guards.server";
 import { logger } from "~/utils/logger";
@@ -15,9 +15,9 @@ import { createLogInLink } from "../queries/createLogInLink.server";
 import { deleteLogInLinkByCode } from "../queries/deleteLogInLinkByCode.server";
 import { userIdByLogInLinkCode } from "../queries/userIdByLogInLinkCode.server";
 import {
+	authenticator,
 	IMPERSONATED_SESSION_KEY,
 	SESSION_KEY,
-	authenticator,
 } from "./authenticator.server";
 import { authSessionStorage } from "./session.server";
 import { getUserId, requireUser } from "./user.server";

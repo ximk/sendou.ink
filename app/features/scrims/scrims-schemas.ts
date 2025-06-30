@@ -1,5 +1,5 @@
 import { add, sub } from "date-fns";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
 	_action,
 	date,
@@ -48,6 +48,10 @@ export const acceptRequestSchema = z.object({
 export const cancelRequestSchema = z.object({
 	_action: _action("CANCEL_REQUEST"),
 	scrimPostRequestId: id,
+});
+
+export const cancelScrimSchema = z.object({
+	reason: z.string().trim().min(1).max(SCRIM.CANCEL_REASON_MAX_LENGTH),
 });
 
 export const scrimsActionSchema = z.union([
@@ -140,6 +144,7 @@ export const scrimsNewActionSchema = z
 			falsyToNull,
 			z.string().max(MAX_SCRIM_POST_TEXT_LENGTH).nullable(),
 		),
+		managedByAnyone: z.boolean(),
 	})
 	.superRefine((post, ctx) => {
 		if (

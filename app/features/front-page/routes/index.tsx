@@ -3,11 +3,15 @@ import clsx from "clsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "~/components/Avatar";
-import { Button } from "~/components/Button";
 import { Divider } from "~/components/Divider";
+import { SendouButton } from "~/components/elements/Button";
+import {
+	SendouTab,
+	SendouTabList,
+	SendouTabPanel,
+	SendouTabs,
+} from "~/components/elements/Tabs";
 import { Image } from "~/components/Image";
-import { Main } from "~/components/Main";
-import { NewTabs } from "~/components/NewTabs";
 import { ArrowRightIcon } from "~/components/icons/ArrowRight";
 import { BSKYLikeIcon } from "~/components/icons/BSKYLike";
 import { BSKYReplyIcon } from "~/components/icons/BSKYReply";
@@ -18,6 +22,7 @@ import { LogOutIcon } from "~/components/icons/LogOut";
 import { SearchIcon } from "~/components/icons/Search";
 import { UsersIcon } from "~/components/icons/Users";
 import { navItems } from "~/components/layout/nav-items";
+import { Main } from "~/components/Main";
 import { useUser } from "~/features/auth/core/user";
 import type { ShowcaseCalendarEvent } from "~/features/calendar/calendar-types";
 import { TournamentCard } from "~/features/calendar/components/TournamentCard";
@@ -30,9 +35,9 @@ import {
 	CALENDAR_TOURNAMENTS_PAGE,
 	LOG_OUT_URL,
 	LUTI_PAGE,
-	SENDOUQ_PAGE,
 	leaderboardsPage,
 	navIconUrl,
+	SENDOUQ_PAGE,
 	sqHeaderGuyImageUrl,
 } from "~/utils/urls";
 
@@ -84,15 +89,15 @@ function DesktopSideNav() {
 			})}
 			{user ? (
 				<form method="post" action={LOG_OUT_URL}>
-					<Button
-						size="tiny"
+					<SendouButton
+						size="small"
 						variant="minimal"
 						icon={<LogOutIcon />}
 						type="submit"
 						className="front-page__side-nav__log-out"
 					>
 						{t("common:header.logout")}
-					</Button>
+					</SendouButton>
 				</form>
 			) : null}
 		</nav>
@@ -140,11 +145,7 @@ function SeasonBanner() {
 			<Link to={SENDOUQ_PAGE} className="front__season-banner__link">
 				<div className="stack horizontal xs items-center">
 					<Image path={navIconUrl("sendouq")} width={24} alt="" />
-					{isInFuture ? (
-						<>{t("front:sq.prepare")}</>
-					) : (
-						<>{t("front:sq.participate")}</>
-					)}
+					{isInFuture ? t("front:sq.prepare") : t("front:sq.participate")}
 					<ArrowRightIcon />
 				</div>
 			</Link>
@@ -177,65 +178,53 @@ function TournamentCards() {
 		return null;
 	}
 
+	const showSignedUpTab = data.tournaments.participatingFor.length > 0;
+	const showOrganizerTab = data.tournaments.organizingFor.length > 0;
+	const showDiscoverTab = data.tournaments.showcase.length > 0;
+
 	return (
 		<div>
-			<NewTabs
-				disappearing
-				padded={false}
-				tabs={[
-					{
-						label: t("front:showcase.tabs.signedUp"),
-						hidden: data.tournaments.participatingFor.length === 0,
-						icon: <UsersIcon />,
-					},
-					{
-						label: t("front:showcase.tabs.organizer"),
-						hidden: data.tournaments.organizingFor.length === 0,
-						icon: <KeyIcon />,
-					},
-					{
-						label: t("front:showcase.tabs.discover"),
-						hidden: data.tournaments.showcase.length === 0,
-						icon: <SearchIcon />,
-					},
-				]}
-				content={[
-					{
-						key: "your",
-						hidden: data.tournaments.participatingFor.length === 0,
-						element: (
-							<ShowcaseTournamentScroller
-								tournaments={data.tournaments.participatingFor}
-							/>
-						),
-					},
-					{
-						key: "organizer",
-						hidden: data.tournaments.organizingFor.length === 0,
-						element: (
-							<ShowcaseTournamentScroller
-								tournaments={data.tournaments.organizingFor}
-							/>
-						),
-					},
-					{
-						key: "discover",
-						hidden: data.tournaments.showcase.length === 0,
-						element: (
-							<ShowcaseTournamentScroller
-								tournaments={data.tournaments.showcase}
-							/>
-						),
-					},
-				]}
-			/>
+			<SendouTabs padded={false}>
+				<SendouTabList>
+					{showSignedUpTab ? (
+						<SendouTab id="signed-up" icon={<UsersIcon />}>
+							{t("front:showcase.tabs.signedUp")}
+						</SendouTab>
+					) : null}
+					{showOrganizerTab ? (
+						<SendouTab id="organizer" icon={<KeyIcon />}>
+							{t("front:showcase.tabs.organizer")}
+						</SendouTab>
+					) : null}
+					{showDiscoverTab ? (
+						<SendouTab id="discover" icon={<SearchIcon />}>
+							{t("front:showcase.tabs.discover")}
+						</SendouTab>
+					) : null}
+				</SendouTabList>
+				<SendouTabPanel id="signed-up">
+					<ShowcaseTournamentScroller
+						tournaments={data.tournaments.participatingFor}
+					/>
+				</SendouTabPanel>
+				<SendouTabPanel id="organizer">
+					<ShowcaseTournamentScroller
+						tournaments={data.tournaments.organizingFor}
+					/>
+				</SendouTabPanel>
+				<SendouTabPanel id="discover">
+					<ShowcaseTournamentScroller tournaments={data.tournaments.showcase} />
+				</SendouTabPanel>
+			</SendouTabs>
 		</div>
 	);
 }
 
 function ShowcaseTournamentScroller({
 	tournaments,
-}: { tournaments: ShowcaseCalendarEvent[] }) {
+}: {
+	tournaments: ShowcaseCalendarEvent[];
+}) {
 	return (
 		<div className="front__tournament-cards">
 			<div className="front__tournament-cards__spacer overflow-x-scroll">
@@ -337,7 +326,10 @@ function ResultHighlights() {
 function Leaderboard({
 	entries,
 	fullLeaderboardUrl,
-}: { entries: LeaderboardEntry[]; fullLeaderboardUrl: string }) {
+}: {
+	entries: LeaderboardEntry[];
+	fullLeaderboardUrl: string;
+}) {
 	const { t } = useTranslation(["front"]);
 
 	return (
@@ -401,11 +393,7 @@ function ChangelogList() {
 const ADMIN_PFP_URL =
 	"https://cdn.discordapp.com/avatars/79237403620945920/6fc41a44b069a0d2152ac06d1e496c6c.webp?size=80";
 
-function ChangelogItem({
-	item,
-}: {
-	item: Changelog.ChangelogItem;
-}) {
+function ChangelogItem({ item }: { item: Changelog.ChangelogItem }) {
 	return (
 		<div className="stack sm horizontal">
 			<Avatar size="sm" url={ADMIN_PFP_URL} />
@@ -447,7 +435,11 @@ function BSKYIconLink({
 	children,
 	count,
 	postUrl,
-}: { children: React.ReactNode; count: number; postUrl: string }) {
+}: {
+	children: React.ReactNode;
+	count: number;
+	postUrl: string;
+}) {
 	return (
 		<a
 			href={postUrl}

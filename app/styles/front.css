@@ -7,7 +7,7 @@
 	gap: var(--s-3);
 	overflow-y: auto;
 	height: 100vh;
-	padding-block-end: var(--s-24);
+	padding-block-end: var(--s-48);
 	padding-inline-end: var(--s-4);
 }
 
@@ -26,9 +26,12 @@
 	align-items: center;
 }
 
+.front-page__side-nav-item img {
+	min-width: 20px;
+}
+
 .front-page__side-nav__log-out {
 	display: flex;
-	color: var(--text);
 	font-size: var(--fonts-xs);
 	font-weight: var(--bold);
 	gap: var(--s-1-5);
@@ -39,7 +42,6 @@
 .front-page__side-nav__log-out svg {
 	background-color: var(--bg-lightest);
 	border-radius: var(--rounded);
-	padding: var(--s-1);
 	min-width: 28px;
 	margin-inline-end: 0 !important;
 	padding: var(--s-1-5);
@@ -136,9 +138,9 @@
 
 .front__season-banner__img {
 	position: absolute;
-	width: 125px;
-	right: 2px;
-	top: -31px;
+	width: 110px;
+	right: 5px;
+	top: -32.5px;
 }
 
 .front__season-banner__link {

@@ -2,11 +2,10 @@
 
 import type { Transaction } from "kysely";
 import { sql } from "kysely";
-import { nanoid } from "nanoid";
-import { INVITE_CODE_LENGTH } from "~/constants";
 import { db } from "~/db/sql";
 import type { DB, Tables } from "~/db/tables";
 import { databaseTimestampNow } from "~/utils/dates";
+import { shortNanoid } from "~/utils/id";
 import invariant from "~/utils/invariant";
 
 export function setActiveRoster({
@@ -14,11 +13,15 @@ export function setActiveRoster({
 	activeRosterUserIds,
 }: {
 	teamId: number;
-	activeRosterUserIds: number[];
+	activeRosterUserIds: number[] | null;
 }) {
 	return db
 		.updateTable("TournamentTeam")
-		.set({ activeRosterUserIds: JSON.stringify(activeRosterUserIds) })
+		.set({
+			activeRosterUserIds: activeRosterUserIds
+				? JSON.stringify(activeRosterUserIds)
+				: null,
+		})
 		.where("TournamentTeam.id", "=", teamId)
 		.execute();
 }
@@ -133,7 +136,7 @@ export function create({
 			.values({
 				tournamentId,
 				name: team.name,
-				inviteCode: nanoid(INVITE_CODE_LENGTH),
+				inviteCode: shortNanoid(),
 				prefersNotToHost: team.prefersNotToHost,
 				noScreen: team.noScreen,
 				teamId: team.teamId,
@@ -151,6 +154,8 @@ export function create({
 				inGameName: ownerInGameName,
 			})
 			.execute();
+
+		return tournamentTeam;
 	});
 }
 
@@ -215,7 +220,7 @@ export function copyFromAnotherTournament({
 			.values({
 				...oldTeam,
 				tournamentId: destinationTournamentId,
-				inviteCode: nanoid(INVITE_CODE_LENGTH),
+				inviteCode: shortNanoid(),
 				seed,
 			})
 			.returning("id")

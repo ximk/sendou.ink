@@ -1,10 +1,14 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { BUILDS_PAGE_BATCH_SIZE, BUILDS_PAGE_MAX_BUILDS } from "~/constants";
 import { i18next } from "~/modules/i18n/i18next.server";
 import { weaponIdIsNotAlt } from "~/modules/in-game-lists/weapon-ids";
+import { logger } from "~/utils/logger";
 import { weaponNameSlugToId } from "~/utils/unslugify.server";
 import { mySlugify } from "~/utils/urls";
-import { FILTER_SEARCH_PARAM_KEY } from "../builds-constants";
+import {
+	BUILDS_PAGE_BATCH_SIZE,
+	BUILDS_PAGE_MAX_BUILDS,
+	FILTER_SEARCH_PARAM_KEY,
+} from "../builds-constants";
 import { buildFiltersSearchParams } from "../builds-schemas.server";
 import { cachedBuildsByWeaponId } from "../core/cached-builds.server";
 import { filterBuilds } from "../core/filter.server";
@@ -35,9 +39,9 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 	const filters = buildFiltersSearchParams.safeParse(rawFilters ?? "[]");
 
 	if (!filters.success) {
-		console.error(
+		logger.error(
 			"Invalid filters",
-			JSON.stringify(filters.error.errors, null, 2),
+			JSON.stringify(filters.error.issues, null, 2),
 		);
 	}
 

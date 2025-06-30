@@ -1,14 +1,14 @@
 import { useLoaderData, useMatches } from "@remix-run/react";
 import { useTranslation } from "react-i18next";
-import { Button, LinkButton } from "~/components/Button";
+import { LinkButton } from "~/components/elements/Button";
 import { useUser } from "~/features/auth/core/user";
 import { UserResultsTable } from "~/features/user-page/components/UserResultsTable";
 import { useSearchParamState } from "~/hooks/useSearchParamState";
 import invariant from "~/utils/invariant";
 import { userResultsEditHighlightsPage } from "~/utils/urls";
-import type { UserPageLoaderData } from "../loaders/u.$identifier.server";
-
+import { SendouButton } from "../../../components/elements/Button";
 import { loader } from "../loaders/u.$identifier.results.server";
+import type { UserPageLoaderData } from "../loaders/u.$identifier.server";
 export { loader };
 
 export default function UserResultsPage() {
@@ -43,7 +43,7 @@ export default function UserResultsPage() {
 					<LinkButton
 						to={userResultsEditHighlightsPage(user)}
 						className="ml-auto"
-						size="tiny"
+						size="small"
 					>
 						{t("results.highlights.choose")}
 					</LinkButton>
@@ -51,15 +51,15 @@ export default function UserResultsPage() {
 			</div>
 			<UserResultsTable id="user-results-table" results={resultsToShow} />
 			{hasHighlightedResults ? (
-				<Button
+				<SendouButton
 					variant="minimal"
-					size="tiny"
-					onClick={() => setShowAll(!showAll)}
+					size="small"
+					onPress={() => setShowAll(!showAll)}
 				>
 					{showAll
 						? t("results.button.showHighlights")
 						: t("results.button.showAll")}
-				</Button>
+				</SendouButton>
 			) : null}
 		</div>
 	);

@@ -13,8 +13,11 @@
  * console.log(Seasons.list[0].starts); // Logs the start date of the first season
  */
 export const list =
-	process.env.NODE_ENV === "development" &&
-	import.meta.env.VITE_PROD_MODE !== "true"
+	// when we do npm run setup NODE_ENV is not set -> use test seasons
+	!process.env.NODE_ENV ||
+	// this gets checked when the project is running
+	(process.env.NODE_ENV === "development" &&
+		import.meta.env.VITE_PROD_MODE !== "true")
 		? ([
 				{
 					nth: 0,
@@ -67,6 +70,11 @@ export const list =
 					nth: 7,
 					starts: new Date("2025-03-07T18:00:00.000Z"),
 					ends: new Date("2025-05-25T21:59:59.999Z"),
+				},
+				{
+					nth: 8,
+					starts: new Date("2025-06-16T18:00:00.000Z"),
+					ends: new Date("2025-08-24T22:00:00.000Z"),
 				},
 			] as const);
 

@@ -2,18 +2,17 @@ import type { MetaFunction } from "@remix-run/node";
 import { useFetcher, useNavigate, useSearchParams } from "@remix-run/react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "~/components/Button";
+import { SendouSwitch } from "~/components/elements/Switch";
 import { FormMessage } from "~/components/FormMessage";
 import { Label } from "~/components/Label";
 import { Main } from "~/components/Main";
-import { SendouSwitch } from "~/components/elements/Switch";
 import { useUser } from "~/features/auth/core/user";
 import { FF_SCRIMS_ENABLED } from "~/features/scrims/scrims-constants";
 import { Theme, useTheme } from "~/features/theme/core/provider";
 import { languages } from "~/modules/i18n/config";
 import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
-import { SETTINGS_PAGE, navIconUrl } from "~/utils/urls";
+import { navIconUrl, SETTINGS_PAGE } from "~/utils/urls";
 import { SendouButton } from "../../../components/elements/Button";
 import { SendouPopover } from "../../../components/elements/Popover";
 
@@ -229,9 +228,9 @@ function PushNotificationsEnabler() {
 						: t("common:settings.notifications.permissionDenied")}
 				</SendouPopover>
 			) : (
-				<Button size="tiny" variant="minimal" onClick={askPermission}>
+				<SendouButton size="small" variant="minimal" onPress={askPermission}>
 					{t("common:actions.enable")}
-				</Button>
+				</SendouButton>
 			)}
 			<FormMessage type="info">
 				{t("common:settings.notifications.description")}

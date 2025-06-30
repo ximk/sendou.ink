@@ -1,30 +1,37 @@
-import { type Locator, type Page, expect } from "@playwright/test";
-import { ADMIN_ID } from "~/constants";
+import { expect, type Locator, type Page } from "@playwright/test";
+import { ADMIN_ID } from "~/features/admin/admin-constants";
 import type { SeedVariation } from "~/features/api-private/routes/seed";
 import { tournamentBracketsPage } from "./urls";
 
 export async function selectWeapon({
 	page,
 	name,
-	inputName = "weapon",
+	testId = "weapon-select",
 }: {
 	page: Page;
 	name: string;
-	inputName?: string;
+	testId?: string;
 }) {
-	return selectComboboxValue({ page, value: name, inputName });
+	await page.getByTestId(testId).click();
+	await page.getByPlaceholder("Search weapons...").fill(name);
+	await page
+		.getByRole("listbox", { name: "Suggestions" })
+		.getByTestId(`weapon-select-option-${name}`)
+		.click();
 }
 
 export async function selectUser({
 	page,
 	userName,
 	labelName,
+	exact = false,
 }: {
 	page: Page;
 	userName: string;
 	labelName: string;
+	exact?: boolean;
 }) {
-	const comboboxButton = page.getByLabel(labelName);
+	const comboboxButton = page.getByLabel(labelName, { exact });
 	const searchInput = page.getByTestId("user-search-input");
 	const option = page.getByTestId("user-search-item").first();
 
@@ -34,26 +41,6 @@ export async function selectUser({
 	await searchInput.fill(userName);
 	await expect(option).toBeVisible();
 	await page.keyboard.press("Enter");
-}
-
-export async function selectComboboxValue({
-	page,
-	value,
-	inputName,
-	locator,
-}: {
-	page: Page;
-	value: string;
-	inputName?: string;
-	locator?: Locator;
-}) {
-	if (!locator && !inputName) {
-		throw new Error("Must provide either locator or inputName");
-	}
-	const combobox = locator ?? page.getByTestId(`${inputName!}-combobox-input`);
-	await combobox.clear();
-	await combobox.fill(value);
-	await combobox.press("Enter");
 }
 
 /** page.goto that waits for the page to be hydrated before proceeding */

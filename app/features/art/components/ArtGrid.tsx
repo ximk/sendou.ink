@@ -3,15 +3,14 @@ import clsx from "clsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "~/components/Avatar";
-import { Button, LinkButton } from "~/components/Button";
-import { FormWithConfirm } from "~/components/FormWithConfirm";
-import { Pagination } from "~/components/Pagination";
-import { SendouButton } from "~/components/elements/Button";
+import { LinkButton, SendouButton } from "~/components/elements/Button";
 import { SendouDialog } from "~/components/elements/Dialog";
+import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { CrossIcon } from "~/components/icons/Cross";
 import { EditIcon } from "~/components/icons/Edit";
 import { TrashIcon } from "~/components/icons/Trash";
 import { UnlinkIcon } from "~/components/icons/Unlink";
+import { Pagination } from "~/components/Pagination";
 import { useIsMounted } from "~/hooks/useIsMounted";
 import { usePagination } from "~/hooks/usePagination";
 import { useSearchParamState } from "~/hooks/useSearchParamState";
@@ -170,6 +169,7 @@ function ImagePreview({
 	const { t } = useTranslation(["common", "art"]);
 
 	const img = (
+		// biome-ignore lint/a11y/noStaticElementInteractions: Biome v2 migration
 		<img
 			alt=""
 			src={conditionalUserSubmittedImage(previewUrl(art.url))}
@@ -191,7 +191,7 @@ function ImagePreview({
 				>
 					<LinkButton
 						to={newArtPage(art.id)}
-						size="tiny"
+						size="small"
 						variant="outlined"
 						icon={<EditIcon />}
 					>
@@ -204,7 +204,11 @@ function ImagePreview({
 							["_action", "DELETE_ART"],
 						]}
 					>
-						<Button icon={<TrashIcon />} variant="destructive" size="tiny" />
+						<SendouButton
+							icon={<TrashIcon />}
+							variant="destructive"
+							size="small"
+						/>
 					</FormWithConfirm>
 				</div>
 			</div>
@@ -242,7 +246,11 @@ function ImagePreview({
 							]}
 							submitButtonText={t("common:actions.remove")}
 						>
-							<Button icon={<UnlinkIcon />} variant="destructive" size="tiny" />
+							<SendouButton
+								icon={<UnlinkIcon />}
+								variant="destructive"
+								size="small"
+							/>
 						</FormWithConfirm>
 					) : null}
 				</div>

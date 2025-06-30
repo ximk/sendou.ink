@@ -2,25 +2,25 @@ import { useLoaderData } from "@remix-run/react";
 import * as React from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import type { z } from "zod";
-import { Label } from "~/components/Label";
-import { DateTimeFormField } from "~/components/form/DateTimeFormField";
+import type { z } from "zod/v4";
+import { DateFormField } from "~/components/form/DateFormField";
 import { SendouForm } from "~/components/form/SendouForm";
 import { TextAreaFormField } from "~/components/form/TextAreaFormField";
+import { ToggleFormField } from "~/components/form/ToggleFormField";
+import { Label } from "~/components/Label";
 import { nullFilledArray } from "~/utils/arrays";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import { FormMessage } from "../../../components/FormMessage";
 import { Main } from "../../../components/Main";
+import { action } from "../actions/scrims.new.server";
 import { WithFormField } from "../components/WithFormField";
+import { loader, type ScrimsNewLoaderData } from "../loaders/scrims.new.server";
 import { LUTI_DIVS, SCRIM } from "../scrims-constants";
 import {
 	MAX_SCRIM_POST_TEXT_LENGTH,
 	scrimsNewActionSchema,
 } from "../scrims-schemas";
 import type { LutiDiv } from "../scrims-types";
-
-import { action } from "../actions/scrims.new.server";
-import { type ScrimsNewLoaderData, loader } from "../loaders/scrims.new.server";
 export { loader, action };
 
 export const handle: SendouRouteHandle = {
@@ -58,14 +58,16 @@ export default function NewScrimPage() {
 										SCRIM.MAX_PICKUP_SIZE_EXCLUDING_OWNER,
 									) as unknown as number[],
 								},
+					managedByAnyone: true,
 				}}
 			>
 				<WithFormField usersTeams={data.teams} />
 
-				<DateTimeFormField<FormFields>
+				<DateFormField<FormFields>
 					label={t("scrims:forms.when.title")}
 					name="at"
 					bottomText={t("scrims:forms.when.explanation")}
+					granularity="minute"
 				/>
 
 				<BaseVisibilityFormField associations={data.associations} />
@@ -79,6 +81,12 @@ export default function NewScrimPage() {
 					name="postText"
 					maxLength={MAX_SCRIM_POST_TEXT_LENGTH}
 				/>
+
+				<ToggleFormField<FormFields>
+					label={t("scrims:forms.managedByAnyone.title")}
+					name="managedByAnyone"
+					bottomText={t("scrims:forms.managedByAnyone.explanation")}
+				/>
 			</SendouForm>
 		</Main>
 	);
@@ -86,7 +94,9 @@ export default function NewScrimPage() {
 
 function BaseVisibilityFormField({
 	associations,
-}: { associations: ScrimsNewLoaderData["associations"] }) {
+}: {
+	associations: ScrimsNewLoaderData["associations"];
+}) {
 	const { t } = useTranslation(["scrims"]);
 	const methods = useFormContext<FormFields>();
 
@@ -119,7 +129,9 @@ function BaseVisibilityFormField({
 
 function NotFoundVisibilityFormField({
 	associations,
-}: { associations: ScrimsNewLoaderData["associations"] }) {
+}: {
+	associations: ScrimsNewLoaderData["associations"];
+}) {
 	const { t } = useTranslation(["scrims"]);
 	const baseVisibility = useWatch<FormFields>({
 		name: "baseVisibility",
@@ -143,9 +155,10 @@ function NotFoundVisibilityFormField({
 	return (
 		<div>
 			<div className="stack horizontal sm">
-				<DateTimeFormField<FormFields>
+				<DateFormField<FormFields>
 					label={t("scrims:forms.notFoundVisibility.title")}
 					name="notFoundVisibility.at"
+					granularity="minute"
 				/>
 				{date ? (
 					<div>
@@ -257,8 +270,8 @@ function LutiDivsSelector({
 	return (
 		<div className="stack horizontal sm">
 			<div>
-				<Label htmlFor="min-div">{t("scrims:forms.divs.minDiv.title")}</Label>
-				<select id="min-div" onChange={onChangeMin} onBlur={onBlur}>
+				<Label htmlFor="max-div">{t("scrims:forms.divs.maxDiv.title")}</Label>
+				<select id="max-div" onChange={onChangeMax} onBlur={onBlur}>
 					<option value="">—</option>
 					{LUTI_DIVS.map((div) => (
 						<option key={div} value={div}>
@@ -269,8 +282,8 @@ function LutiDivsSelector({
 			</div>
 
 			<div>
-				<Label htmlFor="max-div">{t("scrims:forms.divs.maxDiv.title")}</Label>
-				<select id="max-div" onChange={onChangeMax} onBlur={onBlur}>
+				<Label htmlFor="min-div">{t("scrims:forms.divs.minDiv.title")}</Label>
+				<select id="min-div" onChange={onChangeMin} onBlur={onBlur}>
 					<option value="">—</option>
 					{LUTI_DIVS.map((div) => (
 						<option key={div} value={div}>

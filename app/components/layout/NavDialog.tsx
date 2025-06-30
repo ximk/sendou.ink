@@ -5,7 +5,7 @@ import { navItems } from "~/components/layout/nav-items";
 import { useUser } from "~/features/auth/core/user";
 import { LOG_OUT_URL, navIconUrl, userPage } from "~/utils/urls";
 import { Avatar } from "../Avatar";
-import { Button } from "../Button";
+import { SendouButton } from "../elements/Button";
 import { Image } from "../Image";
 import { CrossIcon } from "../icons/Cross";
 import { LogOutIcon } from "../icons/LogOut";
@@ -14,7 +14,10 @@ import { LogInButtonContainer } from "./LogInButtonContainer";
 export function NavDialog({
 	isOpen,
 	close,
-}: { isOpen: boolean; close: () => void }) {
+}: {
+	isOpen: boolean;
+	close: () => void;
+}) {
 	const user = useUser();
 	const { t } = useTranslation(["common"]);
 
@@ -29,11 +32,11 @@ export function NavDialog({
 			aria-label="Site navigation"
 			isFullScreen
 		>
-			<Button
+			<SendouButton
 				icon={<CrossIcon />}
 				variant="minimal-destructive"
 				className="layout__overlay-nav__close-button"
-				onClick={close}
+				onPress={close}
 				aria-label="Close navigation dialog"
 			/>
 			<div className="layout__overlay-nav__nav-items-container">
@@ -61,14 +64,14 @@ export function NavDialog({
 			{user ? (
 				<div className="mt-6 stack items-center">
 					<form method="post" action={LOG_OUT_URL}>
-						<Button
-							size="tiny"
+						<SendouButton
+							size="small"
 							variant="outlined"
 							icon={<LogOutIcon />}
 							type="submit"
 						>
 							{t("common:header.logout")}
-						</Button>
+						</SendouButton>
 					</form>
 				</div>
 			) : null}

@@ -3,13 +3,13 @@ import { useLoaderData } from "@remix-run/react";
 import clsx from "clsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { Button, LinkButton } from "~/components/Button";
+import { LinkButton } from "~/components/elements/Button";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { Image, WeaponImage } from "~/components/Image";
-import { Main } from "~/components/Main";
-import { YouTubeEmbed } from "~/components/YouTubeEmbed";
 import { EditIcon } from "~/components/icons/Edit";
 import { TrashIcon } from "~/components/icons/Trash";
+import { Main } from "~/components/Main";
+import { YouTubeEmbed } from "~/components/YouTubeEmbed";
 import { useUser } from "~/features/auth/core/user";
 import { useIsMounted } from "~/hooks/useIsMounted";
 import { useSearchParamState } from "~/hooks/useSearchParamState";
@@ -18,19 +18,19 @@ import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import type { Unpacked } from "~/utils/types";
 import {
-	VODS_PAGE,
 	modeImageUrl,
 	navIconUrl,
 	newVodPage,
 	stageImageUrl,
+	VODS_PAGE,
 	vodVideoPage,
 } from "~/utils/urls";
+import { SendouButton } from "../../../components/elements/Button";
+import { action } from "../actions/vods.$id.server";
 import { PovUser } from "../components/VodPov";
+import { loader } from "../loaders/vods.$id.server";
 import type { Vod } from "../vods-types";
 import { canEditVideo, secondsToHoursMinutesSecondString } from "../vods-utils";
-
-import { action } from "../actions/vods.$id.server";
-import { loader } from "../loaders/vods.$id.server";
 export { loader, action };
 
 import "../vods.css";
@@ -119,7 +119,7 @@ export default function VodPage() {
 						<div className="stack horizontal md">
 							<LinkButton
 								to={newVodPage(data.vod.id)}
-								size="tiny"
+								size="small"
 								testId="edit-vod-button"
 								icon={<EditIcon />}
 							>
@@ -130,14 +130,14 @@ export default function VodPage() {
 									title: data.vod.title,
 								})}
 							>
-								<Button
+								<SendouButton
 									variant="minimal-destructive"
-									size="tiny"
+									size="small"
 									type="submit"
 									icon={<TrashIcon />}
 								>
 									{t("common:actions.delete")}
-								</Button>
+								</SendouButton>
 							</FormWithConfirm>
 						</div>
 					) : null}
@@ -227,13 +227,13 @@ function Match({
 					</div>
 				</div>
 			) : null}
-			<Button
-				size="tiny"
-				onClick={() => setStart(match.startsAt)}
+			<SendouButton
+				size="small"
+				onPress={() => setStart(match.startsAt)}
 				variant="outlined"
 			>
 				{secondsToHoursMinutesSecondString(match.startsAt)}
-			</Button>
+			</SendouButton>
 		</div>
 	);
 }

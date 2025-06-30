@@ -2,10 +2,10 @@ import clsx from "clsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Ability } from "~/components/Ability";
-import { MAX_AP } from "~/constants";
 import type { MainWeaponId } from "~/modules/in-game-lists/types";
 import { SendouButton } from "../../../components/elements/Button";
 import { SendouPopover } from "../../../components/elements/Popover";
+import { MAX_AP } from "../analyzer-constants";
 import type { FullInkTankOption } from "../analyzer-types";
 import { fullInkTankOptions } from "../core/stats";
 import { weaponParams } from "../core/utils";
@@ -90,6 +90,7 @@ function Grid({ weaponSplId }: PerInkTankGridProps) {
 					);
 				})}
 			</div>
+			{/** biome-ignore lint/a11y/noStaticElementInteractions: Biome v2 migration */}
 			<div className="stack horizontal sm" onMouseLeave={handleMouseLeaveGrid}>
 				<div className="analyzer__ink-grid__horizontal-ability">
 					<Ability ability="ISS" size="SUBTINY" />
@@ -134,6 +135,7 @@ function Grid({ weaponSplId }: PerInkTankGridProps) {
 
 								if (typeof cell.shots !== "number") {
 									return (
+										// biome-ignore lint/a11y/noStaticElementInteractions: Biome v2 migration
 										<div
 											className="analyzer__ink-grid__cell"
 											key={key}
@@ -149,6 +151,7 @@ function Grid({ weaponSplId }: PerInkTankGridProps) {
 								}
 
 								return (
+									// biome-ignore lint/a11y/noStaticElementInteractions: Biome v2 migration
 									<div
 										key={key}
 										className="analyzer__ink-grid__cell"

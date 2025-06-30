@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { ADMIN_DISCORD_ID, ADMIN_ID } from "~/constants";
 import { NZAP_TEST_ID } from "~/db/seed/constants";
+import { ADMIN_DISCORD_ID, ADMIN_ID } from "~/features/admin/admin-constants";
 import {
 	impersonate,
 	isNotVisible,
@@ -10,8 +10,8 @@ import {
 	submit,
 } from "~/utils/playwright";
 import {
-	TEAM_SEARCH_PAGE,
 	editTeamPage,
+	TEAM_SEARCH_PAGE,
 	teamPage,
 	userPage,
 } from "~/utils/urls";
@@ -185,7 +185,7 @@ test.describe("Team page", () => {
 
 		await page.getByTestId("manage-roster-button").click();
 
-		await page.getByTestId("editor-switch").first().click();
+		await page.getByLabel("Editor").first().click({ force: true });
 
 		await impersonate(page, NZAP_TEST_ID);
 		await navigate({ page, url: editTeamPage("alliance-rogue") });

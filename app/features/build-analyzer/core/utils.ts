@@ -1,4 +1,4 @@
-import { EMPTY_BUILD } from "~/constants";
+import { EMPTY_BUILD } from "~/features/builds/builds-constants";
 import { abilities } from "~/modules/in-game-lists/abilities";
 import type {
 	Ability,
@@ -293,7 +293,7 @@ export function validatedBuildFromSearchParams(
 				validateAbility(["STACKABLE"], abilitiesArr[11]),
 			],
 		];
-	} catch (err) {
+	} catch {
 		return EMPTY_BUILD;
 	}
 }

@@ -5,19 +5,18 @@ import {
 	unstable_parseMultipartFormData as parseMultipartFormData,
 	redirect,
 } from "@remix-run/node";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { requireUser } from "~/features/auth/core/user.server";
 import * as TeamRepository from "~/features/team/TeamRepository.server";
 import { isTeamManager } from "~/features/team/team-utils";
 import * as TournamentOrganizationRepository from "~/features/tournament-organization/TournamentOrganizationRepository.server";
-import { canEditTournamentOrganization } from "~/features/tournament-organization/tournament-organization-utils";
+import { requirePermission } from "~/modules/permissions/guards.server";
 import { dateToDatabaseTimestamp } from "~/utils/dates";
 import invariant from "~/utils/invariant";
 import {
 	badRequestIfFalsy,
 	errorToastIfFalsy,
 	parseSearchParams,
-	unauthorizedIfFalsy,
 } from "~/utils/remix.server";
 import { teamPage, tournamentOrganizationPage } from "~/utils/urls";
 import { addNewImage } from "../queries/addNewImage";
@@ -38,7 +37,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 			: undefined;
 	const organization =
 		validatedType === "org-pfp"
-			? await validatedOrg({ user, request })
+			? await requireEditableOrganization({ user, request })
 			: undefined;
 
 	errorToastIfFalsy(
@@ -89,7 +88,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 async function validatedTeam({
 	user,
 	request,
-}: { user: { id: number }; request: Request }) {
+}: {
+	user: { id: number };
+	request: Request;
+}) {
 	const { team: teamCustomUrl } = parseSearchParams({
 		request,
 		schema: z.object({ team: z.string() }),
@@ -105,10 +107,13 @@ async function validatedTeam({
 	return team;
 }
 
-async function validatedOrg({
+async function requireEditableOrganization({
 	user,
 	request,
-}: { user: { id: number }; request: Request }) {
+}: {
+	user: { id: number };
+	request: Request;
+}) {
 	const { slug } = parseSearchParams({
 		request,
 		schema: z.object({ slug: z.string() }),
@@ -117,7 +122,7 @@ async function validatedOrg({
 		await TournamentOrganizationRepository.findBySlug(slug),
 	);
 
-	unauthorizedIfFalsy(canEditTournamentOrganization({ user, organization }));
+	requirePermission(organization, "EDIT", user);
 
 	return organization;
 }

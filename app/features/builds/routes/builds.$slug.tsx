@@ -7,10 +7,9 @@ import {
 import { nanoid } from "nanoid";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
+import * as R from "remeda";
 import { BuildCard } from "~/components/BuildCard";
-import { LinkButton } from "~/components/Button";
-import { Main } from "~/components/Main";
-import { SendouButton } from "~/components/elements/Button";
+import { LinkButton, SendouButton } from "~/components/elements/Button";
 import { SendouMenu, SendouMenuItem } from "~/components/elements/Menu";
 import { BeakerFilledIcon } from "~/components/icons/BeakerFilled";
 import { CalendarIcon } from "~/components/icons/Calendar";
@@ -18,11 +17,7 @@ import { ChartBarIcon } from "~/components/icons/ChartBar";
 import { FilterIcon } from "~/components/icons/Filter";
 import { FireIcon } from "~/components/icons/Fire";
 import { MapIcon } from "~/components/icons/Map";
-import {
-	BUILDS_PAGE_BATCH_SIZE,
-	BUILDS_PAGE_MAX_BUILDS,
-	PATCHES,
-} from "~/constants";
+import { Main } from "~/components/Main";
 import { useUser } from "~/features/auth/core/user";
 import { safeJSONParse } from "~/utils/json";
 import { isRevalidation, metaTags } from "~/utils/remix";
@@ -37,8 +32,11 @@ import {
 	weaponBuildStatsPage,
 } from "~/utils/urls";
 import {
+	BUILDS_PAGE_BATCH_SIZE,
+	BUILDS_PAGE_MAX_BUILDS,
 	FILTER_SEARCH_PARAM_KEY,
 	MAX_BUILD_FILTERS,
+	PATCHES,
 } from "../builds-constants";
 import type { BuildFiltersFromSearchParams } from "../builds-schemas.server";
 import type { AbilityBuildFilter, BuildFilter } from "../builds-types";
@@ -46,6 +44,8 @@ import { FilterSection } from "../components/FilterSection";
 
 import { loader } from "../loaders/builds.$slug.server";
 export { loader };
+
+import styles from "./builds.$slug.module.css";
 
 const filterOutMeaninglessFilters = (
 	filter: Unpacked<BuildFiltersFromSearchParams>,
@@ -159,15 +159,11 @@ export const handle: SendouRouteHandle = {
 	},
 };
 
-export function BuildCards({
-	data,
-}: {
-	data: SerializeFrom<typeof loader>;
-}) {
+export function BuildCards({ data }: { data: SerializeFrom<typeof loader> }) {
 	const user = useUser();
 
 	return (
-		<div className="builds-container">
+		<div className={styles.buildsContainer}>
 			{data.builds.map((build) => {
 				return (
 					<BuildCard
@@ -194,8 +190,7 @@ export default function WeaponsBuildsPage() {
 	const filtersForSearchParams = (filters: BuildFilter[]) =>
 		JSON.stringify(
 			filters.map((f) => {
-				const { id, ...rest } = f;
-				return rest;
+				return R.omit(f, ["id"]);
 			}),
 		);
 	const syncSearchParams = (newFilters: BuildFilter[]) => {
@@ -279,7 +274,7 @@ export default function WeaponsBuildsPage() {
 
 	return (
 		<Main className="stack lg">
-			<div className="builds-buttons">
+			<div className={styles.buildsButtons}>
 				<SendouMenu
 					trigger={
 						<SendouButton
@@ -317,12 +312,12 @@ export default function WeaponsBuildsPage() {
 						{t("builds:filters.type.date")}
 					</SendouMenuItem>
 				</SendouMenu>
-				<div className="builds-buttons__link">
+				<div className={styles.buildsButtonsLink}>
 					<LinkButton
 						to={weaponBuildStatsPage(data.slug)}
 						variant="outlined"
 						icon={<ChartBarIcon />}
-						size="tiny"
+						size="small"
 					>
 						{t("builds:linkButton.abilityStats")}
 					</LinkButton>
@@ -330,7 +325,7 @@ export default function WeaponsBuildsPage() {
 						to={weaponBuildPopularPage(data.slug)}
 						variant="outlined"
 						icon={<FireIcon />}
-						size="tiny"
+						size="small"
 					>
 						{t("builds:linkButton.popularBuilds")}
 					</LinkButton>
@@ -357,7 +352,7 @@ export default function WeaponsBuildsPage() {
 				data.builds.length === data.limit && (
 					<LinkButton
 						className="m-0-auto"
-						size="tiny"
+						size="small"
 						to={loadMoreLink()}
 						preventScrollReset
 					>

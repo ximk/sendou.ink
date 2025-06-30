@@ -2,35 +2,44 @@ import type { MetaFunction, SerializeFrom } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "~/components/Avatar";
-import { LinkButton } from "~/components/Button";
 import { Divider } from "~/components/Divider";
+import { LinkButton } from "~/components/elements/Button";
+import {
+	SendouTab,
+	SendouTabList,
+	SendouTabPanel,
+	SendouTabs,
+} from "~/components/elements/Tabs";
+import { Image } from "~/components/Image";
+import { EditIcon } from "~/components/icons/Edit";
+import { LinkIcon } from "~/components/icons/Link";
+import { LockIcon } from "~/components/icons/Lock";
+import { UsersIcon } from "~/components/icons/Users";
 import { Main } from "~/components/Main";
-import { NewTabs } from "~/components/NewTabs";
 import { Pagination } from "~/components/Pagination";
 import { Placement } from "~/components/Placement";
-import { EditIcon } from "~/components/icons/Edit";
-import { useUser } from "~/features/auth/core/user";
 import { BadgeDisplay } from "~/features/badges/components/BadgeDisplay";
-import { useIsMounted } from "~/hooks/useIsMounted";
+import { BannedUsersList } from "~/features/tournament-organization/components/BannedPlayersList";
+import { useHasPermission } from "~/modules/permissions/hooks";
 import { databaseTimestampNow, databaseTimestampToDate } from "~/utils/dates";
 import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import {
 	BLANK_IMAGE_URL,
 	calendarEventPage,
+	navIconUrl,
 	tournamentOrganizationEditPage,
 	tournamentOrganizationPage,
 	tournamentPage,
 	userPage,
 	userSubmittedImage,
 } from "~/utils/urls";
+import { action } from "../actions/org.$slug.server";
 import { EventCalendar } from "../components/EventCalendar";
 import { SocialLinksList } from "../components/SocialLinksList";
-import { TOURNAMENT_SERIES_EVENTS_PER_PAGE } from "../tournament-organization-constants";
-import { canEditTournamentOrganization } from "../tournament-organization-utils";
-
 import { loader } from "../loaders/org.$slug.server";
-export { loader };
+import { TOURNAMENT_SERIES_EVENTS_PER_PAGE } from "../tournament-organization-constants";
+export { action, loader };
 
 import "../tournament-organization.css";
 
@@ -100,8 +109,8 @@ export default function TournamentOrganizationPage() {
 
 function LogoHeader() {
 	const { t } = useTranslation(["common"]);
-	const user = useUser();
 	const data = useLoaderData<typeof loader>();
+	const canEditOrganization = useHasPermission(data.organization, "EDIT");
 
 	return (
 		<div className="stack horizontal md">
@@ -115,16 +124,14 @@ function LogoHeader() {
 			/>
 			<div className="stack sm">
 				<div className="text-xl font-bold">{data.organization.name}</div>
-				{canEditTournamentOrganization({
-					user,
-					organization: data.organization,
-				}) ? (
+				{canEditOrganization ? (
 					<div className="stack items-start">
 						<LinkButton
 							to={tournamentOrganizationEditPage(data.organization.slug)}
 							icon={<EditIcon />}
-							size="tiny"
+							size="small"
 							variant="outlined"
+							testId="edit-org-button"
 						>
 							{t("common:actions.edit")}
 						</LinkButton>
@@ -141,42 +148,54 @@ function LogoHeader() {
 function InfoTabs() {
 	const { t } = useTranslation(["org"]);
 	const data = useLoaderData<typeof loader>();
+	const canBanPlayers = useHasPermission(data.organization, "BAN");
+
+	const hasSocials =
+		data.organization.socials && data.organization.socials.length > 0;
+	const hasBadges = data.organization.badges.length > 0;
 
 	return (
 		<div>
-			<NewTabs
-				tabs={[
-					{
-						label: t("org:edit.form.socialLinks.title"),
-						disabled:
-							!data.organization.socials ||
-							data.organization.socials.length === 0,
-					},
-					{
-						label: t("org:edit.form.members.title"),
-					},
-					{
-						label: t("org:edit.form.badges.title"),
-						disabled: data.organization.badges.length === 0,
-					},
-				]}
-				content={[
-					{
-						element: (
-							<SocialLinksList links={data.organization.socials ?? []} />
-						),
-						key: "socials",
-					},
-					{
-						element: <MembersList />,
-						key: "members",
-					},
-					{
-						element: <BadgeDisplay badges={data.organization.badges} />,
-						key: "badges",
-					},
-				]}
-			/>
+			<SendouTabs>
+				<SendouTabList>
+					<SendouTab id="socials" isDisabled={!hasSocials} icon={<LinkIcon />}>
+						{t("org:edit.form.socialLinks.title")}
+					</SendouTab>
+					<SendouTab id="members" icon={<UsersIcon />}>
+						{t("org:edit.form.members.title")}
+					</SendouTab>
+					<SendouTab
+						id="badges"
+						isDisabled={!hasBadges}
+						icon={<Image path={navIconUrl("badges")} alt="" width={16} />}
+					>
+						{t("org:edit.form.badges.title")}
+					</SendouTab>
+					{canBanPlayers && data.bannedUsers ? (
+						<SendouTab
+							id="banned-users"
+							icon={<LockIcon />}
+							data-testid="banned-users-tab"
+						>
+							{t("org:banned.title")}
+						</SendouTab>
+					) : null}
+				</SendouTabList>
+				<SendouTabPanel id="socials">
+					<SocialLinksList links={data.organization.socials ?? []} />
+				</SendouTabPanel>
+				<SendouTabPanel id="members">
+					<MembersList />
+				</SendouTabPanel>
+				<SendouTabPanel id="badges">
+					<BadgeDisplay badges={data.organization.badges} />
+				</SendouTabPanel>
+				{data.bannedUsers ? (
+					<SendouTabPanel id="banned-users">
+						<BannedUsersList bannedUsers={data.bannedUsers} />
+					</SendouTabPanel>
+				) : null}
+			</SendouTabs>
 		</div>
 	);
 }
@@ -235,43 +254,36 @@ function SeriesView({
 }) {
 	const { t } = useTranslation(["org"]);
 
+	const hasLeaderboard = Boolean(series.leaderboard);
+
 	return (
 		<div className="stack md">
 			<SeriesHeader series={series} />
 			<div>
-				<NewTabs
-					disappearing
-					tabs={[
-						{
-							label: t("org:events.tabs.events"),
-							number: series.eventsCount,
-						},
-						{
-							label: t("org:events.tabs.leaderboard"),
-							disabled: !series.leaderboard,
-						},
-					]}
-					content={[
-						{
-							key: "events",
-							element: (
-								<div className="stack lg">
-									<EventsList showYear />
-									<EventsPagination series={series} />
-								</div>
-							),
-						},
-						{
-							key: "leaderboard",
-							element: series.leaderboard && (
-								<EventLeaderboard
-									leaderboard={series.leaderboard}
-									ownEntry={series.ownEntry}
-								/>
-							),
-						},
-					]}
-				/>
+				<SendouTabs>
+					<SendouTabList>
+						<SendouTab id="events" number={series.eventsCount}>
+							{t("org:events.tabs.events")}
+						</SendouTab>
+						<SendouTab id="leaderboard" isDisabled={!hasLeaderboard}>
+							{t("org:events.tabs.leaderboard")}
+						</SendouTab>
+					</SendouTabList>
+					<SendouTabPanel id="events">
+						<div className="stack lg">
+							<EventsList showYear />
+							<EventsPagination series={series} />
+						</div>
+					</SendouTabPanel>
+					<SendouTabPanel id="leaderboard">
+						{hasLeaderboard && (
+							<EventLeaderboard
+								leaderboard={series.leaderboard!}
+								ownEntry={series.ownEntry}
+							/>
+						)}
+					</SendouTabPanel>
+				</SendouTabs>
 			</div>
 		</div>
 	);
@@ -346,7 +358,7 @@ function SeriesButton({
 	return (
 		<LinkButton
 			variant="minimal"
-			size="tiny"
+			size="small"
 			to={`?series=${seriesId ?? "all"}`}
 		>
 			{children}
@@ -357,12 +369,12 @@ function SeriesButton({
 function EventsList({
 	showYear,
 	filteredByMonth,
-}: { showYear?: boolean; filteredByMonth?: boolean }) {
+}: {
+	showYear?: boolean;
+	filteredByMonth?: boolean;
+}) {
 	const { t } = useTranslation(["org"]);
 	const data = useLoaderData<typeof loader>();
-	const isMounted = useIsMounted();
-
-	if (!isMounted) return null;
 
 	const now = databaseTimestampNow();
 
@@ -483,6 +495,8 @@ function EventsPagination({
 }: {
 	series: NonNullable<SerializeFrom<typeof loader>["series"]>;
 }) {
+	const [, setSearchParams] = useSearchParams();
+
 	if (!series.eventsCount) return null;
 
 	const pagesCount = Math.ceil(
@@ -490,8 +504,6 @@ function EventsPagination({
 	);
 
 	if (pagesCount <= 1) return null;
-
-	const [, setSearchParams] = useSearchParams();
 
 	const setPage = (page: number) =>
 		setSearchParams((prev) => {

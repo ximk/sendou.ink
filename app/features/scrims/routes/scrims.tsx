@@ -1,22 +1,24 @@
 import type { MetaFunction } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import clsx from "clsx";
+import { formatDistance } from "date-fns";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import * as R from "remeda";
-import type { z } from "zod";
+import type { z } from "zod/v4";
+import { AddNewButton } from "~/components/AddNewButton";
 import { Avatar } from "~/components/Avatar";
-import { Button, LinkButton } from "~/components/Button";
 import { Divider } from "~/components/Divider";
-import { FormWithConfirm } from "~/components/FormWithConfirm";
-import { Table } from "~/components/Table";
-import { SendouButton } from "~/components/elements/Button";
+import { LinkButton, SendouButton } from "~/components/elements/Button";
 import { SendouDialog } from "~/components/elements/Dialog";
 import { SendouPopover } from "~/components/elements/Popover";
+import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { SendouForm } from "~/components/form/SendouForm";
 import { EyeSlashIcon } from "~/components/icons/EyeSlash";
 import { SpeechBubbleIcon } from "~/components/icons/SpeechBubble";
 import { UsersIcon } from "~/components/icons/Users";
+import { Table } from "~/components/Table";
+import TimePopover from "~/components/TimePopover";
 import { useUser } from "~/features/auth/core/user";
 import { useIsMounted } from "~/hooks/useIsMounted";
 import { joinListToNaturalString, nullFilledArray } from "~/utils/arrays";
@@ -26,12 +28,19 @@ import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import {
 	associationsPage,
+	navIconUrl,
+	newScrimPostPage,
 	scrimPage,
+	scrimsPage,
 	userPage,
 	userSubmittedImage,
 } from "~/utils/urls";
-import { Main } from "../../../components/Main";
-import { NewTabs } from "../../../components/NewTabs";
+import {
+	SendouTab,
+	SendouTabList,
+	SendouTabPanel,
+	SendouTabs,
+} from "../../../components/elements/Tabs";
 import { ArrowDownOnSquareIcon } from "../../../components/icons/ArrowDownOnSquare";
 import { ArrowUpOnSquareIcon } from "../../../components/icons/ArrowUpOnSquare";
 import { CheckmarkIcon } from "../../../components/icons/Checkmark";
@@ -39,13 +48,13 @@ import { ClockIcon } from "../../../components/icons/Clock";
 import { CrossIcon } from "../../../components/icons/Cross";
 import { MegaphoneIcon } from "../../../components/icons/MegaphoneIcon";
 import { SpeechBubbleFilledIcon } from "../../../components/icons/SpeechBubbleFilled";
+import { Main } from "../../../components/Main";
+import { action } from "../actions/scrims.server";
 import { WithFormField } from "../components/WithFormField";
+import { loader } from "../loaders/scrims.server";
 import { SCRIM } from "../scrims-constants";
 import { newRequestSchema } from "../scrims-schemas";
 import type { ScrimPost, ScrimPostRequest } from "../scrims-types";
-
-import { action } from "../actions/scrims.server";
-import { loader } from "../loaders/scrims.server";
 export { loader, action };
 
 import styles from "./scrims.module.css";
@@ -54,6 +63,11 @@ export type NewRequestFormFields = z.infer<typeof newRequestSchema>;
 
 export const handle: SendouRouteHandle = {
 	i18n: ["calendar", "scrims"],
+	breadcrumb: () => ({
+		imgPath: navIconUrl("scrims"),
+		href: scrimsPage(),
+		type: "IMAGE",
+	}),
 };
 
 export const meta: MetaFunction<typeof loader> = (args) => {
@@ -87,82 +101,81 @@ export default function ScrimsPage() {
 
 	return (
 		<Main className="stack lg">
-			{user ? (
+			<div className="stack horizontal justify-between items-center">
 				<LinkButton
-					size="tiny"
+					size="small"
 					to={associationsPage()}
-					className="mr-auto"
+					className={clsx("mr-auto", { invisible: !user })}
 					variant="outlined"
 				>
 					{t("scrims:associations.title")}
 				</LinkButton>
-			) : null}
+				<AddNewButton to={newScrimPostPage()} navIcon="scrims" />
+			</div>
 			{typeof scrimToRequestId === "number" ? (
 				<RequestScrimModal
 					postId={scrimToRequestId}
 					close={() => setScrimToRequestId(undefined)}
 				/>
 			) : null}
-			<NewTabs
-				sticky
-				disappearing
-				defaultIndex={data.posts.owned.length > 0 ? 0 : 2}
-				tabs={[
-					{
-						label: t("scrims:tabs.owned"),
-						number: data.posts.owned.length,
-						disabled: !user,
-						icon: <ArrowDownOnSquareIcon />,
-					},
-					{
-						label: t("scrims:tabs.requests"),
-						number: data.posts.requested.length,
-						disabled: !user,
-						icon: <ArrowUpOnSquareIcon />,
-					},
-					{
-						label: t("scrims:tabs.available"),
-						number: data.posts.neutral.length,
-						icon: <MegaphoneIcon />,
-					},
-				]}
-				content={[
-					{
-						key: "owned",
-						element: (
-							<ScrimsDaySeparatedTables
-								posts={data.posts.owned}
-								showDeletePost
-								showRequestRows
-							/>
-						),
-					},
-					{
-						key: "requested",
-						element: (
-							<ScrimsDaySeparatedTables
-								posts={data.posts.requested}
-								requestScrim={setScrimToRequestId}
-								showStatus
-							/>
-						),
-					},
-					{
-						key: "available",
-						element:
-							data.posts.neutral.length > 0 ? (
-								<ScrimsDaySeparatedTables
-									posts={data.posts.neutral}
-									requestScrim={setScrimToRequestId}
-								/>
-							) : (
-								<div className="text-lighter text-lg font-semi-bold text-center mt-6">
-									{t("scrims:noneAvailable")}
-								</div>
-							),
-					},
-				]}
-			/>
+			<SendouTabs
+				defaultSelectedKey={data.posts.owned.length > 0 ? "owned" : "available"}
+			>
+				<SendouTabList sticky>
+					<SendouTab
+						id="owned"
+						isDisabled={!user}
+						icon={<ArrowDownOnSquareIcon />}
+						number={data.posts.owned.length}
+					>
+						{t("scrims:tabs.owned")}
+					</SendouTab>
+					<SendouTab
+						id="requested"
+						isDisabled={!user}
+						icon={<ArrowUpOnSquareIcon />}
+						number={data.posts.requested.length}
+						data-testid="requests-scrims-tab"
+					>
+						{t("scrims:tabs.requests")}
+					</SendouTab>
+					<SendouTab
+						id="available"
+						icon={<MegaphoneIcon />}
+						number={data.posts.neutral.length}
+						data-testid="available-scrims-tab"
+					>
+						{t("scrims:tabs.available")}
+					</SendouTab>
+				</SendouTabList>
+				<SendouTabPanel id="owned">
+					<ScrimsDaySeparatedTables
+						posts={data.posts.owned}
+						showDeletePost
+						showRequestRows
+						showStatus
+					/>
+				</SendouTabPanel>
+				<SendouTabPanel id="requested">
+					<ScrimsDaySeparatedTables
+						posts={data.posts.requested}
+						requestScrim={setScrimToRequestId}
+						showStatus
+					/>
+				</SendouTabPanel>
+				<SendouTabPanel id="available">
+					{data.posts.neutral.length > 0 ? (
+						<ScrimsDaySeparatedTables
+							posts={data.posts.neutral}
+							requestScrim={setScrimToRequestId}
+						/>
+					) : (
+						<div className="text-lighter text-lg font-semi-bold text-center mt-6">
+							{t("scrims:noneAvailable")}
+						</div>
+					)}
+				</SendouTabPanel>
+			</SendouTabs>
 			<div className="mt-6 text-xs text-center text-lighter">
 				{t("calendar:inYourTimeZone")}{" "}
 				{Intl.DateTimeFormat().resolvedOptions().timeZone}
@@ -174,7 +187,10 @@ export default function ScrimsPage() {
 function RequestScrimModal({
 	postId,
 	close,
-}: { postId: number; close: () => void }) {
+}: {
+	postId: number;
+	close: () => void;
+}) {
 	const { t } = useTranslation(["scrims"]);
 	const data = useLoaderData<typeof loader>();
 
@@ -286,7 +302,6 @@ function ScrimsTable({
 }) {
 	const { t } = useTranslation(["common", "scrims"]);
 	const user = useUser();
-	const { i18n } = useTranslation();
 
 	invariant(
 		!(requestScrim && showDeletePost),
@@ -294,6 +309,7 @@ function ScrimsTable({
 	);
 
 	const getStatus = (post: ScrimPost) => {
+		if (post.canceled) return "CANCELED";
 		if (post.requests.at(0)?.isAccepted) return "CONFIRMED";
 		if (
 			post.requests.some((r) => r.users.some((rUser) => user?.id === rUser.id))
@@ -320,9 +336,6 @@ function ScrimsTable({
 				{posts.map((post) => {
 					const owner =
 						post.users.find((user) => user.isOwner) ?? post.users[0];
-
-					const date = databaseTimestampToDate(post.at);
-					const inThePast = date < new Date();
 
 					const requests = showRequestRows
 						? post.requests.map((request) => (
@@ -353,15 +366,27 @@ function ScrimsTable({
 								<td>
 									<div className="stack horizontal sm">
 										<div className={styles.postTime}>
-											{inThePast
-												? t("scrims:now")
-												: databaseTimestampToDate(post.at).toLocaleTimeString(
-														i18n.language,
-														{
-															hour: "numeric",
-															minute: "numeric",
-														},
-													)}
+											{!post.isScheduledForFuture ? (
+												t("scrims:now")
+											) : (
+												<TimePopover
+													time={databaseTimestampToDate(post.at)}
+													options={{
+														hour: "numeric",
+														minute: "numeric",
+													}}
+													underline={false}
+													footerText={t("scrims:postModal.footer", {
+														time: formatDistance(
+															databaseTimestampToDate(post.createdAt),
+															new Date(),
+															{
+																addSuffix: true,
+															},
+														),
+													})}
+												/>
+											)}
 										</div>
 										{post.isPrivate ? (
 											<SendouPopover
@@ -451,6 +476,7 @@ function ScrimsTable({
 											className={clsx(styles.postStatus, {
 												[styles.postStatusConfirmed]: status === "CONFIRMED",
 												[styles.postStatusPending]: status === "PENDING",
+												[styles.postStatusCanceled]: status === "CANCELED",
 											})}
 										>
 											{status === "CONFIRMED" ? (
@@ -463,19 +489,24 @@ function ScrimsTable({
 													<ClockIcon /> {t("scrims:status.pending")}
 												</>
 											) : null}
+											{status === "CANCELED" ? (
+												<>
+													<CrossIcon /> {t("scrims:status.canceled")}
+												</>
+											) : null}
 										</div>
 									</td>
 								) : null}
 								{user && requestScrim && post.requests.length === 0 ? (
 									<td className={styles.postFloatingActionCell}>
-										<Button
-											size="tiny"
-											onClick={() => requestScrim(post.id)}
+										<SendouButton
+											size="small"
+											onPress={() => requestScrim(post.id)}
 											icon={<ArrowUpOnSquareIcon />}
 											className="ml-auto"
 										>
 											{t("scrims:actions.request")}
-										</Button>
+										</SendouButton>
 									</td>
 								) : null}
 								{showDeletePost && !isAccepted ? (
@@ -489,13 +520,13 @@ function ScrimsTable({
 													["_action", "DELETE_POST"],
 												]}
 											>
-												<Button
-													size="tiny"
+												<SendouButton
+													size="small"
 													variant="destructive"
 													className="ml-auto"
 												>
 													{t("common:actions.delete")}
-												</Button>
+												</SendouButton>
 											</FormWithConfirm>
 										) : (
 											<SendouPopover
@@ -509,7 +540,9 @@ function ScrimsTable({
 													</SendouButton>
 												}
 											>
-												{t("scrims:deleteModal.prevented")}
+												{t("scrims:deleteModal.prevented", {
+													username: owner.username,
+												})}
 											</SendouPopover>
 										)}
 									</td>
@@ -528,14 +561,14 @@ function ScrimsTable({
 												["_action", "CANCEL_REQUEST"],
 											]}
 										>
-											<Button
-												size="tiny"
+											<SendouButton
+												size="small"
 												variant="destructive"
 												icon={<CrossIcon />}
 												className="ml-auto"
 											>
 												{t("common:actions.cancel")}
-											</Button>
+											</SendouButton>
 										</FormWithConfirm>
 									</td>
 								) : null}
@@ -567,7 +600,7 @@ function ContactButton({ postId }: { postId: number }) {
 	return (
 		<LinkButton
 			to={scrimPage(postId)}
-			size="tiny"
+			size="small"
 			className="w-max ml-auto"
 			icon={<SpeechBubbleFilledIcon />}
 		>
@@ -580,7 +613,11 @@ function RequestRow({
 	canAccept,
 	request,
 	postId,
-}: { canAccept: boolean; request: ScrimPostRequest; postId: number }) {
+}: {
+	canAccept: boolean;
+	request: ScrimPostRequest;
+	postId: number;
+}) {
 	const { t } = useTranslation(["common", "scrims"]);
 
 	const requestOwner =
@@ -631,6 +668,7 @@ function RequestRow({
 			</td>
 			<td />
 			<td />
+			<td />
 			<td className={styles.postFloatingActionCell}>
 				{!request.isAccepted && canAccept ? (
 					<FormWithConfirm
@@ -642,9 +680,9 @@ function RequestRow({
 						submitButtonVariant="primary"
 						submitButtonText={t("common:actions.accept")}
 					>
-						<Button size="tiny" className="ml-auto">
+						<SendouButton size="small" className="ml-auto">
 							{t("common:actions.accept")}
-						</Button>
+						</SendouButton>
 					</FormWithConfirm>
 				) : !request.isAccepted && !canAccept ? (
 					<SendouPopover

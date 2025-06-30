@@ -1,9 +1,19 @@
 import {
-	type RouteConfig,
 	index,
 	prefix,
+	type RouteConfig,
 	route,
 } from "@remix-run/route-config";
+
+const devOnlyRoutes =
+	process.env.NODE_ENV === "development"
+		? ([
+				route(
+					"/admin/generate-images",
+					"features/admin/routes/generate-images.tsx",
+				),
+			] satisfies RouteConfig)
+		: [];
 
 export default [
 	index("features/front-page/routes/index.tsx"),
@@ -41,6 +51,7 @@ export default [
 			"results/highlights",
 			"features/user-page/routes/u.$identifier.results.highlights.tsx",
 		),
+		route("admin", "features/user-page/routes/u.$identifier.admin.tsx"),
 	]),
 
 	route("/badges", "features/badges/routes/badges.tsx", [
@@ -57,7 +68,6 @@ export default [
 			":id/report-winners",
 			"features/calendar/routes/calendar.$id.report-winners.tsx",
 		),
-		route("map-pool-events", "features/calendar/routes/map-pool-events.ts"),
 	]),
 	route("/calendar.ics", "features/calendar/routes/calendar.ics.tsx"),
 
@@ -236,6 +246,14 @@ export default [
 			"/calendar/:year/:week",
 			"features/api-public/routes/calendar.$year.$week.ts",
 		),
+		route(
+			"/sendouq/active-match/:userId",
+			"features/api-public/routes/sendouq.active-match.$userId.ts",
+		),
+		route(
+			"/sendouq/match/:matchId",
+			"features/api-public/routes/sendouq.match.$matchId.ts",
+		),
 		route("/tournament/:id", "features/api-public/routes/tournament.$id.ts"),
 		route(
 			"/tournament/:id/teams",
@@ -273,4 +291,5 @@ export default [
 		route("impersonate", "features/auth/routes/auth.impersonate.ts"),
 		route("impersonate/stop", "features/auth/routes/auth.impersonate.stop.ts"),
 	]),
+	...devOnlyRoutes,
 ] satisfies RouteConfig;

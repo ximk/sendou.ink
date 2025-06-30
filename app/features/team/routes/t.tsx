@@ -2,14 +2,15 @@ import type { MetaFunction } from "@remix-run/node";
 import { Form, Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
+import { AddNewButton } from "~/components/AddNewButton";
 import { Alert } from "~/components/Alert";
+import { SendouDialog } from "~/components/elements/Dialog";
 import { FormErrors } from "~/components/FormErrors";
 import { Input } from "~/components/Input";
+import { SearchIcon } from "~/components/icons/Search";
 import { Main } from "~/components/Main";
 import { Pagination } from "~/components/Pagination";
 import { SubmitButton } from "~/components/SubmitButton";
-import { SendouDialog } from "~/components/elements/Dialog";
-import { SearchIcon } from "~/components/icons/Search";
 import { useUser } from "~/features/auth/core/user";
 import { usePagination } from "~/hooks/usePagination";
 import { useHasRole } from "~/modules/permissions/hooks";
@@ -17,15 +18,15 @@ import { joinListToNaturalString } from "~/utils/arrays";
 import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import {
-	TEAM_SEARCH_PAGE,
+	NEW_TEAM_PAGE,
 	navIconUrl,
+	TEAM_SEARCH_PAGE,
 	teamPage,
 	userSubmittedImage,
 } from "~/utils/urls";
-import { TEAM, TEAMS_PER_PAGE } from "../team-constants";
-
 import { action } from "../actions/t.server";
 import { loader } from "../loaders/t.server";
+import { TEAM, TEAMS_PER_PAGE } from "../team-constants";
 export { loader, action };
 
 import "../team.css";
@@ -87,14 +88,17 @@ export default function TeamSearchPage() {
 	return (
 		<Main className="stack lg">
 			<NewTeamDialog />
-			<Input
-				className="team-search__input"
-				icon={<SearchIcon className="team-search__icon" />}
-				value={inputValue}
-				onChange={(e) => setInputValue(e.target.value)}
-				placeholder={t("team:teamSearch.placeholder")}
-				testId="team-search-input"
-			/>
+			<div className="stack sm horizontal justify-between">
+				<Input
+					className="team-search__input"
+					icon={<SearchIcon className="team-search__icon" />}
+					value={inputValue}
+					onChange={(e) => setInputValue(e.target.value)}
+					placeholder={t("team:teamSearch.placeholder")}
+					testId="team-search-input"
+				/>
+				<AddNewButton navIcon="t" to={NEW_TEAM_PAGE} />
+			</div>
 			<div className="mt-6 stack lg">
 				{itemsToDisplay.map((team, i) => (
 					<Link

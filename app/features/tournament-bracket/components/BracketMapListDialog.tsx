@@ -2,20 +2,19 @@ import { type FetcherWithComponents, Link, useFetcher } from "@remix-run/react";
 import clsx from "clsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "~/components/Button";
-import { ModeImage, StageImage } from "~/components/Image";
-import { Label } from "~/components/Label";
-import { SubmitButton } from "~/components/SubmitButton";
 import { SendouDialog } from "~/components/elements/Dialog";
 import { SendouSwitch } from "~/components/elements/Switch";
+import { ModeImage, StageImage } from "~/components/Image";
 import { RefreshArrowsIcon } from "~/components/icons/RefreshArrows";
+import { Label } from "~/components/Label";
+import { SubmitButton } from "~/components/SubmitButton";
 import type { TournamentRoundMaps } from "~/db/tables";
-import * as PickBan from "~/features/tournament-bracket/core/PickBan";
 import {
 	useTournament,
 	useTournamentPreparedMaps,
 } from "~/features/tournament/routes/to.$id";
 import { TOURNAMENT } from "~/features/tournament/tournament-constants";
+import * as PickBan from "~/features/tournament-bracket/core/PickBan";
 import type { TournamentManagerDataSet } from "~/modules/brackets-manager/types";
 import type { ModeShort, StageId } from "~/modules/in-game-lists/types";
 import { nullFilledArray } from "~/utils/arrays";
@@ -29,12 +28,12 @@ import { UnlinkIcon } from "../../../components/icons/Unlink";
 import { logger } from "../../../utils/logger";
 import type { Bracket } from "../core/Bracket";
 import * as PreparedMaps from "../core/PreparedMaps";
-import type { Tournament } from "../core/Tournament";
 import { getRounds } from "../core/rounds";
+import type { Tournament } from "../core/Tournament";
 import {
 	type BracketMapCounts,
-	type TournamentRoundMapList,
 	generateTournamentRoundMaplist,
+	type TournamentRoundMapList,
 } from "../core/toMapList";
 
 export function BracketMapListDialog({
@@ -56,7 +55,7 @@ export function BracketMapListDialog({
 
 	useCloseModalOnSubmit(fetcher, close);
 
-	const bracketTeamsCount = bracket.tournamentTeamIds.length;
+	const bracketTeamsCount = bracket.participantTournamentTeamIds.length;
 
 	const preparedMaps =
 		!isPreparing &&
@@ -435,11 +434,11 @@ export function BracketMapListDialog({
 								) : null}
 							</div>
 							{tournament.ctx.toSetMapPool.length > 0 ? (
-								<Button
-									size="tiny"
+								<SendouButton
+									size="small"
 									icon={<RefreshArrowsIcon />}
 									variant="outlined"
-									onClick={() =>
+									onPress={() =>
 										setMaps(
 											generateTournamentRoundMaplist({
 												mapCounts,
@@ -454,7 +453,7 @@ export function BracketMapListDialog({
 									}
 								>
 									Reroll all maps
-								</Button>
+								</SendouButton>
 							) : null}
 						</div>
 						{needsToPickEliminationTeamCount ? (
@@ -592,7 +591,7 @@ export function BracketMapListDialog({
 								) : (
 									<SubmitButton
 										variant="outlined"
-										size="tiny"
+										size="small"
 										testId="confirm-finalize-bracket-button"
 										_action={isPreparing ? "PREPARE_MAPS" : "START_BRACKET"}
 										className="mx-auto"
@@ -690,7 +689,10 @@ function authorIdToUsername(tournament: Tournament, authorId: number) {
 function teamCountAdjustedBracketData({
 	bracket,
 	teamCount,
-}: { bracket: Bracket; teamCount: number }) {
+}: {
+	bracket: Bracket;
+	teamCount: number;
+}) {
 	switch (bracket.type) {
 		case "swiss":
 			// always has the same amount of rounds even if 0 participants
@@ -894,13 +896,13 @@ function RoundMapList({
 		<div>
 			<h3 className="stack horizontal sm">
 				<div>{name}</div>{" "}
-				<Button
+				<SendouButton
 					variant={editing ? "minimal-success" : "minimal"}
-					onClick={() => setEditing(!editing)}
-					testId="edit-round-maps-button"
+					onPress={() => setEditing(!editing)}
+					data-testid="edit-round-maps-button"
 				>
 					{editing ? "Save" : "Edit"}
-				</Button>
+				</SendouButton>
 			</h3>
 			{unlink ? (
 				<SendouButton
@@ -1077,13 +1079,11 @@ function MysteryRow({
 				})}
 			>
 				<span className="text-lg">{number}.</span>
-				{isCounterpicks ? (
-					<>Counterpick</>
-				) : isTiebreaker ? (
-					<>Tiebreaker</>
-				) : (
-					<>Team&apos;s pick</>
-				)}
+				{isCounterpicks
+					? "Counterpick"
+					: isTiebreaker
+						? "Tiebreaker"
+						: "Team's pick"}
 			</div>
 		</li>
 	);

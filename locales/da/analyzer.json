@@ -1,4 +1,5 @@
 {
+	"weaponSelect.label": "",
 	"attribute.weight": "Vægt",
 	"attribute.weight.Fast": "Let",
 	"attribute.weight.Slow": "Tung",
@@ -159,5 +160,7 @@
 	"noDmgData": "Der er endnu ikke nogen data for dette våbens skade.",
 	"perInkTankGrid.header_one": "{{weapon}} skud efter at sub-våbnet er brugt {{count}} gange ",
 	"perInkTankGrid.header_other": "{{weapon}} skud efter sub-våbnet er brugt {{count}} gange",
-	"bigBubblerExplanation": "{{weapon}}’s varighed og holdbarhed (HP) forøges på samme tid"
+	"bigBubblerExplanation": "{{weapon}}’s varighed og holdbarhed (HP) forøges på samme tid",
+	"button.showChart": "",
+	"button.showConsumptionGrid": ""
 }

@@ -2,11 +2,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import invariant from "~/utils/invariant";
-import weapons from "./dicts/WeaponInfoMain.json";
-
 import { fileURLToPath } from "node:url";
 import { logger } from "~/utils/logger";
+import weapons from "./dicts/WeaponInfoMain.json";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -48,6 +47,13 @@ async function main() {
 			const differentLevelBadge = (fileName: string) => {
 				if (i === 1 && fileName.includes("Lv01")) return true;
 				if (i === 2 && fileName.includes("Lv00")) return true;
+
+				// ver 10.0.0
+				if (fileName.includes("Lv02")) return true;
+				if (fileName.includes("Lv03")) return true;
+				if (fileName.includes("Lv04")) return true;
+				if (fileName.includes("Lv05")) return true;
+				if (fileName.includes("Lv06")) return true;
 
 				return false;
 			};

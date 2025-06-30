@@ -2,22 +2,20 @@ import { Link, useLoaderData } from "@remix-run/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "~/components/Avatar";
-import { Button, LinkButton } from "~/components/Button";
+import { LinkButton, SendouButton } from "~/components/elements/Button";
+import { SendouPopover } from "~/components/elements/Popover";
 import { Flag } from "~/components/Flag";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { WeaponImage } from "~/components/Image";
-import { Redirect } from "~/components/Redirect";
-import { SendouButton } from "~/components/elements/Button";
-import { SendouPopover } from "~/components/elements/Popover";
 import { MicrophoneIcon } from "~/components/icons/Microphone";
 import { TrashIcon } from "~/components/icons/Trash";
+import { Redirect } from "~/components/Redirect";
 import { useUser } from "~/features/auth/core/user";
 import { useTournament } from "~/features/tournament/routes/to.$id";
 import { tournamentRegisterPage, userPage } from "~/utils/urls";
-import type { SubByTournamentId } from "../queries/findSubsByTournamentId.server";
-
 import { action } from "../actions/to.$id.subs.server";
 import { loader } from "../loaders/to.$id.subs.server";
+import type { SubByTournamentId } from "../queries/findSubsByTournamentId.server";
 export { action, loader };
 
 import "../tournament-subs.css";
@@ -67,7 +65,7 @@ function AddOrEditSubButton() {
 	}
 
 	return (
-		<LinkButton to="new" size="tiny">
+		<LinkButton to="new" size="small">
 			{buttonText}
 		</LinkButton>
 	);
@@ -158,14 +156,14 @@ function SubInfoSection({ sub }: { sub: SubByTournamentId }) {
 						}
 						fields={[["userId", sub.userId]]}
 					>
-						<Button
+						<SendouButton
 							variant="minimal-destructive"
-							size="tiny"
+							size="small"
 							type="submit"
 							icon={<TrashIcon />}
 						>
 							{t("common:actions.delete")}
-						</Button>
+						</SendouButton>
 					</FormWithConfirm>
 				</div>
 			) : null}

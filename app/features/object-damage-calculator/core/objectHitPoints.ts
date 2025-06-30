@@ -1,8 +1,8 @@
 import {
 	type AbilityPoints,
+	hpDivided,
 	type SpecialWeaponParams,
 	type SubWeaponParams,
-	hpDivided,
 	specialDeviceHp,
 	specialFieldHp,
 	subStats,
@@ -16,7 +16,7 @@ import {
 import invariant from "~/utils/invariant";
 import type { HitPoints } from "../calculator-types";
 
-const WAVE_BREAKER_HP = 400;
+const WAVE_BREAKER_HP = 480;
 const SPRINKLER_HP = 120;
 const RAINMAKER_HP = 1000;
 const SPLAT_BRELLA_SHIELD_HP = 500;
@@ -59,6 +59,13 @@ export const objectHitPoints = (abilityPoints: AbilityPoints): HitPoints => {
 		),
 		BulletShelterCanopyFocus: hpDivided(
 			weaponParams.mainWeapons[6030].CanopyHP,
+		),
+		BulletUmbrellaCanopyNormal_Launched: SPLAT_BRELLA_SHIELD_HP * 2,
+		BulletUmbrellaCanopyWide_Launched: hpDivided(
+			weaponParams.mainWeapons[6010].CanopyHP * 2,
+		),
+		BulletShelterCanopyFocus_Launched: hpDivided(
+			weaponParams.mainWeapons[6030].CanopyHP * 2,
 		),
 		Wsb_Shield,
 		Bomb_TorpedoBullet: TORPEDO_HP,

@@ -1,7 +1,9 @@
 import { nanoid } from "nanoid";
-import { SKALOP_TOKEN_HEADER_NAME } from "~/constants";
 import invariant from "~/utils/invariant";
+import { logger } from "~/utils/logger";
 import type { ChatMessage } from "./chat-types";
+
+const SKALOP_TOKEN_HEADER_NAME = "Skalop-Token";
 
 type PartialChatMessage = Pick<
 	ChatMessage,
@@ -35,5 +37,5 @@ export const send: ChatSystemMessageService["send"] = (partialMsg) => {
 		method: "POST",
 		body: JSON.stringify(fullMessages),
 		headers: [[SKALOP_TOKEN_HEADER_NAME, process.env.SKALOP_TOKEN!]],
-	}).catch(console.error);
+	}).catch(logger.error);
 };

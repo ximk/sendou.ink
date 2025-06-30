@@ -1,9 +1,8 @@
 import { jsonArrayFrom } from "kysely/helpers/sqlite";
-import { nanoid } from "nanoid";
-import { INVITE_CODE_LENGTH } from "~/constants";
 import { db } from "~/db/sql";
 import type { TablesInsertable, TablesUpdatable } from "~/db/tables";
 import type { AssociationVirtualIdentifier } from "~/features/associations/associations-constants";
+import { shortNanoid } from "~/utils/id";
 import { COMMON_USER_FIELDS } from "~/utils/kysely.server";
 import { logger } from "~/utils/logger";
 
@@ -130,7 +129,7 @@ export function insert({ userId, ...associationArgs }: InsertArgs) {
 	return db.transaction().execute(async (trx) => {
 		const association = await trx
 			.insertInto("Association")
-			.values({ ...associationArgs, inviteCode: nanoid(INVITE_CODE_LENGTH) })
+			.values({ ...associationArgs, inviteCode: shortNanoid() })
 			.returning("id")
 			.executeTakeFirstOrThrow();
 
@@ -155,7 +154,7 @@ export function update(
 export function refreshInviteCode(associationId: number) {
 	return db
 		.updateTable("Association")
-		.set({ inviteCode: nanoid(INVITE_CODE_LENGTH) })
+		.set({ inviteCode: shortNanoid() })
 		.where("id", "=", associationId)
 		.execute();
 }
@@ -163,7 +162,10 @@ export function refreshInviteCode(associationId: number) {
 export function addMember({
 	associationId,
 	userId,
-}: { associationId: number; userId: number }) {
+}: {
+	associationId: number;
+	userId: number;
+}) {
 	return db
 		.insertInto("AssociationMember")
 		.values({ associationId, userId, role: "MEMBER" })
@@ -173,7 +175,10 @@ export function addMember({
 export function removeMember({
 	associationId,
 	userId,
-}: { associationId: number; userId: number }) {
+}: {
+	associationId: number;
+	userId: number;
+}) {
 	return db
 		.deleteFrom("AssociationMember")
 		.where("associationId", "=", associationId)

@@ -1,5 +1,6 @@
 import { type ActionFunctionArgs, redirect } from "@remix-run/node";
-import type { z } from "zod";
+import { add } from "date-fns";
+import type { z } from "zod/v4";
 import type { Tables } from "~/db/tables";
 import { requireUser } from "~/features/auth/core/user.server";
 import { userIsBanned } from "~/features/ban/core/banned.server";
@@ -8,6 +9,7 @@ import { dateToDatabaseTimestamp } from "~/utils/dates";
 import invariant from "~/utils/invariant";
 import {
 	actionError,
+	errorToast,
 	errorToastIfFalsy,
 	parseRequestPayload,
 } from "~/utils/remix.server";
@@ -15,6 +17,7 @@ import { scrimsPage } from "~/utils/urls";
 import * as QRepository from "../../sendouq/QRepository.server";
 import * as TeamRepository from "../../team/TeamRepository.server";
 import * as ScrimPostRepository from "../ScrimPostRepository.server";
+import { SCRIM } from "../scrims-constants";
 import {
 	type fromSchema,
 	type newRequestSchema,
@@ -51,6 +54,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 		maxDiv: data.divs ? serializeLutiDiv(data.divs.max!) : null,
 		minDiv: data.divs ? serializeLutiDiv(data.divs.min!) : null,
 		text: data.postText,
+		managedByAnyone: data.managedByAnyone,
+		isScheduledForFuture:
+			data.at >
+			// 10 minutes is an arbitrary threshold
+			add(new Date(), {
+				minutes: 10,
+			}),
 		visibility:
 			data.baseVisibility !== "PUBLIC"
 				? {
@@ -89,7 +99,10 @@ const ROLES_TO_EXCLUDE: Tables["TeamMember"]["role"][] = [
 export const usersListForPost = async ({
 	from,
 	authorId,
-}: { from: z.infer<typeof fromSchema>; authorId: number }) => {
+}: {
+	from: z.infer<typeof fromSchema>;
+	authorId: number;
+}) => {
 	if (from.mode === "PICKUP") {
 		return [authorId, ...from.users];
 	}
@@ -100,9 +113,23 @@ export const usersListForPost = async ({
 	);
 	errorToastIfFalsy(team, "User is not a member of this team");
 
-	return team.members
-		.filter((member) => !ROLES_TO_EXCLUDE.includes(member.role))
-		.map((member) => member.id);
+	const filteredMembers = team.members.filter(
+		(member) => !ROLES_TO_EXCLUDE.includes(member.role),
+	);
+
+	// handle case when all users are from excluded roles
+	const result = (
+		filteredMembers.length >= SCRIM.MIN_MEMBERS_PER_TEAM
+			? filteredMembers
+			: team.members
+	).map((member) => member.id);
+
+	if (result.length < SCRIM.MIN_MEMBERS_PER_TEAM) {
+		errorToast("Your team does not have enough members (4) to scrim");
+	}
+
+	// ensure author is included in the list even if they match the ignore condition
+	return result.includes(authorId) ? result : [authorId, ...result];
 };
 
 async function validatePickup(userIds: number[], authorId: number) {

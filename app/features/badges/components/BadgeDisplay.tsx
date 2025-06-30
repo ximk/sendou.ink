@@ -2,11 +2,10 @@ import clsx from "clsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "~/components/Badge";
-import { Button } from "~/components/Button";
 import { SendouButton } from "~/components/elements/Button";
 import { TrashIcon } from "~/components/icons/Trash";
 import type { Tables } from "~/db/tables";
-import { BADGE } from "~/features/badges/badges-contants";
+import { BADGE } from "~/features/badges/badges-constants";
 import { usePagination } from "~/hooks/usePagination";
 import type { Unpacked } from "~/utils/types";
 import { badgeExplanationText } from "../badges-utils";
@@ -96,10 +95,10 @@ export function BadgeDisplay({
 				<div className={styles.badgeExplanation}>
 					{badgeExplanationText(t, bigBadge)}
 					{onChange ? (
-						<Button
+						<SendouButton
 							icon={<TrashIcon />}
 							variant="minimal-destructive"
-							onClick={() =>
+							onPress={() =>
 								onChange(
 									badges.filter((b) => b.id !== bigBadge.id).map((b) => b.id),
 								)

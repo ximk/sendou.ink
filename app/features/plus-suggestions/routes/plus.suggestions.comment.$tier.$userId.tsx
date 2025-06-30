@@ -1,16 +1,15 @@
 import { Form, useMatches, useParams } from "@remix-run/react";
-import { Button } from "~/components/Button";
-import { Redirect } from "~/components/Redirect";
+import { SendouButton } from "~/components/elements/Button";
 import { SendouDialog } from "~/components/elements/Dialog";
-import { PlUS_SUGGESTION_COMMENT_MAX_LENGTH } from "~/constants";
+import { Redirect } from "~/components/Redirect";
 import { useUser } from "~/features/auth/core/user";
 import { atOrError } from "~/utils/arrays";
 import { plusSuggestionPage } from "~/utils/urls";
+import { action } from "../actions/plus.suggestions.comment.$tier.$userId.server";
+import { PLUS_SUGGESTION } from "../plus-suggestions-constants";
 import { canAddCommentToSuggestionFE } from "../plus-suggestions-utils";
 import type { PlusSuggestionsLoaderData } from "./plus.suggestions";
 import { CommentTextarea } from "./plus.suggestions.new";
-
-import { action } from "../actions/plus.suggestions.comment.$tier.$userId.server";
 export { action };
 
 export default function PlusCommentModalPage() {
@@ -49,9 +48,9 @@ export default function PlusCommentModalPage() {
 			<Form method="post" className="stack md">
 				<input type="hidden" name="tier" value={tierSuggestedTo} />
 				<input type="hidden" name="suggestedId" value={targetUserId} />
-				<CommentTextarea maxLength={PlUS_SUGGESTION_COMMENT_MAX_LENGTH} />
+				<CommentTextarea maxLength={PLUS_SUGGESTION.COMMENT_MAX_LENGTH} />
 				<div>
-					<Button type="submit">Submit</Button>
+					<SendouButton type="submit">Submit</SendouButton>
 				</div>
 			</Form>
 		</SendouDialog>

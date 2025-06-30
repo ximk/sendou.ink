@@ -5,12 +5,10 @@ import * as React from "react";
 import { Flipped } from "react-flip-toolkit";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "~/components/Avatar";
-import { Button, LinkButton } from "~/components/Button";
+import { LinkButton, SendouButton } from "~/components/elements/Button";
+import { SendouPopover } from "~/components/elements/Popover";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { Image, ModeImage, TierImage, WeaponImage } from "~/components/Image";
-import { SubmitButton } from "~/components/SubmitButton";
-import { SendouButton } from "~/components/elements/Button";
-import { SendouPopover } from "~/components/elements/Popover";
 import { EditIcon } from "~/components/icons/Edit";
 import { MicrophoneIcon } from "~/components/icons/Microphone";
 import { SpeakerIcon } from "~/components/icons/Speaker";
@@ -18,6 +16,7 @@ import { SpeakerXIcon } from "~/components/icons/SpeakerX";
 import { StarIcon } from "~/components/icons/Star";
 import { StarFilledIcon } from "~/components/icons/StarFilled";
 import { TrashIcon } from "~/components/icons/Trash";
+import { SubmitButton } from "~/components/SubmitButton";
 import type { ParsedMemento, Tables } from "~/db/tables";
 import { useUser } from "~/features/auth/core/user";
 import { MATCHES_COUNT_NEEDED_FOR_LEADERBOARD } from "~/features/leaderboards/leaderboards-constants";
@@ -29,10 +28,10 @@ import { SPLATTERCOLOR_SCREEN_ID } from "~/modules/in-game-lists/weapon-ids";
 import { databaseTimestampToDate } from "~/utils/dates";
 import { inGameNameWithoutDiscriminator } from "~/utils/strings";
 import {
-	SENDOUQ_LOOKING_PAGE,
-	TIERS_PAGE,
 	navIconUrl,
+	SENDOUQ_LOOKING_PAGE,
 	specialWeaponImageUrl,
+	TIERS_PAGE,
 	tierImageUrl,
 	userPage,
 } from "~/utils/urls";
@@ -187,7 +186,7 @@ export function GroupCard({
 					<fetcher.Form className="stack items-center" method="post">
 						<input type="hidden" name="targetGroupId" value={group.id} />
 						<SubmitButton
-							size="tiny"
+							size="small"
 							variant={action === "UNLIKE" ? "destructive" : "outlined"}
 							_action={action}
 							state={fetcher.state}
@@ -424,14 +423,14 @@ function MemberNote({
 			<div className="text-lighter text-center text-xs mt-1">
 				{note}{" "}
 				{editable ? (
-					<Button
+					<SendouButton
 						size="miniscule"
 						variant="minimal"
-						onClick={startEditing}
+						onPress={startEditing}
 						className="mt-2 ml-auto"
 					>
 						{t("q:looking.groups.editNote")}
-					</Button>
+					</SendouButton>
 				) : null}
 			</div>
 		);
@@ -440,9 +439,9 @@ function MemberNote({
 	if (!editable) return null;
 
 	return (
-		<Button variant="minimal" size="miniscule" onClick={startEditing}>
+		<SendouButton variant="minimal" size="miniscule" onPress={startEditing}>
 			{t("q:looking.groups.addNote")}
-		</Button>
+		</SendouButton>
 	);
 }
 
@@ -478,13 +477,13 @@ function AddPrivateNoteForm({
 				ref={textareaRef}
 			/>
 			<div className="stack horizontal justify-between">
-				<Button
+				<SendouButton
 					variant="minimal-destructive"
 					size="miniscule"
-					onClick={stopEditing}
+					onPress={stopEditing}
 				>
 					{t("common:actions.cancel")}
-				</Button>
+				</SendouButton>
 				{newValueLegal ? (
 					<SubmitButton
 						_action="UPDATE_NOTE"
@@ -550,8 +549,8 @@ function DeletePrivateNoteForm({
 				["_action", "DELETE_PRIVATE_USER_NOTE"],
 			]}
 		>
-			<SubmitButton variant="minimal-destructive" size="tiny" type="submit">
-				<TrashIcon className="build__icon" />
+			<SubmitButton variant="minimal-destructive" size="small" type="submit">
+				<TrashIcon className="small-icon" />
 			</SubmitButton>
 		</FormWithConfirm>
 	);
@@ -677,7 +676,7 @@ function MemberRoleManager({
 						{member.role === "REGULAR" ? (
 							<SubmitButton
 								variant="outlined"
-								size="tiny"
+								size="small"
 								_action="GIVE_MANAGER"
 								state={fetcher.state}
 							>
@@ -687,7 +686,7 @@ function MemberRoleManager({
 						{member.role === "MANAGER" ? (
 							<SubmitButton
 								variant="destructive"
-								size="tiny"
+								size="small"
 								_action="REMOVE_MANAGER"
 								state={fetcher.state}
 							>
@@ -697,7 +696,7 @@ function MemberRoleManager({
 						{enableKicking && member.id !== loggedInUser?.id ? (
 							<SubmitButton
 								variant="destructive"
-								size="tiny"
+								size="small"
 								_action="KICK_FROM_GROUP"
 								state={fetcher.state}
 							>

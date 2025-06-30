@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { ADMIN_ID } from "~/constants";
 import { NZAP_TEST_ID } from "~/db/seed/constants";
+import { ADMIN_ID } from "~/features/admin/admin-constants";
 import { BANNED_MAPS } from "~/features/sendouq-settings/banned-maps";
 import type { TournamentLoaderData } from "~/features/tournament/loaders/to.$id.server";
 import { rankedModesShort } from "~/modules/in-game-lists/modes";
@@ -59,7 +59,7 @@ test.describe("Tournament", () => {
 			url: tournamentPage(1),
 		});
 
-		await page.getByTestId("tab-Register").click();
+		await page.getByRole("tab", { name: "Register" }).click();
 
 		await page.getByLabel("Pick-up name").fill("Chimera");
 		await page.getByTestId("save-team-button").click();

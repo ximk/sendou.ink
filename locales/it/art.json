@@ -1,5 +1,6 @@
 {
 	"pendingApproval_one": "Hai {{count}} immagine in attesa dell'approvazione di un moderatore",
+	"pendingApproval_many": "",
 	"pendingApproval_other": "Hai {{count}} immagini in attesa dell'approvazione di un moderatore",
 	"madeBy": "Creato da",
 	"radios.all": "Tutti",
@@ -23,6 +24,9 @@
 	"forms.tags.cantFindExisting": "Non riesci a trovare un tag esistente?",
 	"forms.tags.addNew": "Creane uno nuovo.",
 	"forms.tags.addNew.placeholder": "Crea un nuovo tag",
-	"forms.tags.searchExisting.placeholder": "Cerca tag esistenti",
-	"forms.tags.maxReached": "Numero massimo di tag raggiunto."
+	"forms.tags.search.placeholder": "",
+	"forms.tags.placeholder": "",
+	"forms.tags.maxReached": "Numero massimo di tag raggiunto.",
+	"delete.title": "",
+	"unlink.title": ""
 }

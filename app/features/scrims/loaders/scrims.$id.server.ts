@@ -2,8 +2,8 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import * as UserRepository from "~/features/user-page/UserRepository.server";
 import { notFoundIfFalsy } from "../../../utils/remix.server";
 import { requireUser } from "../../auth/core/user.server";
-import * as ScrimPostRepository from "../ScrimPostRepository.server";
 import * as Scrim from "../core/Scrim";
+import * as ScrimPostRepository from "../ScrimPostRepository.server";
 import { FF_SCRIMS_ENABLED } from "../scrims-constants";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
@@ -26,9 +26,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 	return {
 		post,
 		chatUsers: await UserRepository.findChatUsersByUserIds(
-			post.users
-				.map((u) => u.id)
-				.concat(post.requests.at(0)?.users.map((u) => u.id) ?? []),
+			Scrim.participantIdsListFromAccepted(post),
 		),
 	};
 };

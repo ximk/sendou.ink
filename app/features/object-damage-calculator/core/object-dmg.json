@@ -13,11 +13,23 @@
 				"rate": 2.2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2.2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2.2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2.2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.6
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.6
 			},
 			{
@@ -64,11 +76,23 @@
 				"rate": 2.2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2.2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2.2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2.2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.6
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.6
 			},
 			{
@@ -115,11 +139,23 @@
 				"rate": 3.6
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 3.6
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 3.6
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 3.6
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -166,11 +202,23 @@
 				"rate": 2.2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2.2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2.2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2.2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.6
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.6
 			},
 			{
@@ -217,11 +265,23 @@
 				"rate": 2.2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2.2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2.2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2.2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.6
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.6
 			},
 			{
@@ -268,11 +328,23 @@
 				"rate": 5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 7
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 7
 			},
 			{
@@ -373,11 +445,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -428,11 +512,23 @@
 				"rate": 3.6
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 3.6
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 3.6
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 3.6
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 3.6
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 3.6
 			},
 			{
@@ -491,11 +587,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -542,11 +650,23 @@
 				"rate": 4
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 4
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 4
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 4
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 4
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 4
 			},
 			{
@@ -624,11 +744,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -679,11 +811,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -753,11 +897,23 @@
 				"rate": 1.5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1.5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 1.5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 1.5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.5
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.5
 			},
 			{
@@ -812,11 +968,23 @@
 				"rate": 1.5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1.5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 1.5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 1.5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.5
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.5
 			},
 			{
@@ -871,11 +1039,23 @@
 				"rate": 5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 5
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 5
 			},
 			{
@@ -930,11 +1110,23 @@
 				"rate": 2.4
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2.4
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2.4
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2.4
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -989,11 +1181,23 @@
 				"rate": 3.5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 3.5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 3.5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 3.5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2.4
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2.4
 			},
 			{
@@ -1048,11 +1252,23 @@
 				"rate": 3
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 3
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 3
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 3
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -1107,11 +1323,23 @@
 				"rate": 2.4
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2.4
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2.4
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2.4
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -1166,11 +1394,23 @@
 				"rate": 3.5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 3.5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 3.5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 3.5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2.4
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2.4
 			},
 			{
@@ -1225,11 +1465,23 @@
 				"rate": 3
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 3
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 3
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 3
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -1311,11 +1563,23 @@
 				"rate": 3
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 3
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 3
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 3
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 3
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 3
 			},
 			{
@@ -1370,7 +1634,15 @@
 				"rate": 1
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
+				"rate": 1
+			},
+			{
+				"target": "BulletShelterCanopyFocus_Launched",
 				"rate": 1
 			},
 			{
@@ -1414,11 +1686,23 @@
 				"rate": 1
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 1
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 1
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1
 			},
 			{
@@ -1464,11 +1748,23 @@
 				"rate": 3
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 3
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 3
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 3
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 3
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 3
 			},
 			{
@@ -1519,11 +1815,23 @@
 				"rate": 2.5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2.5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2.5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2.5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 3.5
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 3.5
 			},
 			{
@@ -1582,11 +1890,23 @@
 				"rate": 2.5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2.5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2.5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2.5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 3.5
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 3.5
 			},
 			{
@@ -1645,11 +1965,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -1700,11 +2032,23 @@
 				"rate": 0.7
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 0.7
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.1
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.1
 			},
 			{
@@ -1745,11 +2089,23 @@
 				"rate": 0.7
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 0.7
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 0.7
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 0.7
 			},
 			{
@@ -1784,11 +2140,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -1806,6 +2174,10 @@
 			{
 				"target": "GreatBarrier_WeakPoint",
 				"rate": 2.4
+			},
+			{
+				"target": "NiceBall_Armor",
+				"rate": 1
 			},
 			{
 				"target": "ShockSonar",
@@ -1835,11 +2207,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -1894,11 +2278,23 @@
 				"rate": 1.5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1.5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 1.5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 1.5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.5
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.5
 			},
 			{
@@ -1949,7 +2345,15 @@
 				"rate": 2.5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2.5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
+				"rate": 2.5
+			},
+			{
+				"target": "BulletShelterCanopyFocus_Launched",
 				"rate": 2.5
 			},
 			{
@@ -1957,8 +2361,12 @@
 				"rate": 2.5
 			},
 			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
+				"rate": 2.5
+			},
+			{
 				"target": "Chariot",
-				"rate": 2
+				"rate": 4
 			},
 			{
 				"target": "Gachihoko_Barrier",
@@ -2055,11 +2463,23 @@
 				"rate": 4.75
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 4.75
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 4.75
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 4.75
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 3
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 3
 			},
 			{
@@ -2139,11 +2559,23 @@
 				"rate": 1.7
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1.7
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 1.7
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 1.7
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.8
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.8
 			},
 			{
@@ -2198,11 +2630,23 @@
 				"rate": 1.5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1.5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 1.5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 1.5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.5
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.5
 			},
 			{
@@ -2257,11 +2701,23 @@
 				"rate": 1.7
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1.7
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 1.7
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 1.7
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.5
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.5
 			},
 			{
@@ -2324,11 +2780,23 @@
 				"rate": 3.4
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 3.4
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 3.4
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 3.4
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 3.6
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 3.6
 			},
 			{
@@ -2383,11 +2851,23 @@
 				"rate": 1.7
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1.7
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 1.7
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 1.7
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.78
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.78
 			},
 			{
@@ -2446,11 +2926,23 @@
 				"rate": 4.8
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 4.8
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 4.8
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 4.8
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 4.8
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 4.8
 			},
 			{
@@ -2475,7 +2967,7 @@
 			},
 			{
 				"target": "ShockSonar",
-				"rate": 4.8
+				"rate": 2.4
 			},
 			{
 				"target": "Wsb_Flag",
@@ -2509,11 +3001,23 @@
 				"rate": 1.2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1.2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 1.2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 1.2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.2
 			},
 			{
@@ -2572,11 +3076,23 @@
 				"rate": 4.8
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 4.8
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 4.8
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 4.8
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 4.8
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 4.8
 			},
 			{
@@ -2601,7 +3117,7 @@
 			},
 			{
 				"target": "ShockSonar",
-				"rate": 4.8
+				"rate": 2.4
 			},
 			{
 				"target": "Wsb_Flag",
@@ -2635,11 +3151,23 @@
 				"rate": 2.4
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2.4
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2.4
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2.4
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2.4
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2.4
 			},
 			{
@@ -2698,11 +3226,23 @@
 				"rate": 5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 5
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 5
 			},
 			{
@@ -2753,11 +3293,23 @@
 				"rate": 5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 5
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 5
 			},
 			{
@@ -2808,11 +3360,23 @@
 				"rate": 5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 5
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 5
 			},
 			{
@@ -2863,11 +3427,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -2926,11 +3502,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -2989,11 +3577,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -3110,11 +3710,23 @@
 				"rate": 0.7
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 0.7
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.1
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.1
 			},
 			{
@@ -3153,11 +3765,23 @@
 				"rate": 0.7
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 0.7
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 0.7
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 0.7
 			},
 			{
@@ -3192,11 +3816,23 @@
 				"rate": 0.7
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 0.7
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.1
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.1
 			},
 			{
@@ -3235,11 +3871,23 @@
 				"rate": 1.1
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1.1
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 1.1
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 1.1
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 0.7
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 0.7
 			},
 			{
@@ -3286,11 +3934,23 @@
 				"rate": 1.1
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1.1
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 1.1
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 1.1
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 0.7
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 0.7
 			},
 			{
@@ -3337,11 +3997,23 @@
 				"rate": 0.85
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 0.85
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 0.85
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 0.85
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 0.7
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 0.7
 			},
 			{
@@ -3384,11 +4056,23 @@
 				"rate": 1.1
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1.1
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 1.1
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 1.1
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 0.7
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 0.7
 			},
 			{
@@ -3431,11 +4115,23 @@
 				"rate": 0.7
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 0.7
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 0.7
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 0.7
 			},
 			{
@@ -3470,11 +4166,23 @@
 				"rate": 0.7
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 0.7
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.1
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.1
 			},
 			{
@@ -3509,11 +4217,23 @@
 				"rate": 0.7
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 0.7
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.1
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.1
 			},
 			{
@@ -3556,11 +4276,23 @@
 				"rate": 0.8
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 0.8
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 0.8
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 0.8
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 0.8
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 0.8
 			},
 			{
@@ -3607,11 +4339,23 @@
 				"rate": 0.85
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 0.85
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 0.85
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 0.85
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 0.85
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 0.85
 			},
 			{
@@ -3658,11 +4402,23 @@
 				"rate": 0.7
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 0.7
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 0.7
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 0.7
 			},
 			{
@@ -3697,11 +4453,23 @@
 				"rate": 100
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 100
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 100
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 100
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 100
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 100
 			},
 			{
@@ -3752,11 +4520,23 @@
 				"rate": 9.5
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 9.5
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 9.5
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 9.5
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 6
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 6
 			},
 			{
@@ -3811,11 +4591,23 @@
 				"rate": 1.6
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 1.6
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 1.6
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 1.6
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.6
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.6
 			},
 			{
@@ -3858,11 +4650,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -3905,11 +4709,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -3956,11 +4772,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -4010,11 +4838,23 @@
 				"rate": 0.7
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 0.7
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 0.7
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 0.7
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 0.7
 			},
 			{
@@ -4072,11 +4912,23 @@
 				"rate": 2.3333
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2.3333
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2.3333
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2.3333
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 1.5556
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 1.5556
 			},
 			{
@@ -4123,11 +4975,23 @@
 				"rate": 3
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 3
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 3
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 3
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -4186,11 +5050,23 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 2
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 2
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
 			},
 			{
@@ -4241,7 +5117,15 @@
 				"rate": 2
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 2
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
+				"rate": 2
+			},
+			{
+				"target": "BulletShelterCanopyFocus_Launched",
 				"rate": 2
 			},
 			{
@@ -4249,8 +5133,12 @@
 				"rate": 2
 			},
 			{
-				"target": "Chariot",
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 2
+			},
+			{
+				"target": "Chariot",
+				"rate": 3
 			},
 			{
 				"target": "Gachihoko_Barrier",
@@ -4300,11 +5188,23 @@
 				"rate": 6
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 6
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 6
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 6
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 6
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 6
 			},
 			{
@@ -4351,11 +5251,23 @@
 				"rate": 20
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 20
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 20
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 20
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 20
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 20
 			},
 			{
@@ -4403,59 +5315,71 @@
 		"rates": [
 			{
 				"target": "Bomb_TorpedoBullet",
-				"rate": 1
+				"rate": 0.545
 			},
 			{
 				"target": "BulletUmbrellaCanopyCompact",
-				"rate": 5
+				"rate": 4.091
 			},
 			{
 				"target": "BulletUmbrellaCanopyNormal",
-				"rate": 5
+				"rate": 4.091
+			},
+			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 4.091
 			},
 			{
 				"target": "BulletShelterCanopyFocus",
-				"rate": 5
+				"rate": 4.091
+			},
+			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 4.091
 			},
 			{
 				"target": "BulletUmbrellaCanopyWide",
-				"rate": 5
+				"rate": 4.091
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
+				"rate": 4.091
 			},
 			{
 				"target": "Chariot",
-				"rate": 6
+				"rate": 3.273
 			},
 			{
 				"target": "Gachihoko_Barrier",
-				"rate": 3.5
+				"rate": 1.909
 			},
 			{
 				"target": "GreatBarrier_Barrier",
-				"rate": 3.5
+				"rate": 1.909
 			},
 			{
 				"target": "GreatBarrier_WeakPoint",
-				"rate": 2.625
+				"rate": 1.4318
 			},
 			{
 				"target": "NiceBall_Armor",
-				"rate": 2.5
+				"rate": 1.364
 			},
 			{
 				"target": "ShockSonar",
-				"rate": 4
+				"rate": 2.182
 			},
 			{
 				"target": "Wsb_Flag",
-				"rate": 3
+				"rate": 1.636
 			},
 			{
 				"target": "Wsb_Shield",
-				"rate": 4
+				"rate": 2.182
 			},
 			{
 				"target": "Wsb_Sprinkler",
-				"rate": 3
+				"rate": 1.636
 			}
 		]
 	},
@@ -4477,11 +5401,23 @@
 				"rate": 4.091
 			},
 			{
+				"target": "BulletUmbrellaCanopyNormal_Launched",
+				"rate": 4.091
+			},
+			{
 				"target": "BulletShelterCanopyFocus",
 				"rate": 4.091
 			},
 			{
+				"target": "BulletShelterCanopyFocus_Launched",
+				"rate": 4.091
+			},
+			{
 				"target": "BulletUmbrellaCanopyWide",
+				"rate": 4.091
+			},
+			{
+				"target": "BulletUmbrellaCanopyWide_Launched",
 				"rate": 4.091
 			},
 			{

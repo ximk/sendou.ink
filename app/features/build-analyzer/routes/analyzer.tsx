@@ -7,18 +7,21 @@ import { useTranslation } from "react-i18next";
 import { AbilitiesSelector } from "~/components/AbilitiesSelector";
 import { Ability } from "~/components/Ability";
 import Chart from "~/components/Chart";
-import { WeaponCombobox } from "~/components/Combobox";
+import {
+	SendouTab,
+	SendouTabList,
+	SendouTabPanel,
+	SendouTabs,
+} from "~/components/elements/Tabs";
 import { Image } from "~/components/Image";
+import { BeakerIcon } from "~/components/icons/Beaker";
 import { Main } from "~/components/Main";
 import { Table } from "~/components/Table";
-import { Tab, Tabs } from "~/components/Tabs";
-import { BeakerIcon } from "~/components/icons/Beaker";
-import { MAX_AP } from "~/constants";
 import { useUser } from "~/features/auth/core/user";
 import { useIsMounted } from "~/hooks/useIsMounted";
 import { abilitiesShort } from "~/modules/in-game-lists/abilities";
-import type { Ability as AbilityType } from "~/modules/in-game-lists/types";
 import type {
+	Ability as AbilityType,
 	BuildAbilitiesTupleWithUnknown,
 	MainWeaponId,
 	SubWeaponId,
@@ -35,7 +38,6 @@ import {
 	TOXIC_MIST_ID,
 } from "~/modules/in-game-lists/weapon-ids";
 import { atOrError, nullFilledArray } from "~/utils/arrays";
-import { damageTypeTranslationString } from "~/utils/i18next";
 import invariant from "~/utils/invariant";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import {
@@ -51,8 +53,9 @@ import { SendouButton } from "../../../components/elements/Button";
 import { SendouPopover } from "../../../components/elements/Popover";
 import { metaTags } from "../../../utils/remix";
 import {
-	MAX_LDE_INTENSITY,
 	damageTypeToWeaponType,
+	MAX_AP,
+	MAX_LDE_INTENSITY,
 } from "../analyzer-constants";
 import { useAnalyzeBuild } from "../analyzer-hooks";
 import type {
@@ -70,8 +73,8 @@ import {
 	getAbilityChunksMapAsArray,
 } from "../core/abilityChunksCalc";
 import {
-	SPECIAL_EFFECTS,
 	lastDitchEffortIntensityToAp,
+	SPECIAL_EFFECTS,
 } from "../core/specialEffects";
 import { buildStats } from "../core/stats";
 import {
@@ -83,8 +86,10 @@ import {
 import "../analyzer.css";
 import * as R from "remeda";
 import { SendouSwitch } from "~/components/elements/Switch";
+import { WeaponSelect } from "~/components/WeaponSelect";
+import { logger } from "~/utils/logger";
 
-export const CURRENT_PATCH = "9.3";
+export const CURRENT_PATCH = "10.0";
 
 export const meta: MetaFunction = (args) => {
 	return metaTags({
@@ -105,7 +110,7 @@ export const handle: SendouRouteHandle = {
 	}),
 };
 
-// Resolves this Github issue: https://github.com/Sendouc/sendou.ink/issues/1053
+// Resolves this Github issue: https://github.com/sendou-ink/sendou.ink/issues/1053
 export const shouldRevalidate: ShouldRevalidateFunction = () => false;
 
 export default function BuildAnalyzerShell() {
@@ -242,85 +247,95 @@ function BuildAnalyzerPage() {
 				<div className="analyzer__left-column">
 					<div className="stack sm items-center w-full">
 						<div className="w-full">
-							<WeaponCombobox
-								inputName="weapon"
-								onChange={(opt) =>
-									opt &&
+							<WeaponSelect
+								label={t("analyzer:weaponSelect.label")}
+								initialValue={mainWeaponId}
+								onChange={(val) =>
 									handleChange({
-										newMainWeaponId: Number(opt.value) as MainWeaponId,
+										newMainWeaponId: val,
 									})
 								}
-								fullWidth
 							/>
 						</div>
 					</div>
 					<div className="stack md items-center w-full">
 						<div className="w-full">
-							<Tabs className="analyzer__sub-nav" compact>
-								<Tab
-									active={focused === 1}
-									onClick={() => handleChange({ newFocused: 1 })}
-									testId="build1-tab"
-								>
-									{t("analyzer:build1")}
-								</Tab>
-								<Tab
-									active={focused === 2}
-									onClick={() => handleChange({ newFocused: 2 })}
-									testId="build2-tab"
-								>
-									{t("analyzer:build2")}
-								</Tab>
-								<Tab
-									active={focused === 3}
-									onClick={() => handleChange({ newFocused: 3 })}
-									testId="ap-tab"
-								>
-									{t("analyzer:compare")}
-								</Tab>
-							</Tabs>
-							{focusedBuild ? (
-								<AbilitiesSelector
-									selectedAbilities={focusedBuild}
-									onChange={(newBuild) => {
-										const firstBuildIsEmpty = build
-											.flat()
-											.every((ability) => ability === "UNKNOWN");
+							<SendouTabs
+								selectedKey={`build-${focused === 3 ? "compare" : focused}`}
+								onSelectionChange={(id) => {
+									if (id === "build-1") {
+										handleChange({ newFocused: 1 });
+									} else if (id === "build-2") {
+										handleChange({ newFocused: 2 });
+									} else {
+										handleChange({ newFocused: 3 });
+									}
+								}}
+								className="analyzer__sub-nav"
+							>
+								<SendouTabList>
+									<SendouTab id="build-1" data-testid="build1-tab">
+										{t("analyzer:build1")}
+									</SendouTab>
+									<SendouTab id="build-2" data-testid="build2-tab">
+										{t("analyzer:build2")}
+									</SendouTab>
+									<SendouTab id="build-compare" data-testid="ap-tab">
+										{t("analyzer:compare")}
+									</SendouTab>
+								</SendouTabList>
+								{[1, 2].map(
+									(buildIndex) =>
+										focusedBuild && (
+											<SendouTabPanel
+												id={`build-${buildIndex}`}
+												key={`build-${buildIndex}`}
+											>
+												<AbilitiesSelector
+													selectedAbilities={focusedBuild}
+													onChange={(newBuild) => {
+														const firstBuildIsEmpty = build
+															.flat()
+															.every((ability) => ability === "UNKNOWN");
 
-										const buildWasEmptied =
-											!firstBuildIsEmpty &&
-											newBuild
-												.flat()
-												.every((ability) => ability === "UNKNOWN") &&
-											focused === 1;
+														const buildWasEmptied =
+															!firstBuildIsEmpty &&
+															newBuild
+																.flat()
+																.every((ability) => ability === "UNKNOWN") &&
+															focused === 1;
 
-										// if we don't do this the
-										// build2 would be duplicated
-										if (buildWasEmptied) {
-											handleChange({
-												newBuild: build2,
-												newBuild2: newBuild,
-												newFocused: 1,
-											});
-											return;
-										}
+														// if we don't do this the
+														// build2 would be duplicated
+														if (buildWasEmptied) {
+															handleChange({
+																newBuild: build2,
+																newBuild2: newBuild,
+																newFocused: 1,
+															});
+															return;
+														}
 
-										handleChange({
-											[focused === 1 || firstBuildIsEmpty
-												? "newBuild"
-												: "newBuild2"]: newBuild,
-											newFocused: firstBuildIsEmpty ? 1 : undefined,
-										});
-									}}
-								/>
-							) : (
-								<APCompare
-									abilityPoints={abilityPoints}
-									abilityPoints2={abilityPoints2}
-									build={build}
-									build2={build2}
-								/>
-							)}
+														handleChange({
+															[focused === 1 || firstBuildIsEmpty
+																? "newBuild"
+																: "newBuild2"]: newBuild,
+															newFocused: firstBuildIsEmpty ? 1 : undefined,
+														});
+													}}
+												/>
+											</SendouTabPanel>
+										),
+								)}
+								<SendouTabPanel id="build-compare">
+									<APCompare
+										abilityPoints={abilityPoints}
+										abilityPoints2={abilityPoints2}
+										build={build}
+										build2={build2}
+									/>
+								</SendouTabPanel>
+							</SendouTabs>
 						</div>
 						<EffectsSelector
 							build={build}
@@ -1025,7 +1040,7 @@ function StatChart({
 
 	// prevent crash but this should not happen
 	if (chartOptions.length === 0) {
-		console.error("no chart options");
+		logger.error("no chart options");
 		return null;
 	}
 
@@ -1606,10 +1621,8 @@ function DamageTable({
 								: val.value;
 
 						const typeRowName = damageIsSubWeaponDamage(val)
-							? (`weapons:SUB_${val.subWeaponId}` as const)
-							: damageTypeTranslationString({
-									damageType: val.type,
-								});
+							? `weapons:SUB_${val.subWeaponId}`
+							: `analyzer:damage.${val.type}`;
 
 						const comparisonVal = comparisonValues?.[i];
 

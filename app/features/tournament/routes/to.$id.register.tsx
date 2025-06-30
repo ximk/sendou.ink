@@ -7,26 +7,31 @@ import { useTranslation } from "react-i18next";
 import { useCopyToClipboard } from "react-use";
 import { Alert } from "~/components/Alert";
 import { Avatar } from "~/components/Avatar";
-import { Button, LinkButton } from "~/components/Button";
 import { Divider } from "~/components/Divider";
+import { LinkButton, SendouButton } from "~/components/elements/Button";
+import { SendouPopover } from "~/components/elements/Popover";
+import {
+	SendouTab,
+	SendouTabList,
+	SendouTabPanel,
+	SendouTabs,
+} from "~/components/elements/Tabs";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { FriendCodeInput } from "~/components/FriendCodeInput";
 import { Image, ModeImage } from "~/components/Image";
 import { Input } from "~/components/Input";
-import { Label } from "~/components/Label";
-import { containerClassName } from "~/components/Main";
-import { MapPoolStages } from "~/components/MapPoolSelector";
-import { NewTabs } from "~/components/NewTabs";
-import { Section } from "~/components/Section";
-import { SubmitButton } from "~/components/SubmitButton";
-import { SendouButton } from "~/components/elements/Button";
-import { SendouPopover } from "~/components/elements/Popover";
 import { CheckmarkIcon } from "~/components/icons/Checkmark";
 import { ClockIcon } from "~/components/icons/Clock";
 import { CrossIcon } from "~/components/icons/Cross";
 import { DiscordIcon } from "~/components/icons/Discord";
 import { TrashIcon } from "~/components/icons/Trash";
 import { UserIcon } from "~/components/icons/User";
+import { Label } from "~/components/Label";
+import { containerClassName } from "~/components/Main";
+import { MapPoolStages } from "~/components/MapPoolSelector";
+import { Section } from "~/components/Section";
+import { SubmitButton } from "~/components/SubmitButton";
+import TimePopover from "~/components/TimePopover";
 import { useUser } from "~/features/auth/core/user";
 import { imgTypeToDimensions } from "~/features/img-upload/upload-constants";
 import { MapPool } from "~/features/map-list-generator/core/map-pool";
@@ -37,12 +42,13 @@ import { useIsMounted } from "~/hooks/useIsMounted";
 import { useSearchParamState } from "~/hooks/useSearchParamState";
 import { modesShort, rankedModesShort } from "~/modules/in-game-lists/modes";
 import invariant from "~/utils/invariant";
+import { logger } from "~/utils/logger";
 import {
 	LOG_IN_URL,
+	mapsPageWithMapPool,
+	navIconUrl,
 	SENDOU_INK_BASE_URL,
 	SENDOU_INK_DISCORD_URL,
-	navIconUrl,
-	readonlyMapsPage,
 	tournamentJoinPage,
 	tournamentOrganizationPage,
 	tournamentSubsPage,
@@ -51,22 +57,20 @@ import {
 	userSubmittedImage,
 } from "~/utils/urls";
 import { AlertIcon } from "../../../components/icons/Alert";
+import { action } from "../actions/to.$id.register.server";
 import type { TournamentRegisterPageLoader } from "../loaders/to.$id.register.server";
+import { loader } from "../loaders/to.$id.register.server";
 import { TOURNAMENT } from "../tournament-constants";
 import {
 	type CounterPickValidationStatus,
 	validateCounterPickMapPool,
 } from "../tournament-utils";
 import { useTournament } from "./to.$id";
-
-import { action } from "../actions/to.$id.register.server";
-import { loader } from "../loaders/to.$id.register.server";
 export { loader, action };
 
 export default function TournamentRegisterPage() {
 	const user = useUser();
 	const isMounted = useIsMounted();
-	const { i18n } = useTranslation();
 	const tournament = useTournament();
 
 	const startsAtEvenHour = tournament.ctx.startTime.getMinutes() === 0;
@@ -123,15 +127,17 @@ export default function TournamentRegisterPage() {
 						<div className="tournament__by mt-2">
 							<div className="stack horizontal xs items-center">
 								<ClockIcon className="tournament__info__icon" />{" "}
-								{isMounted
-									? tournament.ctx.startTime.toLocaleString(i18n.language, {
-											timeZoneName: "short",
+								{isMounted ? (
+									<TimePopover
+										time={tournament.ctx.startTime}
+										options={{
 											minute: startsAtEvenHour ? undefined : "numeric",
 											hour: "numeric",
 											day: "numeric",
 											month: "long",
-										})
-									: null}
+										}}
+									/>
+								) : null}
 							</div>
 						</div>
 					) : null}
@@ -164,6 +170,9 @@ export default function TournamentRegisterPage() {
 	);
 }
 
+const TABS = ["description", "rules", "register"] as const;
+type RegisterPageTab = (typeof TABS)[number];
+
 function TournamentRegisterInfoTabs() {
 	const user = useUser();
 	const tournament = useTournament();
@@ -173,16 +182,16 @@ function TournamentRegisterInfoTabs() {
 	const teamOwned = tournament.ownedTeamByUser(user);
 	const isRegularMemberOfATeam = teamMemberOf && !teamOwned;
 
-	const defaultTab = () => {
-		if (tournament.hasStarted || !teamOwned) return 0;
+	const defaultTab = (): RegisterPageTab => {
+		if (tournament.hasStarted || !teamOwned) return "description";
 
-		const registerTab = !tournament.ctx.rules ? 1 : 2;
-		return registerTab;
+		return "register";
 	};
-	const [tabIndex, setTabIndex] = useSearchParamState({
+	const [tabKey, setTabKey] = useSearchParamState({
 		defaultValue: defaultTab(),
 		name: "tab",
-		revive: Number,
+		revive: (val) =>
+			TABS.includes(val as RegisterPageTab) ? (val as RegisterPageTab) : null,
 	});
 
 	const showAddIGNAlert =
@@ -193,119 +202,110 @@ function TournamentRegisterInfoTabs() {
 
 	return (
 		<div>
-			<NewTabs
-				sticky
-				selectedIndex={tabIndex}
-				setSelectedIndex={setTabIndex}
-				tabs={[
-					{
-						label: "Description",
-					},
-					{
-						label: "Rules",
-						hidden: !tournament.ctx.rules,
-					},
-					{
-						label: "Register",
-						hidden: tournament.hasStarted,
-					},
-				]}
-				disappearing
-				content={[
-					{
-						key: "description",
-						element: (
-							<div className="stack lg">
-								{tournament.ctx.discordUrl ? (
-									<div className="w-max">
-										<LinkButton
-											to={tournament.ctx.discordUrl}
-											variant="outlined"
-											size="tiny"
-											isExternal
-											icon={<DiscordIcon />}
-										>
-											Join the Discord
-										</LinkButton>
-									</div>
-								) : null}
+			<SendouTabs
+				selectedKey={tabKey}
+				onSelectionChange={(key) => setTabKey(key as RegisterPageTab)}
+			>
+				<SendouTabList sticky>
+					<SendouTab id="description">Description</SendouTab>
+					{tournament.ctx.rules ? (
+						<SendouTab id="rules">Rules</SendouTab>
+					) : null}
+					{!tournament.hasStarted ? (
+						<SendouTab id="register" data-testid="register-tab">
+							Register
+						</SendouTab>
+					) : null}
+				</SendouTabList>
 
-								<div className="tournament__info__description">
-									<Markdown options={{ wrapper: React.Fragment }}>
-										{tournament.ctx.description ?? ""}
-									</Markdown>
-								</div>
-								<TOPickedMapPoolInfo />
-								<TiebreakerMapPoolInfo />
+				<SendouTabPanel id="description">
+					<div className="stack lg">
+						{tournament.ctx.discordUrl ? (
+							<div className="w-max">
+								<LinkButton
+									to={tournament.ctx.discordUrl}
+									variant="outlined"
+									size="small"
+									isExternal
+									icon={<DiscordIcon />}
+								>
+									Join the Discord
+								</LinkButton>
 							</div>
-						),
-					},
-					{
-						key: "rules",
-						hidden: !tournament.ctx.rules,
-						element: (
-							<div className="tournament__info__description">
-								<Markdown options={{ wrapper: React.Fragment }}>
-									{tournament.ctx.rules ?? ""}
-								</Markdown>
-							</div>
-						),
-					},
-					{
-						key: "register",
-						hidden: tournament.hasStarted,
-						element: (
-							<div className="stack lg">
-								{isRegularMemberOfATeam ? (
-									<div className="stack md items-center">
-										<Alert>{t("tournament:pre.inATeam")}</Alert>
-										{teamMemberOf && teamMemberOf.checkIns.length === 0 ? (
-											<FormWithConfirm
-												dialogHeading={`Leave "${tournament.teamMemberOfByUser(user)?.name}"?`}
-												fields={[["_action", "LEAVE_TEAM"]]}
-												submitButtonText="Leave"
+						) : null}
+
+						<div className="tournament__info__description">
+							<Markdown options={{ wrapper: React.Fragment }}>
+								{tournament.ctx.description ?? ""}
+							</Markdown>
+						</div>
+						<TOPickedMapPoolInfo />
+						<TiebreakerMapPoolInfo />
+					</div>
+				</SendouTabPanel>
+
+				{tournament.ctx.rules ? (
+					<SendouTabPanel id="rules">
+						<div className="tournament__info__description">
+							<Markdown options={{ wrapper: React.Fragment }}>
+								{tournament.ctx.rules ?? ""}
+							</Markdown>
+						</div>
+					</SendouTabPanel>
+				) : null}
+
+				{!tournament.hasStarted ? (
+					<SendouTabPanel id="register">
+						<div className="stack lg">
+							{isRegularMemberOfATeam ? (
+								<div className="stack md items-center">
+									<Alert>{t("tournament:pre.inATeam")}</Alert>
+									{teamMemberOf && teamMemberOf.checkIns.length === 0 ? (
+										<FormWithConfirm
+											dialogHeading={`Leave "${tournament.teamMemberOfByUser(user)?.name}"?`}
+											fields={[["_action", "LEAVE_TEAM"]]}
+											submitButtonText="Leave"
+										>
+											<SendouButton
+												className="small-text"
+												variant="minimal-destructive"
+												type="submit"
 											>
-												<Button
-													className="build__small-text"
-													variant="minimal-destructive"
-													type="submit"
-												>
-													Leave the team
-												</Button>
-											</FormWithConfirm>
-										) : null}
-									</div>
-								) : showAddIGNAlert ? (
-									<div>
-										<Alert variation="WARNING">
-											<div className="stack horizontal sm items-center flex-wrap justify-center text-center">
-												This tournament requires you to have an in-game name set{" "}
-												<LinkButton to={userEditProfilePage(user)} size="tiny">
-													Edit profile
-												</LinkButton>
-											</div>
-										</Alert>
-									</div>
-								) : (
-									<RegistrationForms />
-								)}
-								{user &&
-								!tournament.teamMemberOfByUser(user) &&
-								tournament.canAddNewSubPost &&
-								!showAddIGNAlert &&
-								!tournament.hasStarted ? (
-									<Link
-										to={tournamentSubsPage(tournament.ctx.id)}
-										className="text-xs text-center"
-									>
-										{t("tournament:pre.sub.prompt")}
-									</Link>
-								) : null}
-							</div>
-						),
-					},
-				]}
-			/>
+												Leave the team
+											</SendouButton>
+										</FormWithConfirm>
+									) : null}
+								</div>
+							) : showAddIGNAlert ? (
+								<div>
+									<Alert variation="WARNING">
+										<div className="stack horizontal sm items-center flex-wrap justify-center text-center">
+											This tournament requires you to have an in-game name set{" "}
+											<LinkButton to={userEditProfilePage(user)} size="small">
+												Edit profile
+											</LinkButton>
+										</div>
+									</Alert>
+								</div>
+							) : (
+								<RegistrationForms />
+							)}
+							{user &&
+							!tournament.teamMemberOfByUser(user) &&
+							tournament.canAddNewSubPost &&
+							!showAddIGNAlert &&
+							!tournament.hasStarted ? (
+								<Link
+									to={tournamentSubsPage(tournament.ctx.id)}
+									className="text-xs text-center"
+								>
+									{t("tournament:pre.sub.prompt")}
+								</Link>
+							) : null}
+						</div>
+					</SendouTabPanel>
+				) : null}
+			</SendouTabs>
 		</div>
 	);
 }
@@ -315,9 +315,9 @@ function PleaseLogIn() {
 
 	return (
 		<form className="stack items-center mt-4" action={LOG_IN_URL} method="post">
-			<Button size="big" type="submit">
+			<SendouButton size="big" type="submit">
 				{t("tournament:pre.logIn")}
-			</Button>
+			</SendouButton>
 		</form>
 	);
 }
@@ -591,7 +591,7 @@ function CheckIn({
 	return (
 		<fetcher.Form method="post" className="stack items-center">
 			<SubmitButton
-				size="tiny"
+				size="small"
 				_action="CHECK_IN"
 				state={fetcher.state}
 				testId="check-in-button"
@@ -693,7 +693,7 @@ function TeamInfo({
 							<SendouButton
 								size="small"
 								variant="minimal-destructive"
-								className="build__small-text"
+								className="small-text"
 							>
 								{t("tournament:pre.info.unregister")}
 							</SendouButton>
@@ -708,13 +708,13 @@ function TeamInfo({
 						submitButtonText={t("tournament:pre.info.unregister")}
 						fields={[["_action", "UNREGISTER"]]}
 					>
-						<Button
-							className="build__small-text"
+						<SendouButton
+							className="small-text"
 							variant="minimal-destructive"
-							size="tiny"
+							size="small"
 						>
 							{t("tournament:pre.info.unregister")}
-						</Button>
+						</SendouButton>
 					</FormWithConfirm>
 				) : null}
 			</div>
@@ -779,26 +779,26 @@ function TeamInfo({
 									<div className="stack horizontal md items-center">
 										<Avatar size="xsm" url={avatarUrl} />
 										{canEditAvatar ? (
-											<Button
+											<SendouButton
 												variant="minimal"
-												size="tiny"
-												onClick={() => setUploadedAvatar(null)}
+												size="small"
+												onPress={() => setUploadedAvatar(null)}
 											>
 												{t("common:actions.edit")}
-											</Button>
+											</SendouButton>
 										) : null}
 										{canDeleteAvatar ? (
 											<FormWithConfirm
 												dialogHeading="Delete team logo?"
 												fields={[["_action", "DELETE_LOGO"]]}
 											>
-												<Button
+												<SendouButton
 													variant="minimal-destructive"
-													size="tiny"
+													size="small"
 													type="submit"
 												>
 													<TrashIcon className="small-icon" />
-												</Button>
+												</SendouButton>
 											</FormWithConfirm>
 										) : null}
 									</div>
@@ -836,13 +836,13 @@ function TeamInfo({
 							) : null}
 						</div>
 					</div>
-					<Button
-						testId="save-team-button"
-						disabled={submitButtonDisabled()}
-						onClick={handleSubmit}
+					<SendouButton
+						data-testid="save-team-button"
+						isDisabled={submitButtonDisabled()}
+						onPress={handleSubmit}
 					>
 						{t("common:actions.save")}
-					</Button>
+					</SendouButton>
 				</Form>
 			</section>
 		</div>
@@ -884,7 +884,7 @@ function TournamentLogoUpload({
 						onChange(file);
 					},
 					error(err) {
-						console.error(err.message);
+						logger.error(err.message);
 					},
 				});
 			}}
@@ -1016,13 +1016,13 @@ function FillRoster({
 							{t("tournament:actions.shareLink", { inviteLink })}
 						</div>
 						<div>
-							<Button
-								size="tiny"
-								onClick={() => copyToClipboard(inviteLink)}
+							<SendouButton
+								size="small"
+								onPress={() => copyToClipboard(inviteLink)}
 								variant="outlined"
 							>
 								{t("common:actions.copyToClipboard")}
-							</Button>
+							</SendouButton>
 						</div>
 					</div>
 				) : null}
@@ -1162,13 +1162,13 @@ function DeleteMember({ members }: { members: TournamentDataTeam["members"] }) {
 
 	if (!expanded) {
 		return (
-			<Button
-				size="tiny"
+			<SendouButton
+				size="small"
 				variant="minimal-destructive"
-				onClick={() => setExpanded(true)}
+				onPress={() => setExpanded(true)}
 			>
 				{t("tournament:pre.roster.delete.button")}
-			</Button>
+			</SendouButton>
 		);
 	}
 
@@ -1318,15 +1318,17 @@ function TOPickedMapPoolInfo() {
 
 	if (tournament.ctx.toSetMapPool.length === 0) return null;
 
+	const mapPool = new MapPool(tournament.ctx.toSetMapPool);
+
 	return (
 		<Section title={t("calendar:forms.mapPool")}>
 			<div className="event__map-pool-section">
-				<MapPoolStages mapPool={new MapPool(tournament.ctx.toSetMapPool)} />
+				<MapPoolStages mapPool={mapPool} />
 				<LinkButton
 					className="event__create-map-list-link"
-					to={readonlyMapsPage(tournament.ctx.eventId)}
+					to={mapsPageWithMapPool(mapPool)}
 					variant="outlined"
-					size="tiny"
+					size="small"
 				>
 					<Image alt="" path={navIconUrl("maps")} width={22} height={22} />
 					{t("calendar:createMapList")}

@@ -2,14 +2,14 @@ import { useFetcher, useLoaderData } from "@remix-run/react";
 import Compressor from "compressorjs";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "~/components/Button";
+import { SendouButton } from "~/components/elements/Button";
 import { Main } from "~/components/Main";
 import invariant from "~/utils/invariant";
-import { imgTypeToDimensions, imgTypeToStyle } from "../upload-constants";
-import type { ImageUploadType } from "../upload-types";
-
+import { logger } from "~/utils/logger";
 import { action } from "../actions/upload.server";
 import { loader } from "../loaders/upload.server";
+import { imgTypeToDimensions, imgTypeToStyle } from "../upload-constants";
+import type { ImageUploadType } from "../upload-types";
 export { action, loader };
 
 export default function FileUploadPage() {
@@ -91,20 +91,21 @@ export default function FileUploadPage() {
 								setImg(file);
 							},
 							error(err) {
-								console.error(err.message);
+								logger.error(err.message);
 							},
 						});
 					}}
 				/>
 			</div>
 			{img ? <PreviewImage img={img} type={data.type} /> : null}
-			<Button
+			<SendouButton
 				className="self-start"
-				disabled={!img || fetcher.state !== "idle"}
-				onClick={handleSubmit}
+				isDisabled={!img || fetcher.state !== "idle"}
+				onPress={handleSubmit}
+				data-testid="upload-button"
 			>
 				{t("common:actions.upload")}
-			</Button>
+			</SendouButton>
 		</Main>
 	);
 }

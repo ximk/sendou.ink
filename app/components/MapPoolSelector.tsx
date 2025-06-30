@@ -1,10 +1,8 @@
 import clsx from "clsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "~/components/Button";
 import { Image } from "~/components/Image";
 import type { Tables } from "~/db/tables";
-import type { SerializedMapPoolEvent } from "~/features/calendar/routes/map-pool-events";
 import { MapPool } from "~/features/map-list-generator/core/map-pool";
 import { BANNED_MAPS } from "~/features/sendouq-settings/banned-maps";
 import { modesShort } from "~/modules/in-game-lists/modes";
@@ -13,7 +11,7 @@ import type { ModeShort, StageId } from "~/modules/in-game-lists/types";
 import { split, startsWith } from "~/utils/strings";
 import { assertType } from "~/utils/types";
 import { modeImageUrl, stageImageUrl } from "~/utils/urls";
-import { MapPoolEventsCombobox } from "./Combobox";
+import { SendouButton } from "./elements/Button";
 import { ArrowLongLeftIcon } from "./icons/ArrowLongLeft";
 import { CrossIcon } from "./icons/Cross";
 
@@ -28,8 +26,6 @@ export type MapPoolSelectorProps = {
 		event?: Pick<Tables["CalendarEvent"], "id" | "name">,
 	) => void;
 	className?: string;
-	recentEvents?: SerializedMapPoolEvent[];
-	initialEvent?: Pick<Tables["CalendarEvent"], "id" | "name">;
 	title?: string;
 	modesToInclude?: ModeShort[];
 	info?: React.ReactNode;
@@ -45,8 +41,6 @@ export function MapPoolSelector({
 	handleMapPoolChange,
 	handleRemoval,
 	className,
-	recentEvents,
-	initialEvent,
 	title,
 	modesToInclude,
 	info,
@@ -57,15 +51,7 @@ export function MapPoolSelector({
 	const { t } = useTranslation();
 
 	const [template, setTemplate] = React.useState<MapPoolTemplateValue>(
-		initialEvent ? "event" : detectTemplate(mapPool),
-	);
-
-	const [initialSerializedEvent, setInitialSerializedEvent] = React.useState(
-		(): SerializedMapPoolEvent | undefined =>
-			initialEvent && {
-				...initialEvent,
-				serializedMapPool: mapPool.serialized,
-			},
+		detectTemplate(mapPool),
 	);
 
 	const handleStageModesChange = (newMapPool: MapPool) => {
@@ -85,29 +71,10 @@ export function MapPoolSelector({
 			return;
 		}
 
-		if (template === "event") {
-			// If the user selected the "event" option, the _initial_ event passed via
-			// props is likely not the current state and should not be prefilled
-			// anymore.
-			setInitialSerializedEvent(undefined);
-			return;
-		}
-
 		if (startsWith(template, "preset:")) {
 			const [, presetId] = split(template, ":");
 
 			handleMapPoolChange(MapPool[presetId]);
-			return;
-		}
-
-		if (startsWith(template, "recent-event:")) {
-			const [, eventId] = split(template, ":");
-
-			const event = recentEvents?.find((e) => e.id.toString() === eventId);
-
-			if (event) {
-				handleMapPoolChange(new MapPool(event.serializedMapPool), event);
-			}
 			return;
 		}
 
@@ -120,18 +87,18 @@ export function MapPoolSelector({
 			{Boolean(handleRemoval || allowBulkEdit) && (
 				<div className="stack horizontal sm justify-end">
 					{handleRemoval && (
-						<Button variant="minimal" onClick={handleRemoval}>
+						<SendouButton variant="minimal" onPress={handleRemoval}>
 							{t("actions.remove")}
-						</Button>
+						</SendouButton>
 					)}
 					{allowBulkEdit && (
-						<Button
+						<SendouButton
 							variant="minimal-destructive"
-							disabled={mapPool.isEmpty()}
-							onClick={handleClear}
+							isDisabled={mapPool.isEmpty()}
+							onPress={handleClear}
 						>
 							{t("actions.clear")}
-						</Button>
+						</SendouButton>
 					)}
 				</div>
 			)}
@@ -141,14 +108,7 @@ export function MapPoolSelector({
 						<MapPoolTemplateSelect
 							value={template}
 							handleChange={handleTemplateChange}
-							recentEvents={recentEvents}
 						/>
-						{template === "event" && (
-							<TemplateEventSelection
-								initialEvent={initialSerializedEvent}
-								handleEventChange={handleMapPoolChange}
-							/>
-						)}
 					</div>
 				)}
 				{info}
@@ -321,24 +281,26 @@ export function MapPoolStages({
 							{!isPresentational &&
 								allowBulkEdit &&
 								(mapPool.hasStage(stageId) ? (
-									<Button
+									<SendouButton
 										key="clear"
-										onClick={() => handleStageClear(stageId)}
-										icon={<CrossIcon />}
+										onPress={() => handleStageClear(stageId)}
+										icon={<CrossIcon title={t("common:actions.remove")} />}
 										variant="minimal"
 										aria-label={t("common:actions.remove")}
-										title={t("common:actions.remove")}
-										size="tiny"
+										size="small"
 									/>
 								) : (
-									<Button
+									<SendouButton
 										key="select-all"
-										onClick={() => handleStageAdd(stageId)}
-										icon={<ArrowLongLeftIcon />}
+										onPress={() => handleStageAdd(stageId)}
+										icon={
+											<ArrowLongLeftIcon
+												title={t("common:actions.selectAll")}
+											/>
+										}
 										variant="minimal"
 										aria-label={t("common:actions.selectAll")}
-										title={t("common:actions.selectAll")}
-										size="tiny"
+										size="small"
 									/>
 								))}
 						</div>
@@ -353,11 +315,7 @@ type MapModePresetId = "ANARCHY" | "ALL" | ModeShort;
 
 const presetIds: MapModePresetId[] = ["ANARCHY", "ALL", ...modesShort];
 
-type MapPoolTemplateValue =
-	| "none"
-	| `preset:${MapModePresetId}`
-	| `recent-event:${string}`
-	| "event";
+type MapPoolTemplateValue = "none" | `preset:${MapModePresetId}`;
 
 function detectTemplate(mapPool: MapPool): MapPoolTemplateValue {
 	for (const presetId of presetIds) {
@@ -391,7 +349,6 @@ function MapPoolTemplateSelect({
 				}}
 			>
 				<option value="none">{t("common:maps.template.none")}</option>
-				<option value="event">{t("common:maps.template.event")}</option>
 				<optgroup label={t("common:maps.template.presets")}>
 					{(["ANARCHY", "ALL"] as const).map((presetId) => (
 						<option key={presetId} value={`preset:${presetId}`}>
@@ -416,40 +373,6 @@ function MapPoolTemplateSelect({
 					</optgroup>
 				)}
 			</select>
-		</label>
-	);
-}
-
-type TemplateEventSelectionProps = {
-	handleEventChange: (
-		mapPool: MapPool,
-		event?: Pick<Tables["CalendarEvent"], "id" | "name">,
-	) => void;
-	initialEvent?: SerializedMapPoolEvent;
-};
-function TemplateEventSelection({
-	handleEventChange,
-	initialEvent,
-}: TemplateEventSelectionProps) {
-	const { t } = useTranslation();
-	const id = React.useId();
-
-	return (
-		<label className="stack sm">
-			{t("maps.template.event")}
-			<MapPoolEventsCombobox
-				id={id}
-				inputName={id}
-				onChange={(e) => {
-					if (e) {
-						handleEventChange(new MapPool(e.serializedMapPool), {
-							id: e.id,
-							name: e.name,
-						});
-					}
-				}}
-				initialEvent={initialEvent}
-			/>
 		</label>
 	);
 }

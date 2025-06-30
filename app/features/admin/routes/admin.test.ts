@@ -3,13 +3,13 @@ import { db } from "~/db/sql";
 import * as PlusVotingRepository from "~/features/plus-voting/PlusVotingRepository.server";
 import * as TeamRepository from "~/features/team/TeamRepository.server";
 import * as UserRepository from "~/features/user-page/UserRepository.server";
+import { dateToDatabaseTimestamp } from "~/utils/dates";
 import {
 	assertResponseErrored,
 	dbInsertUsers,
 	dbReset,
 	wrappedAction,
 } from "~/utils/Test";
-import { dateToDatabaseTimestamp } from "~/utils/dates";
 import type { adminActionSchema } from "../actions/admin.server";
 import { action } from "./admin";
 
@@ -159,8 +159,8 @@ describe("Plus voting", () => {
 
 		await adminAction({ _action: "REFRESH" }, { user: "admin" });
 
-		expect(await countPlusTierMembers(1)).toBe(10);
-		expect(await countPlusTierMembers(2)).toBe(0);
+		expect(await countPlusTierMembers(1)).toBe(5);
+		expect(await countPlusTierMembers(2)).toBe(5);
 	});
 
 	test("plus server skip flag ignored if for past season", async () => {
@@ -177,8 +177,8 @@ describe("Plus voting", () => {
 
 		await adminAction({ _action: "REFRESH" }, { user: "admin" });
 
-		expect(await countPlusTierMembers(1)).toBe(10);
-		expect(await countPlusTierMembers(2)).toBe(1);
+		expect(await countPlusTierMembers(1)).toBe(5);
+		expect(await countPlusTierMembers(2)).toBe(6);
 	});
 
 	test("ignores leaderboard while season is ongoing", async () => {

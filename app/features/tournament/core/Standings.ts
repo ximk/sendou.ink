@@ -41,7 +41,10 @@ export function calculateSPR({
 export function matchesPlayed({
 	tournament,
 	teamId,
-}: { tournament: Tournament; teamId: number }) {
+}: {
+	tournament: Tournament;
+	teamId: number;
+}) {
 	const brackets = Progression.bracketIdxsForStandings(
 		tournament.ctx.settings.bracketProgression,
 	)
@@ -108,7 +111,7 @@ export function tournamentStandings(tournament: Tournament): Standing[] {
 		});
 		result.push(...standings);
 
-		for (const teamId of bracket.tournamentTeamIds) {
+		for (const teamId of bracket.participantTournamentTeamIds) {
 			alreadyIncludedTeamIds.add(teamId);
 		}
 		for (const teamId of bracket.teamsPendingCheckIn ?? []) {

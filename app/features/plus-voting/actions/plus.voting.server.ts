@@ -1,16 +1,16 @@
 import type { ActionFunction } from "@remix-run/node";
-import { PLUS_UPVOTE } from "~/constants";
 import { requireUser } from "~/features/auth/core/user.server";
-import * as PlusVotingRepository from "~/features/plus-voting/PlusVotingRepository.server";
 import type { PlusVoteFromFE } from "~/features/plus-voting/core";
 import {
 	nextNonCompletedVoting,
 	rangeToMonthYear,
 } from "~/features/plus-voting/core";
 import { isVotingActive } from "~/features/plus-voting/core/voting-time";
+import * as PlusVotingRepository from "~/features/plus-voting/PlusVotingRepository.server";
 import { dateToDatabaseTimestamp } from "~/utils/dates";
 import invariant from "~/utils/invariant";
 import { badRequestIfFalsy, parseRequestPayload } from "~/utils/remix.server";
+import { PLUS_UPVOTE } from "../plus-voting-constants";
 import { votingActionSchema } from "../plus-voting-schemas";
 
 export const action: ActionFunction = async ({ request }) => {

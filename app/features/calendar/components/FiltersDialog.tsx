@@ -1,9 +1,8 @@
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useFetcher, useSearchParams } from "@remix-run/react";
 import * as React from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { SubmitButton } from "~/components/SubmitButton";
 import { SendouButton } from "~/components/elements/Button";
 import { SendouDialog } from "~/components/elements/Dialog";
 import { InputFormField } from "~/components/form/InputFormField";
@@ -11,6 +10,7 @@ import { InputGroupFormField } from "~/components/form/InputGroupFormField";
 import { TextArrayFormField } from "~/components/form/TextArrayFormField";
 import { ToggleFormField } from "~/components/form/ToggleFormField";
 import { FilterFilledIcon } from "~/components/icons/FilterFilled";
+import { SubmitButton } from "~/components/SubmitButton";
 import type { CalendarEventTag } from "~/db/tables";
 import { useUser } from "~/features/auth/core/user";
 import { calendarFiltersFormSchema } from "~/features/calendar/calendar-schemas";
@@ -26,7 +26,7 @@ export function FiltersDialog({ filters }: { filters: CalendarFilters }) {
 			<SendouButton
 				size="small"
 				icon={<FilterFilledIcon />}
-				onClick={() => setIsOpen(true)}
+				onPress={() => setIsOpen(true)}
 				data-testid="filter-events-button"
 			>
 				{t("calendar:filter.button")}
@@ -62,11 +62,14 @@ const TAGS_TO_OMIT: Array<CalendarEventTag> = [
 function FiltersForm({
 	filters,
 	closeDialog,
-}: { filters: CalendarFilters; closeDialog: () => void }) {
+}: {
+	filters: CalendarFilters;
+	closeDialog: () => void;
+}) {
 	const user = useUser();
 	const { t } = useTranslation(["game-misc", "calendar"]);
 	const methods = useForm({
-		resolver: zodResolver(calendarFiltersFormSchema),
+		resolver: standardSchemaResolver(calendarFiltersFormSchema),
 		defaultValues: filters,
 	});
 	const fetcher = useFetcher<any>();
@@ -81,7 +84,7 @@ function FiltersForm({
 
 	const onApply = React.useCallback(
 		methods.handleSubmit((values) => {
-			filtersToSearchParams(values);
+			filtersToSearchParams(values as CalendarFilters);
 			closeDialog();
 		}),
 		[],
@@ -89,7 +92,10 @@ function FiltersForm({
 
 	const onApplyAndPersist = React.useCallback(
 		methods.handleSubmit((values) =>
-			fetcher.submit(values, { method: "post", encType: "application/json" }),
+			fetcher.submit(values as Parameters<typeof fetcher.submit>[0], {
+				method: "post",
+				encType: "application/json",
+			}),
 		),
 		[],
 	);

@@ -5,24 +5,24 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import * as R from "remeda";
 import { Avatar } from "~/components/Avatar";
-import { Button, LinkButton } from "~/components/Button";
+import { LinkButton, SendouButton } from "~/components/elements/Button";
 import { Flag } from "~/components/Flag";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { WeaponImage } from "~/components/Image";
-import { Main } from "~/components/Main";
-import { SubmitButton } from "~/components/SubmitButton";
 import { BskyIcon } from "~/components/icons/Bsky";
 import { EditIcon } from "~/components/icons/Edit";
 import { StarIcon } from "~/components/icons/Star";
 import { UsersIcon } from "~/components/icons/Users";
+import { Main } from "~/components/Main";
+import { SubmitButton } from "~/components/SubmitButton";
 import { useUser } from "~/features/auth/core/user";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import {
-	TEAM_SEARCH_PAGE,
 	bskyUrl,
 	editTeamPage,
 	manageTeamRosterPage,
 	navIconUrl,
+	TEAM_SEARCH_PAGE,
 	teamPage,
 	userPage,
 	userSubmittedImage,
@@ -221,18 +221,18 @@ function ActionButtons() {
 					submitButtonText={t("team:actionButtons.leaveTeam.confirm")}
 					fields={[["_action", "LEAVE_TEAM"]]}
 				>
-					<Button
-						size="tiny"
+					<SendouButton
+						size="small"
 						variant="destructive"
 						data-testid="leave-team-button"
 					>
 						{t("team:actionButtons.leaveTeam")}
-					</Button>
+					</SendouButton>
 				</FormWithConfirm>
 			) : null}
 			{isTeamManager({ user, team }) || isAdmin ? (
 				<LinkButton
-					size="tiny"
+					size="small"
 					to={manageTeamRosterPage(team.customUrl)}
 					variant="outlined"
 					prefetch="intent"
@@ -244,7 +244,7 @@ function ActionButtons() {
 			) : null}
 			{isTeamManager({ user, team }) || isAdmin ? (
 				<LinkButton
-					size="tiny"
+					size="small"
 					to={editTeamPage(team.customUrl)}
 					variant="outlined"
 					prefetch="intent"
@@ -266,7 +266,7 @@ function ChangeMainTeamButton() {
 		<fetcher.Form method="post">
 			<SubmitButton
 				_action="MAKE_MAIN_TEAM"
-				size="tiny"
+				size="small"
 				variant="outlined"
 				icon={<StarIcon />}
 				testId="make-main-team-button"
@@ -344,7 +344,9 @@ function MemberRow({
 
 function MobileMemberCard({
 	member,
-}: { member: TeamRepository.findByCustomUrl["members"][number] }) {
+}: {
+	member: TeamRepository.findByCustomUrl["members"][number];
+}) {
 	const { t } = useTranslation(["team"]);
 
 	return (

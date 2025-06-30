@@ -1,12 +1,12 @@
 import { type ActionFunction, redirect } from "@remix-run/node";
 import { requireUserId } from "~/features/auth/core/user.server";
-import { clearTournamentDataCache } from "~/features/tournament-bracket/core/Tournament.server";
 import * as TournamentTeamRepository from "~/features/tournament/TournamentTeamRepository.server";
+import { clearTournamentDataCache } from "~/features/tournament-bracket/core/Tournament.server";
 import * as UserRepository from "~/features/user-page/UserRepository.server";
 import { safeParseRequestFormData } from "~/utils/remix.server";
 import { errorIsSqliteUniqueConstraintFailure } from "~/utils/sql";
 import { userPage } from "~/utils/urls";
-import { userEditActionSchema } from "../user-page-schemas.server";
+import { userEditActionSchema } from "../user-page-schemas";
 
 export const action: ActionFunction = async ({ request }) => {
 	const parsedInput = await safeParseRequestFormData({
