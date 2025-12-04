@@ -1,4 +1,4 @@
-import type { MetaFunction, SerializeFrom } from "@remix-run/node";
+import type { MetaFunction } from "@remix-run/node";
 import { Form, Link, useLoaderData } from "@remix-run/react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
@@ -12,18 +12,12 @@ import { Label } from "~/components/Label";
 import { Main } from "~/components/Main";
 import { SubmitButton } from "~/components/SubmitButton";
 import { useUser } from "~/features/auth/core/user";
-import type { SendouRouteHandle } from "~/utils/remix.server";
-import {
-	navIconUrl,
-	TEAM_SEARCH_PAGE,
-	teamPage,
-	uploadImagePage,
-} from "~/utils/urls";
+import { uploadImagePage } from "~/utils/urls";
 import { TEAM } from "../team-constants";
 import { canAddCustomizedColors, isTeamOwner } from "../team-utils";
 import "../team.css";
+import { TeamGoBackButton } from "~/features/team/components/TeamGoBackButton";
 import { metaTags } from "~/utils/remix";
-
 import { action } from "../actions/t.$customUrl.edit.server";
 import { loader } from "../loaders/t.$customUrl.edit.server";
 export { action, loader };
@@ -35,67 +29,49 @@ export const meta: MetaFunction = (args) => {
 	});
 };
 
-export const handle: SendouRouteHandle = {
-	i18n: ["team"],
-	breadcrumb: ({ match }) => {
-		const data = match.data as SerializeFrom<typeof loader> | undefined;
-
-		if (!data) return [];
-
-		return [
-			{
-				imgPath: navIconUrl("t"),
-				href: TEAM_SEARCH_PAGE,
-				type: "IMAGE",
-			},
-			{
-				text: data.team.name,
-				href: teamPage(data.team.customUrl),
-				type: "TEXT",
-			},
-		];
-	},
-};
-
 export default function EditTeamPage() {
 	const { t } = useTranslation(["common", "team"]);
 	const user = useUser();
 	const { team, css } = useLoaderData<typeof loader>();
 
 	return (
-		<Main className="half-width">
-			{isTeamOwner({ team, user }) ? (
-				<FormWithConfirm
-					dialogHeading={t("team:deleteTeam.header", { teamName: team.name })}
-					fields={[["_action", "DELETE_TEAM"]]}
-				>
-					<SendouButton
-						className="ml-auto"
-						variant="minimal-destructive"
-						data-testid="delete-team-button"
+		<Main className="stack lg">
+			<TeamGoBackButton />
+			<div className="half-width">
+				{isTeamOwner({ team, user }) ? (
+					<FormWithConfirm
+						dialogHeading={t("team:deleteTeam.header", { teamName: team.name })}
+						fields={[["_action", "DELETE_TEAM"]]}
 					>
-						{t("team:actionButtons.deleteTeam")}
-					</SendouButton>
-				</FormWithConfirm>
-			) : null}
-			<Form method="post" className="stack md items-start">
-				<ImageUploadLinks />
-				<ImageRemoveButtons />
-				{canAddCustomizedColors(team) ? (
-					<CustomizedColorsInput initialColors={css} />
+						<SendouButton
+							className="ml-auto"
+							variant="minimal-destructive"
+							data-testid="delete-team-button"
+						>
+							{t("team:actionButtons.deleteTeam")}
+						</SendouButton>
+					</FormWithConfirm>
 				) : null}
-				<NameInput />
-				<BlueskyInput />
-				<BioTextarea />
-				<SubmitButton
-					className="mt-4"
-					_action="EDIT"
-					testId="edit-team-submit-button"
-				>
-					{t("common:actions.submit")}
-				</SubmitButton>
-				<FormErrors namespace="team" />
-			</Form>
+				<Form method="post" className="stack md items-start">
+					<ImageUploadLinks />
+					<ImageRemoveButtons />
+					{canAddCustomizedColors(team) ? (
+						<CustomizedColorsInput initialColors={css} />
+					) : null}
+					<NameInput />
+					<TagInput />
+					<BlueskyInput />
+					<BioTextarea />
+					<SubmitButton
+						className="mt-4"
+						_action="EDIT"
+						testId="edit-team-submit-button"
+					>
+						{t("common:actions.submit")}
+					</SubmitButton>
+					<FormErrors namespace="team" />
+				</Form>
+			</div>
 		</Main>
 	);
 }
@@ -137,11 +113,11 @@ function ImageRemoveButtons() {
 	const { t } = useTranslation(["common", "team"]);
 	const { team } = useLoaderData<typeof loader>();
 
-	return team.avatarSrc || team.bannerSrc ? (
+	return team.avatarUrl || team.bannerUrl ? (
 		<div>
 			<Label>{t("team:forms.fields.removeImages")}</Label>
 			<ol className="team__image-links-list">
-				{team.avatarSrc ? (
+				{team.avatarUrl ? (
 					<li>
 						<FormWithConfirm
 							dialogHeading={t("team:deleteTeam.profilePicture.header", {
@@ -156,7 +132,7 @@ function ImageRemoveButtons() {
 						</FormWithConfirm>
 					</li>
 				) : null}
-				{team.bannerSrc ? (
+				{team.bannerUrl ? (
 					<li>
 						<FormWithConfirm
 							dialogHeading={t("team:deleteTeam.banner.header", {
@@ -195,6 +171,26 @@ function NameInput() {
 				data-testid="name-input"
 			/>
 			<FormMessage type="info">{t("team:forms.info.name")}</FormMessage>
+		</div>
+	);
+}
+
+function TagInput() {
+	const { t } = useTranslation(["team"]);
+	const { team } = useLoaderData<typeof loader>();
+	const [value, setValue] = React.useState(team.tag ?? "");
+
+	return (
+		<div>
+			<Label htmlFor="tag">{t("team:forms.fields.tag")}</Label>
+			<input
+				id="tag"
+				name="tag"
+				maxLength={TEAM.TAG_MAX_LENGTH}
+				value={value}
+				onChange={(e) => setValue(e.target.value)}
+			/>
+			<FormMessage type="info">{t("team:forms.info.tag")}</FormMessage>
 		</div>
 	);
 }

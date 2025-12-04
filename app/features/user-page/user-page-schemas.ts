@@ -158,3 +158,8 @@ export const adminTabActionSchema = z.union([
 	addModNoteSchema,
 	deleteModNoteSchema,
 ]);
+
+export const userResultsPageSearchParamsSchema = z.object({
+	all: z.stringbool().catch(false),
+	page: z.coerce.number().min(1).max(1_000).catch(1),
+});

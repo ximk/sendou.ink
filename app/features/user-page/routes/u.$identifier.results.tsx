@@ -1,9 +1,9 @@
-import { useLoaderData, useMatches } from "@remix-run/react";
+import { useLoaderData, useMatches, useSearchParams } from "@remix-run/react";
 import { useTranslation } from "react-i18next";
 import { LinkButton } from "~/components/elements/Button";
+import { Pagination } from "~/components/Pagination";
 import { useUser } from "~/features/auth/core/user";
 import { UserResultsTable } from "~/features/user-page/components/UserResultsTable";
-import { useSearchParamState } from "~/hooks/useSearchParamState";
 import invariant from "~/utils/invariant";
 import { userResultsEditHighlightsPage } from "~/utils/urls";
 import { SendouButton } from "../../../components/elements/Button";
@@ -20,24 +20,23 @@ export default function UserResultsPage() {
 	invariant(parentRoute);
 	const layoutData = parentRoute.data as UserPageLoaderData;
 
-	const highlightedResults = data.results.filter(
-		(result) => result.isHighlight,
-	);
-	const hasHighlightedResults = highlightedResults.length > 0;
+	const [searchParams, setSearchParams] = useSearchParams();
+	const showAll = searchParams.get("all") === "true";
 
-	const [showAll, setShowAll] = useSearchParamState({
-		defaultValue: !hasHighlightedResults,
-		name: "all",
-		revive: (v) => (!hasHighlightedResults ? true : v === "true"),
-	});
-
-	const resultsToShow = showAll ? data.results : highlightedResults;
+	const setPage = (page: number) => {
+		setSearchParams((params) => {
+			params.set("page", String(page));
+			return params;
+		});
+	};
 
 	return (
 		<div className="stack lg">
 			<div className="stack horizontal justify-between items-center">
 				<h2 className="text-lg">
-					{showAll ? t("results.title") : t("results.highlights")}
+					{showAll || !data.hasHighlightedResults
+						? t("results.title")
+						: t("results.highlights")}
 				</h2>
 				{user?.id === layoutData.user.id ? (
 					<LinkButton
@@ -49,12 +48,28 @@ export default function UserResultsPage() {
 					</LinkButton>
 				) : null}
 			</div>
-			<UserResultsTable id="user-results-table" results={resultsToShow} />
-			{hasHighlightedResults ? (
+			<UserResultsTable id="user-results-table" results={data.results.value} />
+			{data.results.pages > 1 ? (
+				<Pagination
+					currentPage={data.results.currentPage}
+					pagesCount={data.results.pages}
+					nextPage={() => setPage(data.results.currentPage + 1)}
+					previousPage={() => setPage(data.results.currentPage - 1)}
+					setPage={setPage}
+				/>
+			) : null}
+			{data.hasHighlightedResults ? (
 				<SendouButton
 					variant="minimal"
 					size="small"
-					onPress={() => setShowAll(!showAll)}
+					onPress={() =>
+						setSearchParams((params) => {
+							params.set("all", showAll ? "false" : "true");
+							params.delete("page");
+
+							return params;
+						})
+					}
 				>
 					{showAll
 						? t("results.button.showHighlights")

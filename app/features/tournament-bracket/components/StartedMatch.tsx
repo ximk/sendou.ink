@@ -18,14 +18,15 @@ import { CrossIcon } from "~/components/icons/Cross";
 import { PickIcon } from "~/components/icons/Pick";
 import { SubmitButton } from "~/components/SubmitButton";
 import { useUser } from "~/features/auth/core/user";
-import { Chat, useChat } from "~/features/chat/components/Chat";
+import { useChat } from "~/features/chat/chat-hooks";
+import { Chat } from "~/features/chat/components/Chat";
 import { useTournament } from "~/features/tournament/routes/to.$id";
 import { resolveLeagueRoundStartDate } from "~/features/tournament/tournament-utils";
 import { useIsMounted } from "~/hooks/useIsMounted";
 import { useSearchParamState } from "~/hooks/useSearchParamState";
 import type { StageId } from "~/modules/in-game-lists/types";
 import { SPLATTERCOLOR_SCREEN_ID } from "~/modules/in-game-lists/weapon-ids";
-import type { TournamentMapListMap } from "~/modules/tournament-map-list-generator";
+import type { TournamentMapListMap } from "~/modules/tournament-map-list-generator/types";
 import { nullFilledArray } from "~/utils/arrays";
 import { databaseTimestampToDate } from "~/utils/dates";
 import type { Unpacked } from "~/utils/types";
@@ -130,7 +131,7 @@ export function StartedMatch({
 			<React.Fragment key="pass">
 				{t("tournament:match.pass")}{" "}
 				<span className="text-theme font-bold" data-testid="room-pass">
-					{resolveRoomPass(data.match.id)}
+					{resolveRoomPass(hostingTeamId)}
 				</span>
 			</React.Fragment>
 		) : null,
@@ -153,11 +154,9 @@ export function StartedMatch({
 						bestOf: data.match.bestOf,
 					})}
 		</React.Fragment>,
-		tournament.ctx.settings.enableNoScreenToggle ? (
-			<ScreenBanIcons
-				key="screen-ban"
-				banned={teams.some((team) => team.noScreen)}
-			/>
+		tournament.ctx.settings.enableNoScreenToggle &&
+		typeof data.noScreen === "boolean" ? (
+			<ScreenBanIcons key="screen-ban" banned={data.noScreen} />
 		) : null,
 	];
 

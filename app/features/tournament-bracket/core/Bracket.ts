@@ -11,6 +11,7 @@ import { cutToNDecimalPlaces } from "../../../utils/number";
 import { fillWithNullTillPowerOfTwo } from "../tournament-bracket-utils";
 import { getTournamentManager } from "./brackets-manager";
 import * as Progression from "./Progression";
+import { calculateTeamStatus } from "./Swiss";
 import type { OptionalIdObject, Tournament } from "./Tournament";
 import type { TournamentDataTeam } from "./Tournament.server";
 import type { BracketMapCounts } from "./toMapList";
@@ -372,7 +373,7 @@ export abstract class Bracket {
 		return this.teamsPendingCheckIn.includes(team.id);
 	}
 
-	source(_placements: number[]): {
+	source(_options: { placements: number[]; advanceThreshold?: number }): {
 		relevantMatchesFinished: boolean;
 		teams: number[];
 	} {
@@ -789,7 +790,8 @@ class DoubleEliminationBracket extends Bracket {
 		return true;
 	}
 
-	source(placements: number[]) {
+	source({ placements }: { placements: number[] }) {
+		invariant(placements.length > 0, "Empty placements not supported");
 		const resolveLosersGroupId = (data: TournamentManagerDataSet) => {
 			const minGroupId = Math.min(...data.round.map((round) => round.group_id));
 
@@ -881,10 +883,11 @@ class RoundRobinBracket extends Bracket {
 		return true;
 	}
 
-	source(placements: number[]): {
+	source({ placements }: { placements: number[] }): {
 		relevantMatchesFinished: boolean;
 		teams: number[];
 	} {
+		invariant(placements.length > 0, "Empty placements not supported");
 		if (placements.some((p) => p < 0)) {
 			throw new Error("Negative placements not implemented");
 		}
@@ -1150,14 +1153,25 @@ class SwissBracket extends Bracket {
 		return false;
 	}
 
-	source(placements: number[]): {
+	source({
+		placements,
+		advanceThreshold,
+	}: {
+		placements: number[];
+		advanceThreshold?: number;
+	}): {
 		relevantMatchesFinished: boolean;
 		teams: number[];
 	} {
+		invariant(
+			advanceThreshold || placements.length > 0,
+			"Placements or advanceThreshold required",
+		);
 		if (placements.some((p) => p < 0)) {
 			throw new Error("Negative placements not implemented");
 		}
 		const standings = this.standings;
+
 		const relevantMatchesFinished = this.data.round.every((round) => {
 			const roundsMatches = this.data.match.filter(
 				(match) => match.round_id === round.id,
@@ -1180,6 +1194,27 @@ class SwissBracket extends Bracket {
 			});
 		});
 
+		if (advanceThreshold) {
+			return {
+				relevantMatchesFinished,
+				teams: standings
+					.map((standing) => ({
+						...standing,
+						status: calculateTeamStatus({
+							advanceThreshold,
+							wins: standing.stats?.setWins ?? 0,
+							losses: standing.stats?.setLosses ?? 0,
+							roundCount:
+								this.settings?.roundCount ??
+								TOURNAMENT.SWISS_DEFAULT_ROUND_COUNT,
+						}),
+					}))
+					.filter((t) => t.status === "advanced")
+					.map((t) => t.team.id),
+			};
+		}
+
+		// Standard Swiss logic without early advance/elimination
 		const uniquePlacements = R.unique(standings.map((s) => s.placement));
 
 		// 1,3,5 -> 1,2,3 e.g.
@@ -1452,18 +1487,26 @@ class SwissBracket extends Bracket {
 			placements.push(
 				...teams
 					.sort((a, b) => {
+						// TIEBREAKER 0) dropped out teams are always last
 						const aDroppedOut = droppedOutTeams.includes(a.id);
 						const bDroppedOut = droppedOutTeams.includes(b.id);
 
 						if (aDroppedOut && !bDroppedOut) return 1;
 						if (!aDroppedOut && bDroppedOut) return -1;
 
+						// TIEBREAKER 1) set wins
 						if (a.setWins > b.setWins) return -1;
 						if (a.setWins < b.setWins) return 1;
 
+						// also set losses because we want a team who dropped more sets ranked lower (early advance format)
+						if (a.setLosses < b.setLosses) return -1;
+						if (a.setLosses > b.setLosses) return 1;
+
+						// TIEBREAKER 2) wins against tied - ensure that a team who beat more teams that are tied with them is placed higher
 						if (a.lossesAgainstTied > b.lossesAgainstTied) return 1;
 						if (a.lossesAgainstTied < b.lossesAgainstTied) return -1;
 
+						// TIEBREAKER 3) opponent set win % - how good the opponents they played against were?
 						const aOpponentSetWinPercentage = this.trackRecordToWinPercentage(
 							a.opponentSets,
 						);
@@ -1476,6 +1519,15 @@ class SwissBracket extends Bracket {
 						}
 						if (aOpponentSetWinPercentage < bOpponentSetWinPercentage) return 1;
 
+						// TIEBREAKER 4) map wins
+						if (a.mapWins > b.mapWins) return -1;
+						if (a.mapWins < b.mapWins) return 1;
+
+						// also map losses because we want a team who dropped more maps ranked lower
+						if (a.mapLosses < b.mapLosses) return -1;
+						if (a.mapLosses > b.mapLosses) return 1;
+
+						// TIEBREAKER 5) map wins against tied OW% (M) - note that this needs to be lower than map wins tiebreaker to make sure that throwing maps is not optimal
 						const aOpponentMapWinPercentage = this.trackRecordToWinPercentage(
 							a.opponentMaps,
 						);
@@ -1488,12 +1540,7 @@ class SwissBracket extends Bracket {
 						}
 						if (aOpponentMapWinPercentage < bOpponentMapWinPercentage) return 1;
 
-						if (a.mapWins > b.mapWins) return -1;
-						if (a.mapWins < b.mapWins) return 1;
-
-						if (a.mapLosses < b.mapLosses) return -1;
-						if (a.mapLosses > b.mapLosses) return 1;
-
+						// TIEBREAKER 6) initial seeding made by the TO
 						const aSeed = Number(this.tournament.teamById(a.id)?.seed);
 						const bSeed = Number(this.tournament.teamById(b.id)?.seed);
 

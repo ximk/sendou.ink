@@ -37,7 +37,7 @@ import {
 	TORPEDO_ID,
 	TOXIC_MIST_ID,
 } from "~/modules/in-game-lists/weapon-ids";
-import { atOrError, nullFilledArray } from "~/utils/arrays";
+import { nullFilledArray } from "~/utils/arrays";
 import invariant from "~/utils/invariant";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import {
@@ -86,14 +86,15 @@ import {
 import "../analyzer.css";
 import * as R from "remeda";
 import { SendouSwitch } from "~/components/elements/Switch";
+import { Placeholder } from "~/components/Placeholder";
 import { WeaponSelect } from "~/components/WeaponSelect";
 import { logger } from "~/utils/logger";
 
-export const CURRENT_PATCH = "10.0";
+export const CURRENT_PATCH = "10.1";
 
 export const meta: MetaFunction = (args) => {
 	return metaTags({
-		title: "Build analyzer",
+		title: "Build Analyzer",
 		ogTitle: "Splatoon 3 build analyzer/simulator",
 		location: args.location,
 		description:
@@ -117,7 +118,7 @@ export default function BuildAnalyzerShell() {
 	const isMounted = useIsMounted();
 
 	if (!isMounted) {
-		return null;
+		return <Placeholder />;
 	}
 
 	return <BuildAnalyzerPage />;
@@ -249,7 +250,7 @@ function BuildAnalyzerPage() {
 						<div className="w-full">
 							<WeaponSelect
 								label={t("analyzer:weaponSelect.label")}
-								initialValue={mainWeaponId}
+								value={mainWeaponId}
 								onChange={(val) =>
 									handleChange({
 										newMainWeaponId: val,
@@ -1554,7 +1555,9 @@ function DamageTable({
 
 	const showDistanceColumn = values.some((val) => val.distance);
 
-	const firstRow = atOrError(values, 0);
+	const firstRow = values.at(0);
+	invariant(firstRow, "no damage rows found");
+
 	const showDamageColumn =
 		!damageIsSubWeaponDamage(firstRow) ||
 		// essentially checking that we are using some sub resistance up
@@ -1592,104 +1595,99 @@ function DamageTable({
 	};
 
 	return (
-		<>
-			<Table>
-				<thead>
-					<tr>
-						<th>{t("analyzer:damage.header.type")}</th>
-						{showDistanceColumn && (
-							<th>{t("analyzer:damage.header.distance")}</th>
-						)}
-						{damageIsSubWeaponDamage(firstRow) ? (
-							<th>
-								{comparisonValues
-									? t("analyzer:damage.header.baseDamage.short")
-									: t("analyzer:damage.header.baseDamage")}
-							</th>
-						) : null}
-						{showDamageColumn && <th>{t("analyzer:damage.header.damage")}</th>}
-						{showPopovers ? <th /> : null}
-					</tr>
-				</thead>
-				<tbody>
-					{values.map((val, i) => {
-						if (val.type.includes("SECONDARY")) return null;
+		<Table>
+			<thead>
+				<tr>
+					<th>{t("analyzer:damage.header.type")}</th>
+					{showDistanceColumn && (
+						<th>{t("analyzer:damage.header.distance")}</th>
+					)}
+					{damageIsSubWeaponDamage(firstRow) ? (
+						<th>
+							{comparisonValues
+								? t("analyzer:damage.header.baseDamage.short")
+								: t("analyzer:damage.header.baseDamage")}
+						</th>
+					) : null}
+					{showDamageColumn && <th>{t("analyzer:damage.header.damage")}</th>}
+					{showPopovers ? <th /> : null}
+				</tr>
+			</thead>
+			<tbody>
+				{values.map((val, i) => {
+					if (val.type.includes("SECONDARY")) return null;
 
-						const damage = (val: AnalyzedBuild["stats"]["damages"][number]) =>
-							multiShots && damageTypeToWeaponType[val.type] === "MAIN"
-								? multiShotValues(val).join(" + ")
-								: val.value;
+					const damage = (val: AnalyzedBuild["stats"]["damages"][number]) =>
+						multiShots && damageTypeToWeaponType[val.type] === "MAIN"
+							? multiShotValues(val).join(" + ")
+							: val.value;
 
-						const typeRowName = damageIsSubWeaponDamage(val)
-							? `weapons:SUB_${val.subWeaponId}`
-							: `analyzer:damage.${val.type}`;
+					const typeRowName = damageIsSubWeaponDamage(val)
+						? `weapons:SUB_${val.subWeaponId}`
+						: `analyzer:damage.${val.type}`;
 
-						const comparisonVal = comparisonValues?.[i];
+					const comparisonVal = comparisonValues?.[i];
 
-						return (
-							<tr key={val.id}>
-								<td className="stack horizontal xs items-center">
-									{damageIsSubWeaponDamage(val) ? (
-										<Image
-											alt=""
-											path={subWeaponImageUrl(val.subWeaponId)}
-											width={12}
-											height={12}
+					return (
+						<tr key={val.id}>
+							<td className="stack horizontal xs items-center">
+								{damageIsSubWeaponDamage(val) ? (
+									<Image
+										alt=""
+										path={subWeaponImageUrl(val.subWeaponId)}
+										width={12}
+										height={12}
+									/>
+								) : null}{" "}
+								{t(typeRowName as any)}{" "}
+								{damageIsSubWeaponDamage(val) && val.type === "SPLASH" ? (
+									<>({t("analyzer:damage.SPLASH")})</>
+								) : null}
+							</td>
+							{showDistanceColumn && (
+								<td>
+									{typeof val.distance === "number"
+										? val.distance
+										: val.distance?.join("-")}
+								</td>
+							)}
+							{damageIsSubWeaponDamage(val) && <td>{val.baseValue}</td>}
+							{showDamageColumn && (
+								<td>
+									{damage(val)}
+									{comparisonVal ? `/${damage(comparisonVal)}` : null}{" "}
+									{val.shotsToSplat && (
+										<span className="analyzer__shots-to-splat">
+											{t("analyzer:damage.toSplat", {
+												count: val.shotsToSplat,
+											})}
+										</span>
+									)}
+								</td>
+							)}
+							{showPopovers ? (
+								<td>
+									{renderPopover(val, (val as SubWeaponDamage).subWeaponId) ? (
+										<StatChartPopover
+											mainWeaponId={0}
+											modifiedBy={[]}
+											subWeaponId={(val as SubWeaponDamage).subWeaponId}
+											title={t(
+												`weapons:SUB_${(val as SubWeaponDamage).subWeaponId}`,
+											)}
+											simple
+											valueSuffix={` ${t(
+												"analyzer:damageShort",
+											).toLowerCase()}`}
 										/>
-									) : null}{" "}
-									{t(typeRowName as any)}{" "}
-									{damageIsSubWeaponDamage(val) && val.type === "SPLASH" ? (
-										<>({t("analyzer:damage.SPLASH")})</>
 									) : null}
 								</td>
-								{showDistanceColumn && (
-									<td>
-										{typeof val.distance === "number"
-											? val.distance
-											: val.distance?.join("-")}
-									</td>
-								)}
-								{damageIsSubWeaponDamage(val) && <td>{val.baseValue}</td>}
-								{showDamageColumn && (
-									<td>
-										{damage(val)}
-										{comparisonVal ? `/${damage(comparisonVal)}` : null}{" "}
-										{val.shotsToSplat && (
-											<span className="analyzer__shots-to-splat">
-												{t("analyzer:damage.toSplat", {
-													count: val.shotsToSplat,
-												})}
-											</span>
-										)}
-									</td>
-								)}
-								{showPopovers ? (
-									<td>
-										{renderPopover(
-											val,
-											(val as SubWeaponDamage).subWeaponId,
-										) ? (
-											<StatChartPopover
-												mainWeaponId={0}
-												modifiedBy={[]}
-												subWeaponId={(val as SubWeaponDamage).subWeaponId}
-												title={t(
-													`weapons:SUB_${(val as SubWeaponDamage).subWeaponId}`,
-												)}
-												simple
-												valueSuffix={` ${t(
-													"analyzer:damageShort",
-												).toLowerCase()}`}
-											/>
-										) : null}
-									</td>
-								) : null}
-							</tr>
-						);
-					})}
-				</tbody>
-			</Table>
-		</>
+							) : null}
+						</tr>
+					);
+				})}
+			</tbody>
+		</Table>
 	);
 }
 

@@ -11,16 +11,16 @@ import type {
 	TournamentData,
 	TournamentDataTeam,
 } from "~/features/tournament-bracket/core/Tournament.server";
-import type { TournamentMaplistSource } from "~/modules/tournament-map-list-generator";
+import type { TournamentMaplistSource } from "~/modules/tournament-map-list-generator/types";
 import { metaTags } from "~/utils/remix";
 import {
 	teamPage,
 	tournamentMatchPage,
 	tournamentTeamPage,
 	userPage,
-	userSubmittedImage,
 } from "~/utils/urls";
 import { TeamWithRoster } from "../components/TeamWithRoster";
+import * as Standings from "../core/Standings";
 import type { PlayedSet } from "../core/sets.server";
 import { loader } from "../loaders/to.$id.teams.$tid.server";
 import { useTournament } from "./to.$id";
@@ -41,7 +41,7 @@ export const meta: MetaFunction<typeof loader> = (args) => {
 		description: `${team.name} roster (${team.members.map((m) => m.username).join(", ")}) and sets in ${tournamentData.ctx.name}.`,
 		image: teamLogoUrl
 			? {
-					url: userSubmittedImage(teamLogoUrl),
+					url: teamLogoUrl,
 					dimensions: { width: 124, height: 124 },
 				}
 			: undefined,
@@ -106,7 +106,9 @@ function StatSquares({
 	const data = useLoaderData<typeof loader>();
 	const tournament = useTournament();
 
-	const placement = tournament.standings.find(
+	const standingsResult = Standings.tournamentStandings(tournament);
+	const overallStandings = Standings.flattenStandings(standingsResult);
+	const placement = overallStandings.find(
 		(s) => s.team.id === data.tournamentTeamId,
 	)?.placement;
 
@@ -169,6 +171,15 @@ function StatSquares({
 						{t("tournament:team.placement.footer")}
 					</div>
 				) : null}
+				{standingsResult.type === "multi" ? (
+					<div className="tournament__team__stat__sub">
+						{
+							standingsResult.standings.find((s) =>
+								s.standings.some((s) => s.team.id === data.tournamentTeamId),
+							)?.div
+						}
+					</div>
+				) : null}
 			</div>
 		</div>
 	);
@@ -196,7 +207,7 @@ function SetInfo({ set, team }: { set: PlayedSet; team: TournamentDataTeam }) {
 	};
 
 	const { bracketName, roundNameWithoutMatchIdentifier } =
-		tournament.matchNameById(set.tournamentMatchId);
+		tournament.matchContextNamesById(set.tournamentMatchId);
 
 	return (
 		<div className="tournament__team__set">

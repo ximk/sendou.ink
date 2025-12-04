@@ -6,7 +6,11 @@ import {
 	type abilitiesShort,
 } from "~/modules/in-game-lists/abilities";
 import { stageIds } from "~/modules/in-game-lists/stage-ids";
-import { mainWeaponIds } from "~/modules/in-game-lists/weapon-ids";
+import {
+	mainWeaponIds,
+	specialWeaponIds,
+	subWeaponIds,
+} from "~/modules/in-game-lists/weapon-ids";
 import { FRIEND_CODE_REGEXP } from "../features/sendouq/q-constants";
 import { SHORT_NANOID_LENGTH } from "./id";
 import type { Unpacked } from "./types";
@@ -31,6 +35,9 @@ export const dbBoolean = z.coerce.number().min(0).max(1).int();
 
 const hexCodeRegex = /^#(?:[0-9a-fA-F]{3}){1,2}[0-9]{0,2}$/; // https://stackoverflow.com/a/1636354
 export const hexCode = z.string().regex(hexCodeRegex);
+
+const timeStringRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+export const timeString = z.string().regex(timeStringRegex);
 
 const abilityNameToType = (val: string) =>
 	abilities.find((ability) => ability.name === val)?.type;
@@ -105,6 +112,10 @@ export const weaponSplId = z.preprocess(
 	numericEnum(mainWeaponIds),
 );
 
+export const subWeaponId = numericEnum(subWeaponIds);
+
+export const specialWeaponId = numericEnum(specialWeaponIds);
+
 export const qWeapon = z.object({
 	weaponSplId,
 	isFavorite: z.union([z.literal(0), z.literal(1)]),
@@ -142,8 +153,7 @@ export function processMany(
 export function safeJSONParse(value: unknown): unknown {
 	try {
 		if (typeof value !== "string") return value;
-		const parsedValue = z.string().parse(value);
-		return JSON.parse(parsedValue);
+		return JSON.parse(value);
 	} catch {
 		return undefined;
 	}

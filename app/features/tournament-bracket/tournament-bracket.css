@@ -74,8 +74,6 @@
 	display: flex;
 	justify-content: space-between;
 	padding: var(--s-2);
-
-	/* TODO: add fallback from Firefox */
 	backdrop-filter: blur(5px);
 	background: rgb(0 0 0 / 40%);
 	border-start-end-radius: var(--rounded);
@@ -509,7 +507,8 @@
 }
 
 .tournament-bracket__compactify-button svg {
-	width: 0.85rem;
+	min-width: 0.85rem;
+	max-width: 0.85rem;
 }
 
 .tournament-bracket__cast-info-container {
@@ -542,22 +541,8 @@
 	width: 280px;
 }
 
-.map-list-dialog__container {
-	display: flex;
-	flex-direction: column;
-	gap: var(--s-5);
-}
-
-.map-list-dialog__pick-ban-select {
-	text-align: start;
-}
-
-.map-list-dialog__map-list-row {
-	display: flex;
-	gap: var(--s-2);
-	align-items: center;
-	margin-block: var(--s-2);
-	list-style: none;
-	min-width: 275px;
-	text-align: start;
+.finalize__badge-container {
+	padding: var(--s-2);
+	background-color: black;
+	border-radius: var(--rounded);
 }

@@ -11,11 +11,12 @@ import {
 	submit,
 } from "~/utils/playwright";
 import {
+	NOTIFICATIONS_URL,
+	SETTINGS_PAGE,
 	tournamentAdminPage,
 	tournamentBracketsPage,
 	tournamentMatchPage,
 	tournamentPage,
-	tournamentRegisterPage,
 	userResultsPage,
 } from "~/utils/urls";
 
@@ -272,7 +273,7 @@ test.describe("Tournament bracket", () => {
 		);
 		const inviteLink = inviteLinkProd.replace(
 			"https://sendou.ink",
-			"http://localhost:5173",
+			"http://localhost:6173",
 		);
 
 		await impersonate(page, NZAP_TEST_ID);
@@ -285,7 +286,9 @@ test.describe("Tournament bracket", () => {
 		await expect(page).toHaveURL(/brackets/);
 	});
 
-	test("completes and finalizes a small tournament", async ({ page }) => {
+	test("completes and finalizes a small tournament with badge assigning", async ({
+		page,
+	}) => {
 		const tournamentId = 2;
 
 		await seed(page);
@@ -322,6 +325,10 @@ test.describe("Tournament bracket", () => {
 		await backToBracket(page);
 
 		await page.getByTestId("finalize-tournament-button").click();
+
+		await page.getByLabel("Receiving team").first().selectOption("101");
+		await page.getByLabel("Receiving team").last().selectOption("102");
+
 		await page.getByTestId("confirm-button").click();
 
 		await page.getByTestId("results-tab").click();
@@ -334,11 +341,22 @@ test.describe("Tournament bracket", () => {
 		});
 
 		await expect(page.getByText("In The Zone 22")).toBeVisible();
+
+		await navigate({
+			page,
+			url: NOTIFICATIONS_URL,
+		});
+
+		await expect(page.getByTestId("notification-item").first()).toContainText(
+			"New badge",
+		);
 	});
 
 	test("completes and finalizes a small tournament (RR->SE w/ underground bracket)", async ({
 		page,
 	}) => {
+		test.slow();
+
 		const tournamentId = 3;
 
 		await seed(page);
@@ -427,6 +445,7 @@ test.describe("Tournament bracket", () => {
 			await backToBracket(page);
 		}
 		await page.getByTestId("finalize-tournament-button").click();
+		await page.getByTestId("assign-badges-later-switch").click();
 		await page.getByTestId("confirm-button").click();
 
 		// not possible to reopen finals match anymore
@@ -439,15 +458,20 @@ test.describe("Tournament bracket", () => {
 		await page.getByTestId("result-team-name").first().click();
 		await page.getByTestId("team-member-name").first().click();
 
-		await expect(page).toHaveURL(/\/u\//);
+		await page.getByTestId("user-seasons-tab").click();
+		await expect(page.getByTestId("seasons-tournament-result")).toBeVisible();
 
-		await page.getByText("Results").click();
+		await page.getByTestId("user-results-tab").click();
 		await expect(
 			page.getByTestId("tournament-name-cell").first(),
 		).toContainText("Paddling Pool 253");
+
+		await page.getByTestId("mates-button").first().click();
 		await expect(
 			page.locator('[data-testid="mates-cell-placement-0"] li'),
 		).toHaveCount(3);
+
+		// if more assertions added below we need to close the popover first (data-testid="underlay")
 	});
 
 	test("changes SOS format and progresses with it & adds a member to another team", async ({
@@ -518,7 +542,7 @@ test.describe("Tournament bracket", () => {
 	}) => {
 		const tournamentId = 4;
 
-		await seed(page, "SMALL_SOS");
+		await seed(page);
 		await impersonate(page);
 
 		await navigate({
@@ -528,34 +552,56 @@ test.describe("Tournament bracket", () => {
 
 		await page.getByTestId("edit-event-info-button").click();
 		await page.getByTestId("delete-bracket-button").last().click();
-		await page.getByTestId("delete-bracket-button").last().click();
-		await page.getByTestId("delete-bracket-button").last().click();
 
-		await page.getByTestId("follow-up-bracket-switch").click();
+		for (const toggle of await page
+			.getByTestId("follow-up-bracket-switch")
+			.all()) {
+			await toggle.click();
+		}
+
 		await page.getByLabel("Format").first().selectOption("Single-elimination");
+		await page.getByLabel("Format").nth(1).selectOption("Single-elimination");
+		await page.getByLabel("Format").nth(2).selectOption("Swiss");
+		await page.getByLabel("Format").nth(3).selectOption("Swiss");
 
 		await submit(page);
 
 		await page.getByText("Seeds").click();
 		await page.getByTestId("set-starting-brackets").click();
 
-		await page
-			.getByTestId("starting-bracket-select")
-			.first()
-			.selectOption("Great White");
-		await page
-			.getByTestId("starting-bracket-select")
-			.nth(1)
-			.selectOption("Great White");
+		for (let i = 0; i < 16; i++) {
+			let bracketName: string;
+			if (i < 4) {
+				bracketName = "Groups stage";
+			} else if (i < 8) {
+				bracketName = "Great White";
+			} else if (i < 12) {
+				bracketName = "Hammerhead";
+			} else {
+				bracketName = "Mako";
+			}
+
+			await page
+				.getByTestId("starting-bracket-select")
+				.nth(i)
+				.selectOption(bracketName);
+		}
 
 		await submit(page, "set-starting-brackets-submit-button");
-		await page.getByTestId("brackets-tab").click();
-		await page.getByText("Great White").click();
-		await page.getByTestId("finalize-bracket-button").click();
-		await page.getByTestId("confirm-finalize-bracket-button").click();
 
-		await expect(page.locator('[data-match-id="1"]')).toBeVisible();
-		await isNotVisible(page.locator('[data-match-id="2"]'));
+		await page.getByTestId("brackets-tab").click();
+		for (const bracketName of [
+			"Groups stage",
+			"Great White",
+			"Hammerhead",
+			"Mako",
+		]) {
+			await page.getByRole("button", { name: bracketName }).click();
+			await page.getByTestId("finalize-bracket-button").click();
+			await page.getByTestId("confirm-finalize-bracket-button").click();
+		}
+
+		await expect(page.locator('[data-match-id="11"]')).toBeVisible();
 	});
 
 	test("organizer edits a match after it is done", async ({ page }) => {
@@ -615,7 +661,7 @@ test.describe("Tournament bracket", () => {
 
 		await page.getByTestId("brackets-tab").click();
 		await page.getByTestId("finalize-bracket-button").click();
-		await page.getByLabel("Count", { exact: true }).selectOption("5");
+		await page.getByTestId("increase-map-count-button").first().click();
 		await page.getByTestId("confirm-finalize-bracket-button").click();
 
 		await page.locator('[data-match-id="1"]').click();
@@ -779,7 +825,7 @@ test.describe("Tournament bracket", () => {
 		await expect(page.locator('[data-match-id="1"]')).toBeVisible();
 	});
 
-	test("tournament no screen toggle works", async ({ page }) => {
+	test("user no screen setting affects tournament match", async ({ page }) => {
 		const tournamentId = 4;
 
 		await seed(page);
@@ -787,22 +833,25 @@ test.describe("Tournament bracket", () => {
 
 		await navigate({
 			page,
-			url: tournamentRegisterPage(tournamentId),
+			url: SETTINGS_PAGE,
 		});
 
-		await page.getByTestId("no-screen-checkbox").click();
-		await page.getByTestId("save-team-button").click();
+		await page.getByTestId("UPDATE_NO_SCREEN-switch").click();
 
-		await page.getByTestId("brackets-tab").click();
+		await navigate({
+			page,
+			url: tournamentBracketsPage({ tournamentId }),
+		});
+
 		await page.getByTestId("finalize-bracket-button").click();
 		await page.getByTestId("confirm-finalize-bracket-button").click();
 
-		await page.locator('[data-match-id="2"]').click();
-		await expect(page.getByTestId("screen-allowed")).toBeVisible();
-		await backToBracket(page);
-
 		await page.locator('[data-match-id="1"]').click();
 		await expect(page.getByTestId("screen-banned")).toBeVisible();
+
+		await backToBracket(page);
+		await page.locator('[data-match-id="2"]').click();
+		await expect(page.getByTestId("screen-allowed")).toBeVisible();
 	});
 
 	test("hosts a 'play all' round robin stage", async ({ page }) => {
@@ -924,10 +973,9 @@ test.describe("Tournament bracket", () => {
 
 		await page.getByTestId("prepare-maps-button").click();
 
-		await page.getByRole("button", { name: "Unlink" }).click();
+		await page.getByTestId("unlink-finals-3rd-place-match-button").click();
 
-		await page.getByRole("button", { name: "Edit" }).last().click();
-		await page.getByLabel("Bo9").click();
+		await page.getByTestId("increase-map-count-button").last().click();
 
 		await page.getByTestId("confirm-finalize-bracket-button").click();
 
@@ -941,7 +989,9 @@ test.describe("Tournament bracket", () => {
 		await page.getByTestId("prepare-maps-button").click();
 
 		// link button should be visible because we unlinked and made finals and third place match maps different earlier
-		expect(page.getByRole("button", { name: "Link" })).toBeVisible();
+		await expect(
+			page.getByTestId("link-finals-3rd-place-match-button"),
+		).toBeVisible();
 	});
 
 	for (const pickBan of ["COUNTERPICK", "BAN_2"]) {

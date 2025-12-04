@@ -21,7 +21,7 @@ const SPRINKLER_HP = 120;
 const RAINMAKER_HP = 1000;
 const SPLAT_BRELLA_SHIELD_HP = 500;
 const BOOYAH_BOMB_ARMOR_HP = 470;
-const INK_VAC_HP = 800;
+const INK_VAC_HP = 1200;
 const BEAKON_HP = 120;
 const TORPEDO_HP = 20;
 const SUPER_CHUMP_HP = 60;
@@ -62,10 +62,10 @@ export const objectHitPoints = (abilityPoints: AbilityPoints): HitPoints => {
 		),
 		BulletUmbrellaCanopyNormal_Launched: SPLAT_BRELLA_SHIELD_HP * 2,
 		BulletUmbrellaCanopyWide_Launched: hpDivided(
-			weaponParams.mainWeapons[6010].CanopyHP * 2,
+			weaponParams.mainWeapons[6010].CanopyHP * (10 / 6),
 		),
 		BulletShelterCanopyFocus_Launched: hpDivided(
-			weaponParams.mainWeapons[6030].CanopyHP * 2,
+			weaponParams.mainWeapons[6030].CanopyHP * (10 / 6),
 		),
 		Wsb_Shield,
 		Bomb_TorpedoBullet: TORPEDO_HP,
@@ -78,7 +78,7 @@ export const objectHitPoints = (abilityPoints: AbilityPoints): HitPoints => {
 		ShockSonar: WAVE_BREAKER_HP,
 		Wsb_Flag: BEAKON_HP,
 		Wsb_Sprinkler: SPRINKLER_HP,
-		Firework: SUPER_CHUMP_HP,
+		Decoy: SUPER_CHUMP_HP,
 		BulletPogo: TRIPLE_SPLASHDOWN_HP,
 	};
 };

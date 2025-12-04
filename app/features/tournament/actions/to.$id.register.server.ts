@@ -10,6 +10,7 @@ import {
 	clearTournamentDataCache,
 	tournamentFromDB,
 } from "~/features/tournament-bracket/core/Tournament.server";
+import { deleteSub } from "~/features/tournament-subs/queries/deleteSub.server";
 import * as UserRepository from "~/features/user-page/UserRepository.server";
 import { logger } from "~/utils/logger";
 import {
@@ -18,7 +19,6 @@ import {
 	parseParams,
 	uploadImageIfSubmitted,
 } from "~/utils/remix.server";
-import { booleanToInt } from "~/utils/sql";
 import { assertUnreachable } from "~/utils/types";
 import { idObject } from "~/utils/zod";
 import { checkIn } from "../queries/checkIn.server";
@@ -90,8 +90,7 @@ export const action: ActionFunction = async ({ request, params }) => {
 					team: {
 						id: ownTeam.id,
 						name: data.teamName,
-						prefersNotToHost: booleanToInt(data.prefersNotToHost),
-						noScreen: booleanToInt(data.noScreen),
+						prefersNotToHost: Number(data.prefersNotToHost),
 						teamId: data.teamId ?? null,
 					},
 				});
@@ -126,14 +125,14 @@ export const action: ActionFunction = async ({ request, params }) => {
 					}),
 					team: {
 						name: data.teamName,
-						noScreen: booleanToInt(data.noScreen),
-						prefersNotToHost: booleanToInt(data.prefersNotToHost),
+						prefersNotToHost: Number(data.prefersNotToHost),
 						teamId: data.teamId ?? null,
 					},
 					userId: user.id,
 					tournamentId,
 					avatarFileName,
 				});
+				deleteSub({ tournamentId, userId: user.id });
 
 				ShowcaseTournaments.addToCached({
 					tournamentId,
@@ -261,8 +260,8 @@ export const action: ActionFunction = async ({ request, params }) => {
 				"No trust given from this user",
 			);
 			errorToastIfFalsy(
-				(await UserRepository.findLeanById(user.id))?.friendCode,
-				"No friend code",
+				(await UserRepository.findLeanById(data.userId))?.friendCode,
+				"User you are trying to add has no friend code set",
 			);
 			errorToastIfFalsy(tournament.registrationOpen, "Registration is closed");
 
@@ -304,7 +303,7 @@ export const action: ActionFunction = async ({ request, params }) => {
 							tournamentName: tournament.ctx.name,
 							tournamentTeamId: ownTeam.id,
 						},
-						pictureUrl: tournament.logoSrc,
+						pictureUrl: tournament.ctx.logoUrl,
 					},
 				});
 			}

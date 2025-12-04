@@ -4,7 +4,6 @@ import type {
 	Insertable,
 	JSONColumnType,
 	Selectable,
-	SqlBool,
 	Updateable,
 } from "kysely";
 import type { AssociationVisibility } from "~/features/associations/associations-types";
@@ -12,6 +11,7 @@ import type { tags } from "~/features/calendar/calendar-constants";
 import type { CalendarFilters } from "~/features/calendar/calendar-types";
 import type { TieredSkill } from "~/features/mmr/tiered.server";
 import type { Notification as NotificationValue } from "~/features/notifications/notifications-types";
+import type { ScrimFilters } from "~/features/scrims/scrims-types";
 import type { TEAM_MEMBER_ROLES } from "~/features/team/team-constants";
 import type * as PickBan from "~/features/tournament-bracket/core/PickBan";
 import type * as Progression from "~/features/tournament-bracket/core/Progression";
@@ -45,6 +45,8 @@ export interface Team {
 	inviteCode: string;
 	name: string;
 	bsky: string | null;
+	/** Team's tag, typically used in-game in front of users' names to indicate they are a member of the team. */
+	tag: string | null;
 }
 
 export interface TeamMember {
@@ -99,8 +101,10 @@ export interface BadgeManager {
 }
 
 export type BadgeOwner = {
-	badgeId: number | null;
-	userId: number | null;
+	badgeId: number;
+	userId: number;
+	/** Which tournament the badge is from, if null was added manually by a badge manager as opposed to once a tournament was finalized. */
+	tournamentId: number | null;
 };
 
 export interface Build {
@@ -123,18 +127,20 @@ export interface BuildAbility {
 	buildId: number;
 	gearType: GearType;
 	slotIndex: number;
+	/** 10 if main ability, 3 if sub */
+	abilityPoints: GeneratedAlways<number>;
 }
 
 export interface BuildWeapon {
 	buildId: number;
 	weaponSplId: MainWeaponId;
+	/** Has the owner of this build reached top 500 of X Rank with this weapon? Denormalized for performance reasons. */
+	isTop500: Generated<DBBoolean>;
+	/** Plus tier or 4 if none. Denormalized for performance reasons. */
+	tier: Generated<number>;
+	/** Last time the build was updated. Denormalized for performance reasons. */
+	updatedAt: Generated<number>;
 }
-
-/** Image associated with the avatar when the event is showcased on the front page */
-export type CalendarEventAvatarMetadata = {
-	backgroundColor: string;
-	textColor: string;
-};
 
 export type CalendarEventTag = keyof typeof tags;
 
@@ -152,8 +158,6 @@ export interface CalendarEvent {
 	tournamentId: number | null;
 	organizationId: number | null;
 	avatarImgId: number | null;
-	// TODO: remove in migration
-	avatarMetadata: JSONColumnTypeNullable<CalendarEventAvatarMetadata>;
 }
 
 export interface CalendarEventBadge {
@@ -402,6 +406,7 @@ export interface Skill {
 	season: number;
 	tournamentId: number | null;
 	userId: number | null;
+	createdAt: number | null;
 }
 
 export interface SkillTeamUser {
@@ -462,6 +467,8 @@ export interface TournamentSettings {
 		roundCount: number;
 	};
 	minMembersPerTeam?: number;
+	/** Maximum number of team members that can be registered (only applies to 4v4 tournaments) */
+	maxMembersPerTeam?: number;
 	isTest?: boolean;
 }
 
@@ -535,8 +542,6 @@ export const TournamentMatchStatus = {
 };
 
 export interface TournamentMatch {
-	// TODO: remove
-	bestOf: Generated<3 | 5 | 7>;
 	chatCode: string | null;
 	groupId: number;
 	id: GeneratedAlways<number>;
@@ -578,17 +583,27 @@ export interface TournamentMatchGameResult {
 export interface TournamentMatchGameResultParticipant {
 	matchGameResultId: number;
 	userId: number;
-	// it only started mattering when we added the possibility to join many teams in a tournament, null for legacy events
-	tournamentTeamId: number | null;
+	tournamentTeamId: number;
 }
 
+export type WinLossParticipationArray = Array<"W" | "L" | null>;
+
 export interface TournamentResult {
-	isHighlight: Generated<SqlBool>;
+	isHighlight: Generated<DBBoolean>;
 	participantCount: number;
 	placement: number;
 	tournamentId: number;
 	tournamentTeamId: number;
+	/**
+	 * The result of sets in the tournament.
+	 * E.g. ["W", "L", null] would mean the user won the first set, lost the second and did not play the third.
+	 * */
+	setResults: JSONColumnType<WinLossParticipationArray>;
+	/** The SP change in total after the finalization of a ranked tournament. */
+	spDiff: number | null;
 	userId: number;
+	/** Division label for tournaments with multiple starting brackets (e.g., "D1", "D2") */
+	div: string | null;
 }
 
 export interface TournamentRoundMaps {
@@ -610,7 +625,7 @@ export interface TournamentRound {
 	id: GeneratedAlways<number>;
 	number: number;
 	stageId: number;
-	maps: JSONColumnTypeNullable<TournamentRoundMaps>;
+	maps: JSONColumnType<TournamentRoundMaps>;
 }
 
 // when updating this also update `defaultBracketSettings` in tournament-utils.ts
@@ -623,6 +638,8 @@ export interface TournamentStageSettings {
 	groupCount?: number;
 	// SWISS
 	roundCount?: number;
+	/** (Swiss only) Number of wins required for a team to advance early. When set, teams advance at this win count and are eliminated at (roundCount - advanceThreshold + 1) losses. */
+	advanceThreshold?: number;
 }
 
 export const TOURNAMENT_STAGE_TYPES = [
@@ -669,7 +686,6 @@ export interface TournamentTeam {
 	inviteCode: string;
 	name: string;
 	prefersNotToHost: Generated<DBBoolean>;
-	noScreen: Generated<DBBoolean>;
 	droppedOut: Generated<DBBoolean>;
 	seed: number | null;
 	/** For formats that have many starting brackets, where should the team start? */
@@ -704,6 +720,7 @@ export interface TournamentOrganization {
 	description: string | null;
 	socials: JSONColumnTypeNullable<string[]>;
 	avatarImgId: number | null;
+	isEstablished: Generated<DBBoolean>;
 }
 
 export const TOURNAMENT_ORGANIZATION_ROLES = [
@@ -748,6 +765,7 @@ export interface TournamentOrganizationBannedUser {
 	userId: number;
 	privateNote: string | null;
 	updatedAt: Generated<number>;
+	expiresAt: number | null;
 }
 
 /** Indicates a user trusts another. Allows direct adding to groups/teams without invite links. */
@@ -815,6 +833,15 @@ export interface UserPreferences {
 	disableBuildAbilitySorting?: boolean;
 	disallowScrimPickupsFromUntrusted?: boolean;
 	defaultCalendarFilters?: CalendarFilters;
+	defaultScrimsFilters?: ScrimFilters;
+	/**
+	 * What time format the user prefers?
+	 *
+	 * "auto" = use browser default (default value)
+	 * "24h" = 24 hour format (e.g. 14:00)
+	 * "12h" = 12 hour format (e.g. 2:00 PM)
+	 * */
+	clockFormat?: "24h" | "12h" | "auto";
 }
 
 export interface User {
@@ -823,6 +850,7 @@ export interface User {
 	bannedReason: string | null;
 	bio: string | null;
 	commissionsOpen: Generated<number | null>;
+	commissionsOpenedAt: number | null;
 	commissionText: string | null;
 	country: string | null;
 	css: JSONColumnTypeNullable<Record<string, string>>;
@@ -841,6 +869,7 @@ export interface User {
 	isArtist: Generated<DBBoolean | null>;
 	isVideoAdder: Generated<DBBoolean | null>;
 	isTournamentOrganizer: Generated<DBBoolean | null>;
+	isApiAccesser: Generated<DBBoolean | null>;
 	languages: string | null;
 	motionSens: number | null;
 	patronSince: number | null;
@@ -861,6 +890,8 @@ export interface User {
 	preferences: JSONColumnTypeNullable<UserPreferences>;
 	/** User creation date. Can be null because we did not always save this. */
 	createdAt: number | null;
+	/** Last message used when creating a tournament sub post */
+	lastSubMessage: string | null;
 }
 
 /** Represents User joined with PlusTier table */
@@ -892,6 +923,13 @@ export interface UserFriendCode {
 	friendCode: string;
 	userId: number;
 	submitterUserId: number;
+	createdAt: GeneratedAlways<number>;
+}
+
+export interface ApiToken {
+	id: GeneratedAlways<number>;
+	userId: number;
+	token: string;
 	createdAt: GeneratedAlways<number>;
 }
 
@@ -961,6 +999,8 @@ export interface ScrimPost {
 	id: GeneratedAlways<number>;
 	/** When is the scrim scheduled to happen */
 	at: number;
+	/** Optional end of time range indicating team accepts scrims starting between at and rangeEnd */
+	rangeEnd: number | null;
 	/** Highest LUTI div accepted */
 	maxDiv: number | null;
 	/** Lowest LUTI div accepted */
@@ -983,6 +1023,10 @@ export interface ScrimPost {
 	cancelReason: string | null;
 	/** When the post was made was it scheduled for a future time slot (as opposed to looking now) */
 	isScheduledForFuture: Generated<DBBoolean>;
+	/** Maps/modes the scrim is available for. If null means no preference unless "mapsTournamentId" is set */
+	maps: "SZ" | "ALL" | "RANKED" | null;
+	/** If set, specifies the maps of a tournament to play */
+	mapsTournamentId: number | null;
 	createdAt: GeneratedAlways<number>;
 	updatedAt: Generated<number>;
 }
@@ -998,6 +1042,9 @@ export interface ScrimPostRequest {
 	id: GeneratedAlways<number>;
 	scrimPostId: number;
 	teamId: number | null;
+	message: string | null;
+	/** Specific time selected by requester (required when post has rangeEnd) */
+	at: number | null;
 	isAccepted: Generated<DBBoolean>;
 	createdAt: GeneratedAlways<number>;
 }
@@ -1058,6 +1105,7 @@ export type TablesUpdatable = { [P in keyof DB]: Updateable<DB[P]> };
 export interface DB {
 	AllTeam: Team;
 	AllTeamMember: TeamMember;
+	ApiToken: ApiToken;
 	Art: Art;
 	ArtTag: ArtTag;
 	ArtUserMetadata: ArtUserMetadata;

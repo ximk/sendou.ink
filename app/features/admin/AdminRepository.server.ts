@@ -1,6 +1,7 @@
 import type { Transaction } from "kysely";
 import { db, sql } from "~/db/sql";
 import type { DB, Tables, TablesInsertable } from "~/db/tables";
+import * as BuildRepository from "~/features/builds/BuildRepository.server";
 import { dateToDatabaseTimestamp } from "~/utils/dates";
 import invariant from "~/utils/invariant";
 import { syncXPBadges } from "../badges/queries/syncXPBadges.server";
@@ -59,6 +60,10 @@ export function migrate(args: { newUserId: number; oldUserId: number }) {
 			.where("userId", "=", args.newUserId)
 			.execute();
 		await trx
+			.deleteFrom("Build")
+			.where("ownerId", "=", args.newUserId)
+			.execute();
+		await trx
 			.deleteFrom("UserFriendCode")
 			.where("userId", "=", args.newUserId)
 			.execute();
@@ -80,6 +85,24 @@ export function migrate(args: { newUserId: number; oldUserId: number }) {
 			.updateTable("UnvalidatedUserSubmittedImage")
 			.where("submitterUserId", "=", args.newUserId)
 			.set({ submitterUserId: args.oldUserId })
+			.execute();
+
+		// special case: delete same team membership to avoid unique constraint violation
+		await trx
+			.deleteFrom("AllTeamMember")
+			.where("userId", "=", args.oldUserId)
+			.where("leftAt", "is not", null)
+			.where((eb) =>
+				eb(
+					"AllTeamMember.teamId",
+					"in",
+					eb
+						.selectFrom("AllTeamMember")
+						.select("teamId")
+						.where("userId", "=", args.newUserId)
+						.where("leftAt", "is", null),
+				),
+			)
 			.execute();
 
 		// delete past team membership data (not user visible)
@@ -168,10 +191,26 @@ export function makeVideoAdderByUserId(userId: number) {
 		.execute();
 }
 
+export function makeArtistByUserId(userId: number) {
+	return db
+		.updateTable("User")
+		.set({ isArtist: 1 })
+		.where("User.id", "=", userId)
+		.execute();
+}
+
 export function makeTournamentOrganizerByUserId(userId: number) {
 	return db
 		.updateTable("User")
 		.set({ isTournamentOrganizer: 1 })
+		.where("User.id", "=", userId)
+		.execute();
+}
+
+export function makeApiAccesserByUserId(userId: number) {
+	return db
+		.updateTable("User")
+		.set({ isApiAccesser: 1 })
 		.where("User.id", "=", userId)
 		.execute();
 }
@@ -196,6 +235,7 @@ export async function linkUserAndPlayer({
 		.execute();
 
 	syncXPBadges();
+	await BuildRepository.recalculateAllTop500();
 }
 
 export function forcePatron(args: {
@@ -213,6 +253,22 @@ export function forcePatron(args: {
 		})
 		.where("User.id", "=", args.id)
 		.execute();
+}
+
+export async function allBannedUsers() {
+	const rows = await db
+		.selectFrom("User")
+		.select(["User.id as userId", "User.banned", "User.bannedReason"])
+		.where("User.banned", "!=", 0)
+		.execute();
+
+	const result: Map<number, (typeof rows)[number]> = new Map();
+
+	for (const row of rows) {
+		result.set(row.userId, row);
+	}
+
+	return result;
 }
 
 export function banUser({

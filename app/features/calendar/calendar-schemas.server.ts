@@ -86,15 +86,22 @@ export const newCalendarEventActionSchema = z
 			checkboxValueToBoolean,
 			z.boolean().nullish(),
 		),
-		minMembersPerTeam: z.coerce.number().int().min(1).max(4).nullish(),
+		minMembersPerTeam: z.preprocess(
+			actualNumber,
+			z.number().int().min(1).max(4).nullish(),
+		),
+		maxMembersPerTeam: z.preprocess(
+			actualNumber,
+			z.number().int().min(4).max(10).nullish(),
+		),
 		bracketProgression: bracketProgressionSchema.nullish(),
 	})
 	.refine(
 		async (schema) => {
 			if (schema.eventToEditId) {
-				const eventToEdit = await CalendarRepository.findById({
-					id: schema.eventToEditId,
-				});
+				const eventToEdit = await CalendarRepository.findById(
+					schema.eventToEditId,
+				);
 				return schema.date.length === 1 || !eventToEdit?.tournamentId;
 			}
 			return schema.date.length === 1 || !schema.toToolsEnabled;

@@ -16,6 +16,11 @@ export default defineConfig(() => {
 		ssr: {
 			noExternal: ["react-charts", "react-use"],
 		},
+		esbuild: {
+			supported: {
+				"top-level-await": true, //browsers can handle top-level-await features
+			},
+		},
 		plugins: [
 			remix({
 				ignoredRouteFiles: ["**/.*", "**/*.json", "**/components/*"],
@@ -25,7 +30,6 @@ export default defineConfig(() => {
 					v3_relativeSplatPath: true,
 					v3_throwAbortReason: true,
 					v3_routeConfig: true,
-					v3_lazyRouteDiscovery: true,
 				},
 			}),
 			babel({
