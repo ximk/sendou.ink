@@ -1,9 +1,8 @@
-import type { MetaFunction } from "@remix-run/node";
-import type { ShouldRevalidateFunction } from "@remix-run/react";
-import { Link } from "@remix-run/react";
 import clsx from "clsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
+import type { MetaFunction, ShouldRevalidateFunction } from "react-router";
+import { Link } from "react-router";
 import { AbilitiesSelector } from "~/components/AbilitiesSelector";
 import { Ability } from "~/components/Ability";
 import Chart from "~/components/Chart";
@@ -90,7 +89,7 @@ import { Placeholder } from "~/components/Placeholder";
 import { WeaponSelect } from "~/components/WeaponSelect";
 import { logger } from "~/utils/logger";
 
-export const CURRENT_PATCH = "10.1";
+export const CURRENT_PATCH = "11.0";
 
 export const meta: MetaFunction = (args) => {
 	return metaTags({
@@ -995,6 +994,8 @@ function StatChartPopover(props: StatChartProps) {
 					className={
 						props.simple ? undefined : "analyzer__stat-popover-trigger"
 					}
+					variant="minimal"
+					size="small"
 					icon={
 						<BeakerIcon
 							className="analyzer__stat-popover-trigger__icon"
@@ -1283,6 +1284,8 @@ function EffectsSelector({
 						<div>
 							{isAbility(effect.type) ? (
 								<Ability ability={effect.type} size="SUB" />
+							) : effect.type === "AURA" ? (
+								<span className="text-xs font-bold">AURA</span>
 							) : (
 								<Image
 									path={specialWeaponImageUrl(15)}

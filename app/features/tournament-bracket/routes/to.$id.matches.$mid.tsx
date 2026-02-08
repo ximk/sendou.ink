@@ -1,9 +1,10 @@
-import { useLoaderData, useRevalidator } from "@remix-run/react";
 import clsx from "clsx";
 import * as React from "react";
+import { Form, useLoaderData, useRevalidator } from "react-router";
 import { LinkButton } from "~/components/elements/Button";
 import { ArrowLongLeftIcon } from "~/components/icons/ArrowLongLeft";
 import { containerClassName } from "~/components/Main";
+import { SubmitButton } from "~/components/SubmitButton";
 import { useUser } from "~/features/auth/core/user";
 import { useWebsocketRevalidation } from "~/features/chat/chat-hooks";
 import { ConnectedChat } from "~/features/chat/components/Chat";
@@ -109,11 +110,12 @@ export default function TournamentMatchPage() {
 					)}
 					matchIsOver={data.matchIsOver}
 					matchId={data.match.id}
-					hasBothParticipants={Boolean(
-						data.match.opponentOne?.id && data.match.opponentTwo?.id,
-					)}
+					matchStatus={data.match.status}
 				/>
-				{data.matchIsOver ? <ResultsSection /> : null}
+				{data.matchIsOver && !data.endedEarly && data.results.length > 0 ? (
+					<ResultsSection />
+				) : null}
+				{data.matchIsOver && data.endedEarly ? <EndedEarlyMessage /> : null}
 				{!data.matchIsOver &&
 				typeof data.match.opponentOne?.id === "number" &&
 				typeof data.match.opponentTwo?.id === "number" ? (
@@ -144,11 +146,11 @@ function BeforeMatchChat() {
 				...data.match.players.map((p) => ({ ...p, title: undefined })),
 				...(tournament.ctx.organization?.members ?? []).map((m) => ({
 					...m,
-					title: m.role === "STREAMER" ? "Stream" : "TO",
+					title: m.role === "STREAMER" ? "Cast" : "TO",
 				})),
 				...tournament.ctx.staff.map((s) => ({
 					...s,
-					title: s.role === "STREAMER" ? "Stream" : "TO",
+					title: s.role === "STREAMER" ? "Cast" : "TO",
 				})),
 				{
 					...tournament.ctx.author,
@@ -366,5 +368,62 @@ function ResultsSection() {
 			result={result}
 			type="OTHER"
 		/>
+	);
+}
+
+function EndedEarlyMessage() {
+	const user = useUser();
+	const data = useLoaderData<typeof loader>();
+	const tournament = useTournament();
+
+	const winnerTeamId =
+		data.match.opponentOne?.result === "win"
+			? data.match.opponentOne.id
+			: data.match.opponentTwo?.result === "win"
+				? data.match.opponentTwo.id
+				: null;
+
+	const winnerTeam = winnerTeamId ? tournament.teamById(winnerTeamId) : null;
+
+	const opponentOneTeam = data.match.opponentOne?.id
+		? tournament.teamById(data.match.opponentOne.id)
+		: null;
+	const opponentTwoTeam = data.match.opponentTwo?.id
+		? tournament.teamById(data.match.opponentTwo.id)
+		: null;
+	const droppedTeam = opponentOneTeam?.droppedOut
+		? opponentOneTeam
+		: opponentTwoTeam?.droppedOut
+			? opponentTwoTeam
+			: null;
+
+	return (
+		<div className="tournament-bracket__during-match-actions">
+			<div className="tournament-bracket__locked-banner tournament-bracket__locked-banner__lonely">
+				<div className="stack sm items-center">
+					<div className="text-lg text-center font-bold">Match ended early</div>
+					{winnerTeam ? (
+						<div className="text-xs text-lighter text-center">
+							{droppedTeam
+								? `${droppedTeam.name} dropped out of the tournament.`
+								: "The organizer ended this match as it exceeded the time limit."}{" "}
+							Winner: {winnerTeam.name}
+						</div>
+					) : null}
+				</div>
+				{tournament.isOrganizer(user) &&
+				tournament.matchCanBeReopened(data.match.id) ? (
+					<Form method="post" className="contents">
+						<SubmitButton
+							_action="REOPEN_MATCH"
+							className="tournament-bracket__stage-banner__undo-button"
+							testId="reopen-match-button"
+						>
+							Reopen match
+						</SubmitButton>
+					</Form>
+				) : null}
+			</div>
+		</div>
 	);
 }

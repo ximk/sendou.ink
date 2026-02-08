@@ -1,16 +1,17 @@
-import type { ActionFunctionArgs } from "@remix-run/node";
-import { redirect } from "@remix-run/node";
-import { z } from "zod/v4";
+import type { ActionFunctionArgs } from "react-router";
+import { redirect } from "react-router";
+import { z } from "zod";
 import { requireUser } from "~/features/auth/core/user.server";
 import * as UserRepository from "~/features/user-page/UserRepository.server";
 import { errorToastIfFalsy, parseRequestPayload } from "~/utils/remix.server";
 import { LFG_PAGE } from "~/utils/urls";
-import { falsyToNull, id } from "~/utils/zod";
+import { falsyToNull, id, noDuplicates, safeJSONParse } from "~/utils/zod";
+import { languagesUnified } from "../../../modules/i18n/config";
 import * as LFGRepository from "../LFGRepository.server";
 import { LFG, TEAM_POST_TYPES, TIMEZONES } from "../lfg-constants";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-	const user = await requireUser(request);
+	const user = requireUser();
 	const data = await parseRequestPayload({
 		request,
 		schema,
@@ -39,6 +40,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 			type: data.type,
 			teamId: shouldIncludeTeam ? team?.id : null,
 			plusTierVisibility: data.plusTierVisibility,
+			languages: data.languages.length > 0 ? data.languages.join(",") : null,
 		});
 	} else {
 		await LFGRepository.insertPost({
@@ -48,6 +50,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 			teamId: shouldIncludeTeam ? team?.id : null,
 			authorId: user.id,
 			plusTierVisibility: data.plusTierVisibility,
+			languages: data.languages.length > 0 ? data.languages.join(",") : null,
 		});
 	}
 
@@ -62,6 +65,15 @@ const schema = z.object({
 	plusTierVisibility: z.preprocess(
 		falsyToNull,
 		z.coerce.number().int().min(1).max(3).nullish(),
+	),
+	languages: z.preprocess(
+		safeJSONParse,
+		z
+			.array(z.string())
+			.refine(noDuplicates)
+			.refine((val) =>
+				val.every((lang) => languagesUnified.some((l) => l.code === lang)),
+			),
 	),
 });
 

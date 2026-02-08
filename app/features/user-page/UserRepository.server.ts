@@ -24,7 +24,7 @@ import {
 import { safeNumberParse } from "~/utils/number";
 import type { ChatUser } from "../chat/chat-types";
 
-const identifierToUserIdQuery = (identifier: string) =>
+export const identifierToUserIdQuery = (identifier: string) =>
 	db
 		.selectFrom("User")
 		.select("User.id")
@@ -167,6 +167,7 @@ export async function findProfileByIdentifier(
 			"User.favoriteBadgeIds",
 			"User.patronTier",
 			"PlusTier.tier as plusTier",
+			"User.pronouns",
 			jsonArrayFrom(
 				eb
 					.selectFrom("UserWeapon")
@@ -303,14 +304,6 @@ export function findByFriendCode(friendCode: string) {
 		.select([...COMMON_USER_FIELDS])
 		.where("UserFriendCode.friendCode", "=", friendCode)
 		.execute();
-}
-
-export function findBannedStatusByUserId(userId: number) {
-	return db
-		.selectFrom("User")
-		.select(["User.banned", "User.bannedReason"])
-		.where("User.id", "=", userId)
-		.executeTakeFirst();
 }
 
 export async function findSubDefaultsByUserId(userId: number) {
@@ -461,6 +454,7 @@ export async function findChatUsersByUserIds(userIds: number[]) {
 			"User.discordId",
 			"User.discordAvatar",
 			"User.username",
+			"User.pronouns",
 			userChatNameColor,
 		])
 		.where("User.id", "in", userIds)
@@ -516,6 +510,7 @@ const baseTournamentResultsQuery = (userId: number) =>
 			"CalendarEvent.tournamentId",
 			"TournamentResult.tournamentId",
 		)
+		.innerJoin("Tournament", "Tournament.id", "TournamentResult.tournamentId")
 		.where("TournamentResult.userId", "=", userId);
 
 export function findResultsByUserId(
@@ -543,6 +538,7 @@ export function findResultsByUserId(
 				sql`1`,
 				sql`0`,
 			]).as("isHighlight"),
+			sql<number | null>`null`.as("tier"),
 			withMaxEventStartTime(eb),
 			jsonArrayFrom(
 				eb
@@ -577,6 +573,7 @@ export function findResultsByUserId(
 			"TournamentTeam.id as teamId",
 			"TournamentTeam.name as teamName",
 			"TournamentResult.isHighlight",
+			"Tournament.tier",
 			withMaxEventStartTime(eb),
 			jsonArrayFrom(
 				eb
@@ -903,6 +900,7 @@ type UpdateProfileArgs = Pick<
 	| "customName"
 	| "motionSens"
 	| "stickSens"
+	| "pronouns"
 	| "inGameName"
 	| "battlefy"
 	| "css"
@@ -944,6 +942,7 @@ export function updateProfile(args: UpdateProfileArgs) {
 				customName: args.customName,
 				motionSens: args.motionSens,
 				stickSens: args.stickSens,
+				pronouns: args.pronouns,
 				inGameName: args.inGameName,
 				css: args.css,
 				battlefy: args.battlefy,
@@ -1127,4 +1126,14 @@ export async function anyUserPrefersNoScreen(
 		.executeTakeFirst();
 
 	return Boolean(result);
+}
+
+export function findIdsByTwitchUsernames(twitchUsernames: string[]) {
+	if (twitchUsernames.length === 0) return [];
+
+	return db
+		.selectFrom("User")
+		.select(["User.id", "User.twitch"])
+		.where("User.twitch", "in", twitchUsernames)
+		.execute();
 }

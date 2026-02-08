@@ -1,4 +1,4 @@
-import { z } from "zod/v4";
+import { z } from "zod";
 import * as CalendarRepository from "~/features/calendar/CalendarRepository.server";
 import { MapPool } from "~/features/map-list-generator/core/map-pool";
 import { rankedModesShort } from "~/modules/in-game-lists/modes";
@@ -80,7 +80,6 @@ export const newCalendarEventActionSchema = z
 		),
 		enableSubs: z.preprocess(checkboxValueToBoolean, z.boolean().nullish()),
 		autonomousSubs: z.preprocess(checkboxValueToBoolean, z.boolean().nullish()),
-		strictDeadline: z.preprocess(checkboxValueToBoolean, z.boolean().nullish()),
 		isInvitational: z.preprocess(checkboxValueToBoolean, z.boolean().nullish()),
 		requireInGameNames: z.preprocess(
 			checkboxValueToBoolean,

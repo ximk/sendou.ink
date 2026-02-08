@@ -1,9 +1,9 @@
-import { Outlet, useOutletContext, useRevalidator } from "@remix-run/react";
 import clsx from "clsx";
 import { sub } from "date-fns";
 import * as React from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { useTranslation } from "react-i18next";
+import { Outlet, useOutletContext, useRevalidator } from "react-router";
 import { useCopyToClipboard } from "react-use";
 import { Alert } from "~/components/Alert";
 import { Divider } from "~/components/Divider";
@@ -205,7 +205,7 @@ export default function TournamentBracketsPage() {
 						{!bracket.canBeStarted ? (
 							<div className="tournament-bracket__mini-alert">
 								⚠️{" "}
-								{bracketIdx === 0
+								{bracket.isStartingBracket
 									? "Tournament start time is in the future"
 									: bracket.startTime && bracket.startTime > new Date()
 										? "Bracket start time is in the future"

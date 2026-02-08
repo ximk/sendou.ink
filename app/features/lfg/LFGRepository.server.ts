@@ -24,6 +24,7 @@ export async function posts(user?: { id: number; plusTier: number | null }) {
 			"LFGPost.createdAt",
 			"LFGPost.updatedAt",
 			"LFGPost.plusTierVisibility",
+			"LFGPost.languages",
 			jsonObjectFrom(
 				eb
 					.selectFrom("User")
@@ -86,6 +87,7 @@ export async function posts(user?: { id: number; plusTier: number | null }) {
 		])
 		.orderBy(sql`LFGPost.authorId = ${sql`${userId}`} desc`)
 		.orderBy("LFGPost.updatedAt", "desc")
+		.orderBy("LFGPost.type", "asc")
 		.where((eb) =>
 			eb.or([
 				eb(
@@ -128,6 +130,7 @@ export function updatePost(
 			timezone: args.timezone,
 			type: args.type,
 			plusTierVisibility: args.plusTierVisibility,
+			languages: args.languages,
 			updatedAt: dateToDatabaseTimestamp(new Date()),
 		})
 		.where("id", "=", postId)

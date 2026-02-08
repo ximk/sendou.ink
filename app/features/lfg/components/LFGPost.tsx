@@ -1,7 +1,7 @@
-import { Link, useFetcher } from "@remix-run/react";
 import clsx from "clsx";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { Link, useFetcher } from "react-router";
 import { Avatar } from "~/components/Avatar";
 import { Divider } from "~/components/Divider";
 import { SendouButton } from "~/components/elements/Button";
@@ -56,7 +56,7 @@ function UserLFGPost({ post, tiersMap }: { post: Post; tiersMap: TiersMap }) {
 				/>
 				<PostTime createdAt={post.createdAt} updatedAt={post.updatedAt} />
 				<PostPills
-					languages={post.author.languages}
+					languages={post.languages}
 					plusTier={post.author.plusTier}
 					timezone={post.timezone}
 					tiers={
@@ -104,7 +104,12 @@ function TeamLFGPost({
 				<div className="stack xs">
 					<div className="stack horizontal items-center justify-between">
 						<PostTeamLogoHeader team={post.team} />
-						{isMounted && <PostTimezonePill timezone={post.timezone} />}
+						<div className="stack horizontal items-center sm">
+							{isMounted && <PostTimezonePill timezone={post.timezone} />}
+							{post.languages && (
+								<PostLanguagePill languages={post.languages} />
+							)}
+						</div>
 					</div>
 					<Divider />
 					<div className="stack horizontal justify-between">
@@ -181,7 +186,6 @@ function PostTeamMembersFull({
 				<div key={member.id} className="stack sm">
 					<PostUserHeader author={member} includeWeapons />
 					<PostPills
-						languages={member.languages}
 						plusTier={member.plusTier}
 						tiers={tiersMap.get(member.id)}
 						postId={postId}

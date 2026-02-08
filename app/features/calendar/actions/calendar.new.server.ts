@@ -1,5 +1,5 @@
-import type { ActionFunction } from "@remix-run/node";
-import { redirect } from "@remix-run/node";
+import type { ActionFunction } from "react-router";
+import { redirect } from "react-router";
 import type { CalendarEventTag } from "~/db/tables";
 import { requireUser } from "~/features/auth/core/user.server";
 import * as BadgeRepository from "~/features/badges/BadgeRepository.server";
@@ -31,7 +31,7 @@ import { canEditCalendarEvent, regClosesAtDate } from "../calendar-utils";
 import { findValidOrganizations } from "../loaders/calendar.new.server";
 
 export const action: ActionFunction = async ({ request }) => {
-	const user = await requireUser(request);
+	const user = requireUser();
 
 	const { avatarFileName, formData } = await uploadImageIfSubmitted({
 		request,
@@ -40,7 +40,6 @@ export const action: ActionFunction = async ({ request }) => {
 	const data = await parseFormData({
 		formData,
 		schema: newCalendarEventActionSchema,
-		parseAsync: true,
 	});
 
 	const isEditing = Boolean(data.eventToEditId);
@@ -98,7 +97,6 @@ export const action: ActionFunction = async ({ request }) => {
 		isRanked: data.isRanked ?? undefined,
 		isTest: data.isTest ?? undefined,
 		isInvitational: data.isInvitational ?? false,
-		deadlines: data.strictDeadline ? ("STRICT" as const) : ("DEFAULT" as const),
 		enableNoScreenToggle: data.enableNoScreenToggle ?? undefined,
 		enableSubs: data.enableSubs ?? undefined,
 		requireInGameNames: data.requireInGameNames ?? undefined,

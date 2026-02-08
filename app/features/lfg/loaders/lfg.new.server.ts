@@ -1,5 +1,5 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { z } from "zod/v4";
+import type { LoaderFunctionArgs } from "react-router";
+import { z } from "zod";
 import { requireUser } from "~/features/auth/core/user.server";
 import * as QSettingsRepository from "~/features/sendouq-settings/QSettingsRepository.server";
 import * as UserRepository from "~/features/user-page/UserRepository.server";
@@ -9,19 +9,20 @@ import { id } from "~/utils/zod";
 import * as LFGRepository from "../LFGRepository.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-	const user = await requireUser(request);
+	const user = requireUser();
 
 	const userProfileData = await UserRepository.findProfileByIdentifier(
 		String(user.id),
 	);
 	const userQSettingsData = await QSettingsRepository.settingsByUserId(user.id);
 	const allPosts = await LFGRepository.posts(user);
+	const postToEdit = searchParamsToBuildToEdit(request, user.id, allPosts);
 
 	return {
 		team: userProfileData?.team,
 		weaponPool: userProfileData?.weapons,
-		languages: userQSettingsData.languages,
-		postToEdit: searchParamsToBuildToEdit(request, user.id, allPosts),
+		languages: postToEdit?.languages?.split(",") ?? userQSettingsData.languages,
+		postToEdit,
 		userPostTypes: userPostTypes(allPosts, user.id),
 	};
 };

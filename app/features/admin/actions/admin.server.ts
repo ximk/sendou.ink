@@ -1,5 +1,5 @@
-import type { ActionFunctionArgs } from "@remix-run/node";
-import { z } from "zod/v4";
+import type { ActionFunctionArgs } from "react-router";
+import { z } from "zod";
 import * as AdminRepository from "~/features/admin/AdminRepository.server";
 import { requireUser } from "~/features/auth/core/user.server";
 import { refreshBannedCache } from "~/features/ban/core/banned.server";
@@ -14,6 +14,7 @@ import {
 import { errorIsSqliteForeignKeyConstraintFailure } from "~/utils/sql";
 import { assertUnreachable } from "~/utils/types";
 import { _action, actualNumber, friendCode } from "~/utils/zod";
+import * as AdminNotifications from "../core/admin-notifications.server";
 import { plusTiersFromVotingAndLeaderboard } from "../core/plus-tier.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -21,7 +22,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 		request,
 		schema: adminActionSchema,
 	});
-	const user = await requireUser(request);
+	const user = requireUser();
 
 	let message: string;
 	switch (data._action) {
@@ -167,6 +168,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 			message = "API access granted";
 			break;
 		}
+		case "TEST_ADMIN_NOTIFICATION": {
+			requireRole(user, "ADMIN");
+
+			await AdminNotifications.send("Test notification from admin panel");
+
+			message = "Test notification sent";
+			break;
+		}
 		default: {
 			assertUnreachable(data);
 		}
@@ -228,5 +237,8 @@ export const adminActionSchema = z.union([
 	z.object({
 		_action: _action("API_ACCESS"),
 		user: z.preprocess(actualNumber, z.number().positive()),
+	}),
+	z.object({
+		_action: _action("TEST_ADMIN_NOTIFICATION"),
 	}),
 ]);

@@ -1,7 +1,7 @@
-import type { MetaFunction } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
 import clsx from "clsx";
 import { useTranslation } from "react-i18next";
+import type { MetaFunction } from "react-router";
+import { Link, useLoaderData } from "react-router";
 import { Avatar } from "~/components/Avatar";
 import { SendouButton } from "~/components/elements/Button";
 import { SendouPopover } from "~/components/elements/Popover";
@@ -189,7 +189,7 @@ function SetInfo({ set, team }: { set: PlayedSet; team: TournamentDataTeam }) {
 	const { t } = useTranslation(["tournament"]);
 	const tournament = useTournament();
 
-	const sourceToText = (source: TournamentMaplistSource) => {
+	const sourceToText = (source: TournamentMaplistSource, mapIndex: number) => {
 		switch (source) {
 			case "BOTH":
 				return t("tournament:pickInfo.both");
@@ -197,6 +197,19 @@ function SetInfo({ set, team }: { set: PlayedSet; team: TournamentDataTeam }) {
 				return t("tournament:pickInfo.default");
 			case "TIEBREAKER":
 				return t("tournament:pickInfo.tiebreaker");
+			case "COUNTERPICK": {
+				if (mapIndex > 0) {
+					const previousMap = set.maps[mapIndex - 1];
+					const counterpickerName =
+						previousMap.result === "win" ? set.opponent.name : team.name;
+					return t("tournament:pickInfo.team.counterpick", {
+						team: counterpickerName,
+					});
+				}
+				return t("tournament:pickInfo.counterpick");
+			}
+			case "TO":
+				return null;
 			default: {
 				const teamName =
 					source === set.opponent.id ? set.opponent.name : team.name;
@@ -253,7 +266,7 @@ function SetInfo({ set, team }: { set: PlayedSet; team: TournamentDataTeam }) {
 										width={125}
 										className="rounded-sm"
 									/>
-									{sourceToText(source)}
+									{sourceToText(source, i)}
 								</div>
 							</SendouPopover>
 						);

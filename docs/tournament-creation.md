@@ -2,7 +2,12 @@
 
 ## About
 
-Sendou.ink can used to run Splatoon 3 tournaments without the need of another bracket hosting website. Currently it is in limited beta. You can request access via our Discord if you are an established tournament organizer.
+Sendou.ink can used to run Splatoon 3 tournaments without the need of another bracket hosting website. Currently it is in limited beta. Note that you should only make tournaments you host yourself. Creating tournaments on behalf of others is not allowed. Access is available to two groups:
+
+1) Patreon supporters of Supporter tier or above
+2) Established organizations
+
+See the /faq page for more information about established organizations.
 
 ## Creating
 
@@ -78,10 +83,6 @@ Especially for tournaments where verification is important. Players need to have
 ### Invitational
 
 All teams added by the tournament organizer manually. No open registration or subs list. In addition for invitational teams can add only 5 members before the tournament starts on their own (and 6 during it if autonomous subs are enabled).
-
-### Strict deadlines
-
-Display the "deadline" for each round as 5 minutes stricter. Note that this is only visual and it's up to the tournament organizer how to enforce these if at all.
 
 ## Tournament maps
 

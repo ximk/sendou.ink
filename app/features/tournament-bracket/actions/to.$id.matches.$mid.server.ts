@@ -1,9 +1,11 @@
-import type { ActionFunction } from "@remix-run/node";
+import type { ActionFunction } from "react-router";
 import { sql } from "~/db/sql";
+import { TournamentMatchStatus } from "~/db/tables";
 import { requireUser } from "~/features/auth/core/user.server";
 import * as ChatSystemMessage from "~/features/chat/ChatSystemMessage.server";
 import * as TournamentRepository from "~/features/tournament/TournamentRepository.server";
 import * as TournamentTeamRepository from "~/features/tournament/TournamentTeamRepository.server";
+import { endDroppedTeamMatches } from "~/features/tournament/tournament-utils.server";
 import * as TournamentMatchRepository from "~/features/tournament-bracket/TournamentMatchRepository.server";
 import invariant from "~/utils/invariant";
 import { logger } from "~/utils/logger";
@@ -39,6 +41,7 @@ import {
 } from "../tournament-bracket-schemas.server";
 import {
 	isSetOverByScore,
+	matchEndedEarly,
 	matchIsLocked,
 	tournamentMatchWebsocketRoom,
 	tournamentTeamToActiveRosterUserIds,
@@ -46,7 +49,7 @@ import {
 } from "../tournament-bracket-utils";
 
 export const action: ActionFunction = async ({ params, request }) => {
-	const user = await requireUser(request);
+	const user = requireUser();
 	const { mid: matchId, id: tournamentId } = parseParams({
 		params,
 		schema: matchPageParamsSchema,
@@ -108,6 +111,7 @@ export const action: ActionFunction = async ({ params, request }) => {
 
 	let emitMatchUpdate = false;
 	let emitTournamentUpdate = false;
+
 	switch (data._action) {
 		case "REPORT_SCORE": {
 			// they are trying to report score that was already reported
@@ -216,6 +220,10 @@ export const action: ActionFunction = async ({ params, request }) => {
 						userId,
 						tournamentTeamId: match.opponentTwo!.id!,
 					});
+				}
+
+				if (setOver) {
+					endDroppedTeamMatches({ tournament, manager });
 				}
 			})();
 
@@ -464,7 +472,6 @@ export const action: ActionFunction = async ({ params, request }) => {
 			const scoreTwo = match.opponentTwo?.score ?? 0;
 			invariant(typeof scoreOne === "number", "Score one is missing");
 			invariant(typeof scoreTwo === "number", "Score two is missing");
-			invariant(scoreOne !== scoreTwo, "Scores are equal");
 
 			errorToastIfFalsy(tournament.isOrganizer(user), "Not an organizer");
 			errorToastIfFalsy(
@@ -474,32 +481,51 @@ export const action: ActionFunction = async ({ params, request }) => {
 
 			const results = findResultsByMatchId(matchId);
 			const lastResult = results[results.length - 1];
-			invariant(lastResult, "Last result is missing");
 
-			if (scoreOne > scoreTwo) {
-				scores[0]--;
-			} else {
-				scores[1]--;
+			const endedEarly = matchEndedEarly({
+				opponentOne: { score: scoreOne, result: match.opponentOne?.result },
+				opponentTwo: { score: scoreTwo, result: match.opponentTwo?.result },
+				count: match.roundMaps.count,
+				countType: match.roundMaps.type,
+			});
+
+			if (!endedEarly) {
+				invariant(scoreOne !== scoreTwo, "Scores are equal");
+				invariant(lastResult, "Last result is missing");
+
+				if (lastResult.winnerTeamId === match.opponentOne?.id) {
+					scores[0]--;
+				} else {
+					scores[1]--;
+				}
 			}
 
 			logger.info(
-				`Reopening match: User ID: ${user.id}; Match ID: ${match.id}`,
+				`Reopening match: User ID: ${user.id}; Match ID: ${match.id}; Ended early: ${endedEarly}`,
 			);
 
 			const followingMatches = tournament.followingMatches(match.id);
+			const bracketFormat = tournament.bracketByIdx(
+				tournament.matchIdToBracketIdx(match.id)!,
+			)!.type;
 			sql.transaction(() => {
-				for (const match of followingMatches) {
-					deleteMatchPickBanEvents({ matchId: match.id });
+				// edge case but for round robin we can just leave the match as is, lock it then unlock later to continue where they left off (should not really ever happen)
+				if (bracketFormat !== "round_robin") {
+					for (const followingMatch of followingMatches) {
+						deleteMatchPickBanEvents(followingMatch.id);
+					}
 				}
-				deleteTournamentMatchGameResultById(lastResult.id);
+
+				if (lastResult) deleteTournamentMatchGameResultById(lastResult.id);
+
 				manager.update.match({
 					id: match.id,
 					opponent1: {
-						score: scores[0],
+						score: endedEarly ? scoreOne : scores[0],
 						result: undefined,
 					},
 					opponent2: {
-						score: scores[1],
+						score: endedEarly ? scoreTwo : scores[1],
 						result: undefined,
 					},
 				});
@@ -532,8 +558,11 @@ export const action: ActionFunction = async ({ params, request }) => {
 				"Not an organizer or streamer",
 			);
 
-			// can't lock, let's update their view to reflect that
-			if (match.opponentOne?.id && match.opponentTwo?.id) {
+			// can't lock if match status is not Locked or Waiting (team(s) busy with previous match), let's update their view to reflect that
+			if (
+				match.status !== TournamentMatchStatus.Locked &&
+				match.status !== TournamentMatchStatus.Waiting
+			) {
 				return null;
 			}
 
@@ -558,6 +587,56 @@ export const action: ActionFunction = async ({ params, request }) => {
 			});
 
 			emitMatchUpdate = true;
+
+			break;
+		}
+		case "END_SET": {
+			errorToastIfFalsy(tournament.isOrganizer(user), "Not an organizer");
+			errorToastIfFalsy(
+				match.opponentOne?.id && match.opponentTwo?.id,
+				"Teams are missing",
+			);
+			errorToastIfFalsy(
+				match.opponentOne?.result !== "win" &&
+					match.opponentTwo?.result !== "win",
+				"Match is already over",
+			);
+
+			// Determine winner (random if not specified)
+			const winnerTeamId = (() => {
+				if (data.winnerTeamId) {
+					errorToastIfFalsy(
+						data.winnerTeamId === match.opponentOne.id ||
+							data.winnerTeamId === match.opponentTwo.id,
+						"Invalid winner team id",
+					);
+					return data.winnerTeamId;
+				}
+
+				// Random winner: true 50/50 selection
+				return Math.random() < 0.5
+					? match.opponentOne.id
+					: match.opponentTwo.id;
+			})();
+
+			logger.info(
+				`Ending set by organizer: User ID: ${user.id}; Match ID: ${match.id}; Winner: ${winnerTeamId}; Random: ${!data.winnerTeamId}`,
+			);
+
+			sql.transaction(() => {
+				manager.update.match({
+					id: match.id,
+					opponent1: {
+						result: winnerTeamId === match.opponentOne!.id ? "win" : "loss",
+					},
+					opponent2: {
+						result: winnerTeamId === match.opponentTwo!.id ? "win" : "loss",
+					},
+				});
+			})();
+
+			emitMatchUpdate = true;
+			emitTournamentUpdate = true;
 
 			break;
 		}

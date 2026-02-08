@@ -2,7 +2,7 @@ import slugify from "slugify";
 import type { GearType, Preference, Tables } from "~/db/tables";
 import type { ArtSource } from "~/features/art/art-types";
 import type { AuthErrorCode } from "~/features/auth/core/errors";
-import { serializeBuild } from "~/features/build-analyzer";
+import { serializeBuild } from "~/features/build-analyzer/core/utils";
 import type { CalendarFilters } from "~/features/calendar/calendar-types";
 import type { MapPool } from "~/features/map-list-generator/core/map-pool";
 import type { StageBackgroundStyle } from "~/features/map-planner";
@@ -103,6 +103,7 @@ export const PLANNER_URL = "/plans";
 export const MAPS_URL = "/maps";
 export const TIER_LIST_MAKER_URL = "/tier-list-maker";
 export const ANALYZER_URL = "/analyzer";
+export const COMP_ANALYZER_URL = "/comp-analyzer";
 export const OBJECT_DAMAGE_CALCULATOR_URL = "/object-damage-calculator";
 export const VODS_PAGE = "/vods";
 export const LEADERBOARDS_PAGE = "/leaderboards";
@@ -126,7 +127,6 @@ export const BLANK_IMAGE_URL = "/static-assets/img/blank.gif";
 export const COMMON_PREVIEW_IMAGE =
 	"/static-assets/img/layout/common-preview.png";
 export const ERROR_GIRL_IMAGE_PATH = "/static-assets/img/layout/error-girl";
-export const LOGO_PATH = "/static-assets/img/layout/logo";
 export const SENDOU_LOVE_EMOJI_PATH = "/static-assets/img/layout/sendou_love";
 export const FIRST_PLACEMENT_ICON_PATH =
 	"/static-assets/svg/placements/first.svg";
@@ -301,6 +301,8 @@ export const tournamentEditPage = (eventId: number) =>
 export const calendarReportWinnersPage = (eventId: number) =>
 	`/calendar/${eventId}/report-winners`;
 export const tournamentPage = (tournamentId: number) => `/to/${tournamentId}`;
+export const tournamentTeamsPage = (tournamentId: number) =>
+	`/to/${tournamentId}/teams`;
 export const tournamentTeamPage = ({
 	tournamentId,
 	tournamentTeamId,
@@ -310,8 +312,6 @@ export const tournamentTeamPage = ({
 }) => `/to/${tournamentId}/teams/${tournamentTeamId}`;
 export const tournamentRegisterPage = (tournamentId: number) =>
 	`/to/${tournamentId}/register`;
-export const tournamentMapsPage = (tournamentId: number) =>
-	`/to/${tournamentId}/maps`;
 export const tournamentAdminPage = (tournamentId: number) =>
 	`/to/${tournamentId}/admin`;
 export const tournamentBracketsPage = ({

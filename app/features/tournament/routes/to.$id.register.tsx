@@ -1,9 +1,8 @@
-import { Form, Link, useFetcher, useLoaderData } from "@remix-run/react";
 import clsx from "clsx";
 import Compressor from "compressorjs";
-import Markdown from "markdown-to-jsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
+import { Form, Link, useFetcher, useLoaderData } from "react-router";
 import { useCopyToClipboard } from "react-use";
 import { Alert } from "~/components/Alert";
 import { Avatar } from "~/components/Avatar";
@@ -29,8 +28,10 @@ import { UserIcon } from "~/components/icons/User";
 import { Label } from "~/components/Label";
 import { containerClassName } from "~/components/Main";
 import { MapPoolStages } from "~/components/MapPoolSelector";
+import { Markdown } from "~/components/Markdown";
 import { Section } from "~/components/Section";
 import { SubmitButton } from "~/components/SubmitButton";
+import { TierPill } from "~/components/TierPill";
 import TimePopover from "~/components/TimePopover";
 import { useUser } from "~/features/auth/core/user";
 import { imgTypeToDimensions } from "~/features/img-upload/upload-constants";
@@ -139,6 +140,11 @@ export default function TournamentRegisterPage() {
 								Unranked
 							</div>
 						)}
+						{tournament.ctx.tier ? (
+							<TierPill tier={tournament.ctx.tier} />
+						) : tournament.ctx.tentativeTier && !tournament.hasStarted ? (
+							<TierPill tier={tournament.ctx.tentativeTier} isTentative />
+						) : null}
 						<div className="tournament__badge tournament__badge__modes">
 							{tournament.modesIncluded.map((mode) => (
 								<ModeImage key={mode} mode={mode} size={16} />
@@ -217,9 +223,7 @@ function TournamentRegisterInfoTabs() {
 						) : null}
 
 						<div className="tournament__info__description">
-							<Markdown options={{ wrapper: React.Fragment }}>
-								{tournament.ctx.description ?? ""}
-							</Markdown>
+							<Markdown>{tournament.ctx.description ?? ""}</Markdown>
 						</div>
 						<TOPickedMapPoolInfo />
 						<TiebreakerMapPoolInfo />
@@ -229,9 +233,7 @@ function TournamentRegisterInfoTabs() {
 				{tournament.ctx.rules ? (
 					<SendouTabPanel id="rules">
 						<div className="tournament__info__description">
-							<Markdown options={{ wrapper: React.Fragment }}>
-								{tournament.ctx.rules ?? ""}
-							</Markdown>
+							<Markdown>{tournament.ctx.rules ?? ""}</Markdown>
 						</div>
 					</SendouTabPanel>
 				) : null}
@@ -711,6 +713,7 @@ function TeamInfo({
 								<Label htmlFor="signingUpAs">Team signing up as</Label>
 								<select
 									id="signingUpAs"
+									value={signUpWithTeamId ?? ""}
 									onChange={(e) => {
 										if (e.target.value === "") {
 											handleSignUpWithTeamChange(null);

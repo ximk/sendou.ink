@@ -9,6 +9,7 @@ import {
 } from "~/features/tournament/tournament-constants";
 import {
 	modesIncluded,
+	sortTeamsBySeeding,
 	tournamentIsRanked,
 } from "~/features/tournament/tournament-utils";
 import type * as Progression from "~/features/tournament-bracket/core/Progression";
@@ -28,7 +29,7 @@ import {
 	fillWithNullTillPowerOfTwo,
 	groupNumberToLetters,
 } from "../tournament-bracket-utils";
-import { Bracket } from "./Bracket";
+import { type Bracket, createBracket } from "./Bracket";
 import { getTournamentManager } from "./brackets-manager";
 import { getRounds } from "./rounds";
 import * as Swiss from "./Swiss";
@@ -53,30 +54,10 @@ export class Tournament {
 		simulateBrackets?: boolean;
 	}) {
 		const hasStarted = data.stage.length > 0;
+		const minMembersPerTeam = ctx.settings.minMembersPerTeam ?? 4;
 
-		const teamsInSeedOrder = ctx.teams.sort((a, b) => {
-			if (a.startingBracketIdx !== b.startingBracketIdx) {
-				return (a.startingBracketIdx ?? 0) - (b.startingBracketIdx ?? 0);
-			}
+		const teamsInSeedOrder = sortTeamsBySeeding(ctx.teams, minMembersPerTeam);
 
-			if (a.seed && b.seed) {
-				return a.seed - b.seed;
-			}
-
-			if (a.seed && !b.seed) {
-				return -1;
-			}
-
-			if (!a.seed && b.seed) {
-				return 1;
-			}
-
-			return this.compareUnseededTeams(
-				a,
-				b,
-				ctx.settings.minMembersPerTeam ?? 4,
-			);
-		});
 		this.simulateBrackets = simulateBrackets;
 		this.ctx = {
 			...ctx,
@@ -88,37 +69,6 @@ export class Tournament {
 		};
 
 		this.initBrackets(data);
-	}
-
-	private compareUnseededTeams(
-		a: TournamentData["ctx"]["teams"][number],
-		b: TournamentData["ctx"]["teams"][number],
-		minMembersPerTeam: number,
-	) {
-		const aIsFull = a.members.length >= minMembersPerTeam;
-		const bIsFull = b.members.length >= minMembersPerTeam;
-
-		if (aIsFull && !bIsFull) {
-			return -1;
-		}
-
-		if (!aIsFull && bIsFull) {
-			return 1;
-		}
-
-		if (a.avgSeedingSkillOrdinal && b.avgSeedingSkillOrdinal) {
-			return b.avgSeedingSkillOrdinal - a.avgSeedingSkillOrdinal;
-		}
-
-		if (a.avgSeedingSkillOrdinal && !b.avgSeedingSkillOrdinal) {
-			return -1;
-		}
-
-		if (!a.avgSeedingSkillOrdinal && b.avgSeedingSkillOrdinal) {
-			return 1;
-		}
-
-		return a.createdAt - b.createdAt;
 	}
 
 	private initBrackets(data: TournamentManagerDataSet) {
@@ -141,7 +91,7 @@ export class Tournament {
 				);
 
 				this.brackets.push(
-					Bracket.create({
+					createBracket({
 						id: inProgressStage.id,
 						idx: bracketIdx,
 						tournament: this,
@@ -182,7 +132,7 @@ export class Tournament {
 					});
 
 				this.brackets.push(
-					Bracket.create({
+					createBracket({
 						id: -1 * bracketIdx,
 						idx: bracketIdx,
 						tournament: this,
@@ -237,7 +187,7 @@ export class Tournament {
 					);
 
 				this.brackets.push(
-					Bracket.create({
+					createBracket({
 						id: -1 * bracketIdx,
 						idx: bracketIdx,
 						tournament: this,
@@ -337,8 +287,15 @@ export class Tournament {
 			})
 			.map(({ id }) => id);
 
+		// Filter out dropped teams from advancing to follow-up brackets
+		const allTeams = teams.concat(overridesWithoutRepeats);
+		const activeTeams = allTeams.filter((teamId) => {
+			const team = this.teamById(teamId);
+			return team && !team.droppedOut;
+		});
+
 		return {
-			teams: teams.concat(overridesWithoutRepeats),
+			teams: activeTeams,
 			relevantMatchesFinished: allRelevantMatchesFinished,
 		};
 	}
@@ -1206,16 +1163,6 @@ export class Tournament {
 		}
 
 		for (const bracket of this.brackets) {
-			if (!bracket.preview) continue;
-
-			const isParticipant = bracket.seeding?.includes(team.id);
-
-			if (isParticipant) {
-				return { type: "WAITING_FOR_BRACKET" } as const;
-			}
-		}
-
-		for (const bracket of this.brackets) {
 			if (bracket.preview || bracket.type !== "swiss") continue;
 
 			// TODO: both seeding and participantTournamentTeamIds are used for the same thing
@@ -1228,11 +1175,21 @@ export class Tournament {
 					match.opponent1?.id === team.id || match.opponent2?.id === team.id,
 			).length;
 			const notAllRoundsGenerated =
-				this.ctx.settings.swiss?.roundCount &&
-				setsGeneratedCount !== this.ctx.settings.swiss?.roundCount;
+				bracket.settings?.roundCount &&
+				setsGeneratedCount !== bracket.settings.roundCount;
 
 			if (isParticipant && notAllRoundsGenerated) {
 				return { type: "WAITING_FOR_ROUND" } as const;
+			}
+		}
+
+		for (const bracket of this.brackets) {
+			if (!bracket.preview) continue;
+
+			const isParticipant = bracket.seeding?.includes(team.id);
+
+			if (isParticipant) {
+				return { type: "WAITING_FOR_BRACKET" } as const;
 			}
 		}
 
@@ -1280,6 +1237,11 @@ export class Tournament {
 
 		// BYE match
 		if (!match.opponent1 || !match.opponent2) return false;
+
+		// in round robin all matches are independent from one another
+		if (bracket.type === "round_robin") {
+			return true;
+		}
 
 		const anotherMatchBlocking = this.followingMatches(matchId).some(
 			(match) =>
@@ -1337,10 +1299,6 @@ export class Tournament {
 		);
 		if (!bracket) {
 			logger.error("followingMatches: Bracket not found");
-			return [];
-		}
-
-		if (bracket.type === "round_robin") {
 			return [];
 		}
 
@@ -1423,5 +1381,34 @@ export class Tournament {
 			(staff) =>
 				staff.id === user.id && ["ORGANIZER", "STREAMER"].includes(staff.role),
 		);
+	}
+
+	get streams() {
+		const memberStreams = this.ctx.teams
+			.filter((team) => team.checkIns.length > 0)
+			.flatMap((team) => team.members)
+			.filter((member) => member.streamTwitch)
+			.map((member) => ({
+				thumbnailUrl: member.streamThumbnailUrl!,
+				twitchUserName: member.streamTwitch!,
+				viewerCount: member.streamViewerCount!,
+				userId: member.userId,
+			}));
+
+		const castStreams = this.ctx.castStreams.map((stream) => ({
+			thumbnailUrl: stream.thumbnailUrl,
+			twitchUserName: stream.twitch!,
+			viewerCount: stream.viewerCount,
+			userId: null as number | null,
+		}));
+
+		return [...memberStreams, ...castStreams].sort(
+			(a, b) => b.viewerCount - a.viewerCount,
+		);
+	}
+
+	get streamingParticipantIds(): number[] {
+		if (!this.hasStarted || this.everyBracketOver) return [];
+		return this.streams.filter((s) => s.userId !== null).map((s) => s.userId!);
 	}
 }

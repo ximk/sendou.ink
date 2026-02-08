@@ -1,3 +1,4 @@
+import { sub } from "date-fns";
 import type {
 	Expression,
 	ExpressionBuilder,
@@ -17,6 +18,7 @@ import type {
 } from "~/db/tables";
 import { EXCLUDED_TAGS } from "~/features/calendar/calendar-constants";
 import * as Progression from "~/features/tournament-bracket/core/Progression";
+import { getTentativeTier } from "~/features/tournament-organization/core/tentativeTiers.server";
 import {
 	databaseTimestampNow,
 	databaseTimestampToDate,
@@ -25,11 +27,9 @@ import {
 } from "~/utils/dates";
 import invariant from "~/utils/invariant";
 import {
-	COMMON_USER_FIELDS,
 	concatUserSubmittedImagePrefix,
 	tournamentLogoWithDefault,
 } from "~/utils/kysely.server";
-import type { Unwrapped } from "~/utils/types";
 import { calendarEventPage, tournamentPage } from "~/utils/urls";
 import {
 	modesIncluded,
@@ -170,9 +170,11 @@ function findAllBetweenTwoTimestampsQuery({
 		.select((eb) => [
 			"CalendarEvent.id as eventId",
 			"CalendarEvent.authorId",
+			"CalendarEvent.organizationId",
 			"Tournament.id as tournamentId",
 			"Tournament.settings as tournamentSettings",
 			"Tournament.mapPickingStyle",
+			"Tournament.tier",
 			"CalendarEvent.name",
 			"CalendarEvent.tags",
 			"CalendarEventDate.startTime",
@@ -229,6 +231,16 @@ function findAllBetweenTwoTimestampsMapped(
 				? (row.tags.split(",") as CalendarEvent["tags"])
 				: [];
 
+			const isPastEvent =
+				databaseTimestampToDate(row.startTime) < sub(new Date(), { days: 1 });
+			const tentativeTier =
+				row.tier === null &&
+				row.organizationId !== null &&
+				row.tournamentId !== null &&
+				!isPastEvent
+					? getTentativeTier(row.organizationId, row.name)
+					: null;
+
 			return {
 				at: databaseTimestampToJavascriptTimestamp(row.startTime),
 				type: "calendar",
@@ -263,6 +275,8 @@ function findAllBetweenTwoTimestampsMapped(
 							isTest: row.tournamentSettings.isTest ?? false,
 						})
 					: null,
+				tier: row.tier ?? null,
+				tentativeTier,
 			};
 		},
 	);
@@ -276,76 +290,6 @@ function findAllBetweenTwoTimestampsMapped(
 		.sort((a, b) => a.at - b.at);
 
 	return dates;
-}
-
-export type ForShowcase = Unwrapped<typeof forShowcase>;
-
-export function forShowcase() {
-	return db
-		.selectFrom("Tournament")
-		.innerJoin("CalendarEvent", "Tournament.id", "CalendarEvent.tournamentId")
-		.innerJoin(
-			"CalendarEventDate",
-			"CalendarEvent.id",
-			"CalendarEventDate.eventId",
-		)
-		.select((eb) => [
-			"Tournament.id",
-			"Tournament.settings",
-			"CalendarEvent.authorId",
-			"CalendarEvent.name",
-			"CalendarEventDate.startTime",
-			withTeamsCount(eb).as("teamsCount"),
-			tournamentLogoWithDefault(eb).as("logoUrl"),
-			withOrganization(eb).as("organization"),
-			jsonArrayFrom(
-				eb
-					.selectFrom("TournamentResult")
-					.innerJoin("User", "TournamentResult.userId", "User.id")
-					.innerJoin(
-						"TournamentTeam",
-						"TournamentResult.tournamentTeamId",
-						"TournamentTeam.id",
-					)
-					.leftJoin("AllTeam", "TournamentTeam.teamId", "AllTeam.id")
-					.leftJoin(
-						"UserSubmittedImage as TeamAvatar",
-						"AllTeam.avatarImgId",
-						"TeamAvatar.id",
-					)
-					.leftJoin(
-						"UserSubmittedImage as TournamentTeamAvatar",
-						"TournamentTeam.avatarImgId",
-						"TournamentTeamAvatar.id",
-					)
-					.whereRef("TournamentResult.tournamentId", "=", "Tournament.id")
-					.where("TournamentResult.placement", "=", 1)
-					.select((eb) => [
-						...COMMON_USER_FIELDS,
-						"User.country",
-						"TournamentTeam.name as teamName",
-						concatUserSubmittedImagePrefix(eb.ref("TeamAvatar.url")).as(
-							"teamLogoUrl",
-						),
-						concatUserSubmittedImagePrefix(
-							eb.ref("TournamentTeamAvatar.url"),
-						).as("pickupAvatarUrl"),
-					]),
-			).as("firstPlacers"),
-		])
-		.where("CalendarEvent.hidden", "=", 0)
-		.where("CalendarEventDate.startTime", ">", databaseTimestampWeekAgo())
-		.orderBy("CalendarEventDate.startTime", "asc")
-		.$narrowType<{ teamsCount: NotNull }>()
-		.execute();
-}
-
-function databaseTimestampWeekAgo() {
-	const now = new Date();
-
-	now.setDate(now.getDate() - 7);
-
-	return dateToDatabaseTimestamp(now);
 }
 
 export async function findById(
@@ -495,7 +439,6 @@ type CreateArgs = Pick<
 	isRanked?: boolean;
 	isTest?: boolean;
 	isInvitational?: boolean;
-	deadlines: TournamentSettings["deadlines"];
 	enableNoScreenToggle?: boolean;
 	enableSubs?: boolean;
 	autonomousSubs?: boolean;
@@ -529,7 +472,6 @@ export async function create(args: CreateArgs) {
 				thirdPlaceMatch: args.thirdPlaceMatch,
 				isRanked: args.isRanked,
 				isTest: args.isTest,
-				deadlines: args.deadlines,
 				isInvitational: args.isInvitational,
 				enableNoScreenToggle: args.enableNoScreenToggle,
 				enableSubs: args.enableSubs,
@@ -726,7 +668,6 @@ async function updateTournamentTables(
 		thirdPlaceMatch: args.thirdPlaceMatch,
 		isRanked: args.isRanked,
 		isTest: existingSettings.isTest, // this one is not editable after creation
-		deadlines: args.deadlines,
 		isInvitational: args.isInvitational,
 		enableNoScreenToggle: args.enableNoScreenToggle,
 		enableSubs: args.enableSubs,

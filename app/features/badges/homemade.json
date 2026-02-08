@@ -215,6 +215,10 @@
 		"displayName": "Chi-Shoals",
 		"authorDiscordId": "528851510222782474"
 	},
+	"classascen": {
+		"displayName": "Class Ascendency",
+		"authorDiscordId": "528851510222782474"
+	},
 	"climbspire": {
 		"displayName": "Climb The Spire",
 		"authorDiscordId": "338806780446638082"
@@ -282,6 +286,10 @@
 	"custom_e-liter": {
 		"displayName": "Not Enough Liter",
 		"authorDiscordId": "352207524390240257"
+	},
+	"cyndaquil": {
+		"displayName": "Typh's Birthday Bonanza",
+		"authorDiscordId": "751912670403362836"
 	},
 	"daytonaspeedweeks1st": {
 		"displayName": "Just Daytona 1-5",
@@ -400,7 +408,7 @@
 		"authorDiscordId": "354880982890971136"
 	},
 	"full-auto": {
-		"displayName": "Full Auto",
+		"displayName": "Barrel Spinner [Special]",
 		"authorDiscordId": "534502084134043648"
 	},
 	"fullwipe": {
@@ -438,6 +446,14 @@
 	"girlsbandcryawa": {
 		"displayName": "Togenashi Togeari Subaru Bracket",
 		"authorDiscordId": "309327923129745409"
+	},
+	"gladiatorgold": {
+		"displayName": "Survival of the S+ Gladiator (Again)",
+		"authorDiscordId": "751912670403362836"
+	},
+	"gladiatorsilver": {
+		"displayName": "Survival of the S+ Gladiator",
+		"authorDiscordId": "751912670403362836"
 	},
 	"glaze": {
 		"displayName": "THE GLAZE GAUNTLET",
@@ -508,7 +524,7 @@
 		"authorDiscordId": "354880982890971136"
 	},
 	"ink-torrent": {
-		"displayName": "Ink Torrent",
+		"displayName": "Barrel Spinner",
 		"authorDiscordId": "534502084134043648"
 	},
 	"inkpractice": {
@@ -699,6 +715,10 @@
 		"displayName": "5 IKT Tournaments",
 		"authorDiscordId": "528851510222782474"
 	},
+	"milkcup": {
+		"displayName": "Milkcup",
+		"authorDiscordId": "375410300373172225"
+	},
 	"mimikyu": {
 		"displayName": "Mimikyu Monday",
 		"authorDiscordId": "528851510222782474"
@@ -847,6 +867,10 @@
 		"displayName": "Piston Cup",
 		"authorDiscordId": "752582395076673577"
 	},
+	"plusl": {
+		"displayName": "+L Tournament",
+		"authorDiscordId": "643355948265766912"
+	},
 	"pou": {
 		"displayName": "Pou Basket",
 		"authorDiscordId": "285896534380511234"
@@ -873,6 +897,14 @@
 	},
 	"pxg": {
 		"displayName": "P.X.G",
+		"authorDiscordId": "528851510222782474"
+	},
+	"rabbithole1st": {
+		"displayName": "Rabbit Hole Cup [Winner]",
+		"authorDiscordId": "528851510222782474"
+	},
+	"rabbithole2nd": {
+		"displayName": "Rabbit Hole Cup [Runner-up]",
 		"authorDiscordId": "528851510222782474"
 	},
 	"raid-weekend": {
@@ -939,6 +971,10 @@
 		"displayName": "Rapid Rushdown",
 		"authorDiscordId": "528851510222782474"
 	},
+	"runspeed": {
+		"displayName": "Run Speed Up",
+		"authorDiscordId": "528851510222782474"
+	},
 	"s50badge": {
 		"displayName": "Anarchy Adventures",
 		"authorDiscordId": "336683473714544641"
@@ -958,6 +994,10 @@
 	"saladbowl_tomato": {
 		"displayName": "Turf War Tomatoes",
 		"authorDiscordId": "336683473714544641"
+	},
+	"sbrella": {
+		"displayName": "Sorella Brella",
+		"authorDiscordId": "752582395076673577"
 	},
 	"seabattle": {
 		"displayName": "Seabattle",
@@ -1022,6 +1062,10 @@
 	"shrimpoftheday": {
 		"displayName": "Shrimp of the Day",
 		"authorDiscordId": "309327923129745409"
+	},
+	"shscap": {
+		"displayName": "Sheep Happens (Skill Capped)",
+		"authorDiscordId": "758345384585592902"
 	},
 	"silverstars": {
 		"displayName": "Leblanc Hideout Beta Bracket",
@@ -1141,6 +1185,14 @@
 	},
 	"switzerland": {
 		"displayName": "Switzerland",
+		"authorDiscordId": "338005893377556480"
+	},
+	"switzerland_2000sp": {
+		"displayName": "2000 SP in Switzerland",
+		"authorDiscordId": "338005893377556480"
+	},
+	"switzerland_2500sp": {
+		"displayName": "2500 SP in Switzerland",
 		"authorDiscordId": "338005893377556480"
 	},
 	"sys_strike": {
@@ -1346,6 +1398,10 @@
 	"wiper": {
 		"displayName": "Squeaky Clean Scrap",
 		"authorDiscordId": "528851510222782474"
+	},
+	"wkitty": {
+		"displayName": "White Kitty",
+		"authorDiscordId": "752582395076673577"
 	},
 	"worlddriverschampionship": {
 		"displayName": "WDC #0",

@@ -1,13 +1,18 @@
-import type { ActionFunction } from "@remix-run/node";
+import type { ActionFunction } from "react-router";
 import { sql } from "~/db/sql";
 import { requireUser } from "~/features/auth/core/user.server";
 import * as ChatSystemMessage from "~/features/chat/ChatSystemMessage.server";
 import { notify } from "~/features/notifications/core/notify.server";
+import {
+	calculateTournamentTierFromTeams,
+	MIN_TEAMS_FOR_TIERING,
+} from "~/features/tournament/core/tiering";
 import { createSwissBracketInTransaction } from "~/features/tournament/queries/createSwissBracketInTransaction.server";
 import { updateRoundMaps } from "~/features/tournament/queries/updateRoundMaps.server";
 import * as TournamentRepository from "~/features/tournament/TournamentRepository.server";
 import * as Progression from "~/features/tournament-bracket/core/Progression";
 import invariant from "~/utils/invariant";
+import { logger } from "~/utils/logger";
 import {
 	errorToastIfErr,
 	errorToastIfFalsy,
@@ -17,7 +22,6 @@ import {
 import { assertUnreachable } from "~/utils/types";
 import { idObject } from "~/utils/zod";
 import type { PreparedMaps } from "../../../db/tables";
-import { updateTeamSeeds } from "../../tournament/queries/updateTeamSeeds.server";
 import { getServerTournamentManager } from "../core/brackets-manager/manager.server";
 import { roundMapsFromInput } from "../core/mapList.server";
 import * as Swiss from "../core/Swiss";
@@ -33,7 +37,7 @@ import {
 } from "../tournament-bracket-utils";
 
 export const action: ActionFunction = async ({ params, request }) => {
-	const user = await requireUser(request);
+	const user = requireUser();
 	const { id: tournamentId } = parseParams({
 		params,
 		schema: idObject,
@@ -112,18 +116,43 @@ export const action: ActionFunction = async ({ params, request }) => {
 						bracket,
 					}),
 				);
+			})();
 
-				// ensures autoseeding is disabled
-				const isAllSeedsPersisted = tournament.ctx.teams.every(
-					(team) => typeof team.seed === "number",
+			// ensures autoseeding is disabled
+			const isAllSeedsPersisted = tournament.ctx.teams.every(
+				(team) => typeof team.seed === "number",
+			);
+			if (!isAllSeedsPersisted) {
+				await TournamentRepository.updateTeamSeeds({
+					tournamentId: tournament.ctx.id,
+					teamIds: tournament.ctx.teams.map((team) => team.id),
+					teamsWithMembers: tournament.ctx.teams.map((team) => ({
+						teamId: team.id,
+						members: team.members.map((m) => ({
+							userId: m.userId,
+							username: m.username,
+						})),
+					})),
+				});
+			}
+
+			if (data.bracketIdx === 0 && seeding.length >= MIN_TEAMS_FOR_TIERING) {
+				const checkedInTeams = tournament.ctx.teams
+					.filter((team) => seeding.includes(team.id))
+					.map((team) => ({ avgOrdinal: team.avgSeedingSkillOrdinal }));
+
+				const { tierNumber } = calculateTournamentTierFromTeams(
+					checkedInTeams,
+					seeding.length,
 				);
-				if (!isAllSeedsPersisted) {
-					updateTeamSeeds({
+
+				if (tierNumber !== null) {
+					await TournamentRepository.updateTournamentTier({
 						tournamentId: tournament.ctx.id,
-						teamIds: tournament.ctx.teams.map((team) => team.id),
+						tier: tierNumber,
 					});
 				}
-			})();
+			}
 
 			if (!tournament.isTest) {
 				notify({
@@ -223,15 +252,23 @@ export const action: ActionFunction = async ({ params, request }) => {
 			const bracket = tournament.bracketByIdx(data.bracketIdx);
 			invariant(bracket, "Bracket not found");
 
-			const ownTeam = tournament.ownedTeamByUser(user);
-			invariant(ownTeam, "User doesn't have owned team");
+			const teamMemberOf = tournament.teamMemberOfByUser(user);
+			invariant(teamMemberOf, "User is not in a team");
 
 			errorToastIfFalsy(bracket.canCheckIn(user), "Not an organizer");
 
+			logger.info(
+				`Checking in (bracket try): tournament team id: ${teamMemberOf.id} - user id: ${user.id} - tournament id: ${tournament.ctx.id} - bracket idx: ${data.bracketIdx}`,
+			);
+
 			await TournamentRepository.checkIn({
 				bracketIdx: data.bracketIdx,
-				tournamentTeamId: ownTeam.id,
+				tournamentTeamId: teamMemberOf.id,
 			});
+
+			logger.info(
+				`Checking in (bracket success): tournament team id: ${teamMemberOf.id} - user id: ${user.id} - tournament id: ${tournament.ctx.id} - bracket idx: ${data.bracketIdx}`,
+			);
 			break;
 		}
 		case "OVERRIDE_BRACKET_PROGRESSION": {

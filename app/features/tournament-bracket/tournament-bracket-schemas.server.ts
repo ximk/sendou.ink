@@ -1,4 +1,4 @@
-import { z } from "zod/v4";
+import { z } from "zod";
 import {
 	_action,
 	checkboxValueToBoolean,
@@ -94,6 +94,10 @@ export const matchSchema = z.union([
 	}),
 	z.object({
 		_action: _action("UNLOCK"),
+	}),
+	z.object({
+		_action: _action("END_SET"),
+		winnerTeamId: z.preprocess(nullLiteraltoNull, id.nullable()),
 	}),
 ]);
 
