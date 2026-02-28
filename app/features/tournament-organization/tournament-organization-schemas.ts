@@ -43,7 +43,7 @@ export const organizationEditFormSchema = z.object({
 		max: 32,
 		field: fieldset({
 			fields: z.object({
-				userId: userSearch({ label: "labels.orgMemberUser" }),
+				userId: userSearch({ label: "labels.user" }),
 				role: select({
 					label: "labels.orgMemberRole",
 					items: TOURNAMENT_ORGANIZATION_ROLES.map((role) => ({
@@ -112,8 +112,18 @@ export const updateIsEstablishedSchema = z.object({
 	}),
 });
 
+const deleteOrganizationActionSchema = z.object({
+	_action: _action("DELETE_ORGANIZATION"),
+});
+
+const leaveOrganizationActionSchema = z.object({
+	_action: _action("LEAVE_ORGANIZATION"),
+});
+
 export const orgPageActionSchema = z.union([
 	banUserActionSchema,
 	unbanUserActionSchema,
 	updateIsEstablishedSchema,
+	deleteOrganizationActionSchema,
+	leaveOrganizationActionSchema,
 ]);

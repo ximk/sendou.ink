@@ -1,5 +1,4 @@
 import clsx from "clsx";
-import Markdown from "markdown-to-jsx";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
@@ -12,12 +11,14 @@ import { DiscordIcon } from "~/components/icons/Discord";
 import { LinkIcon } from "~/components/icons/Link";
 import { TwitchIcon } from "~/components/icons/Twitch";
 import { YouTubeIcon } from "~/components/icons/YouTube";
+import { Markdown } from "~/components/Markdown";
 import { Placement } from "~/components/Placement";
 import type { Tables } from "~/db/tables";
 import { previewUrl } from "~/features/art/art-utils";
 import { BadgeDisplay } from "~/features/badges/components/BadgeDisplay";
 import { VodListing } from "~/features/vods/components/VodListing";
 import { useTimeFormat } from "~/hooks/useTimeFormat";
+import type { GameBadgeId } from "~/modules/in-game-lists/game-badge-ids";
 import type {
 	MainWeaponId,
 	ModeShort,
@@ -30,6 +31,7 @@ import {
 	brandImageUrl,
 	calendarEventPage,
 	controllerImageUrl,
+	gameBadgeUrl,
 	LEADERBOARDS_PAGE,
 	LFG_PAGE,
 	modeImageUrl,
@@ -63,14 +65,14 @@ export function Widget({
 			case "bio-md":
 				return (
 					<article>
-						<Markdown options={{ wrapper: React.Fragment }}>
-							{widget.data.bio}
-						</Markdown>
+						<Markdown>{widget.data.bio}</Markdown>
 					</article>
 				);
 			case "badges-owned":
 				return <BadgeDisplay badges={widget.data} />;
 			case "badges-authored":
+				return <BadgeDisplay badges={widget.data} />;
+			case "badges-managed":
 				return <BadgeDisplay badges={widget.data} />;
 			case "teams":
 				return (
@@ -237,6 +239,11 @@ export function Widget({
 				);
 			case "tier-list":
 				return <TierListWidget searchParams={widget.data.searchParams} />;
+			case "game-badges":
+			case "game-badges-small":
+				return widget.data.length === 0 ? null : (
+					<GameBadgesDisplay badgeIds={widget.data} />
+				);
 			default:
 				assertUnreachable(widget);
 		}
@@ -540,10 +547,10 @@ function TimezoneWidget({ timezone }: { timezone: string }) {
 
 	return (
 		<div className="stack sm items-center">
-			<div className={styles.widgetValueMain}>
+			<div className={styles.widgetValueMain} suppressHydrationWarning>
 				{formatter.format(currentTime)}
 			</div>
-			<div className={styles.widgetValueFooter}>
+			<div className={styles.widgetValueFooter} suppressHydrationWarning>
 				{dateFormatter.format(currentTime)}
 			</div>
 		</div>
@@ -663,13 +670,17 @@ function SensWidget({
 					<div className="stack xs items-center">
 						<div className="text-xs text-lighter">{t("user:motionSens")}</div>
 						<div className={styles.widgetValueMain}>
-							{data.motionSens ? rawSensToString(data.motionSens) : "-"}
+							{typeof data.motionSens === "number"
+								? rawSensToString(data.motionSens)
+								: "-"}
 						</div>
 					</div>
 					<div className="stack xs items-center">
 						<div className="text-xs text-lighter">{t("user:stickSens")}</div>
 						<div className={styles.widgetValueMain}>
-							{data.stickSens ? rawSensToString(data.stickSens) : "-"}
+							{typeof data.stickSens === "number"
+								? rawSensToString(data.stickSens)
+								: "-"}
 						</div>
 					</div>
 				</div>
@@ -844,6 +855,38 @@ function TierListWidget({ searchParams }: { searchParams: string }) {
 				</div>
 				{title ? title : t("user:widget.tier-list.untitled")}
 			</Link>
+		</div>
+	);
+}
+
+function GameBadgesDisplay({ badgeIds }: { badgeIds: string[] }) {
+	const { t } = useTranslation(["game-badges"]);
+
+	return (
+		<div className={styles.gameBadgeGrid}>
+			{badgeIds.map((id) => {
+				const badgeId = id as GameBadgeId;
+				return (
+					<SendouPopover
+						key={id}
+						trigger={
+							<SendouButton
+								variant="minimal"
+								className={styles.gameBadgeButton}
+							>
+								<img
+									src={gameBadgeUrl(id)}
+									alt={t(`game-badges:${badgeId}`)}
+									className={styles.gameBadgeImage}
+									loading="lazy"
+								/>
+							</SendouButton>
+						}
+					>
+						{t(`game-badges:${badgeId}`)}
+					</SendouPopover>
+				);
+			})}
 		</div>
 	);
 }

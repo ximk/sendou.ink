@@ -516,6 +516,20 @@ export function update({
 	});
 }
 
+export function removeMember({
+	organizationId,
+	userId,
+}: {
+	organizationId: number;
+	userId: number;
+}) {
+	return db
+		.deleteFrom("TournamentOrganizationMember")
+		.where("organizationId", "=", organizationId)
+		.where("userId", "=", userId)
+		.execute();
+}
+
 /**
  * Inserts a user to the banned list for a tournament organization or updates the existing entry if already exists.
  */
@@ -614,6 +628,13 @@ export function updateIsEstablished(
 	return db
 		.updateTable("TournamentOrganization")
 		.set({ isEstablished: Number(isEstablished) })
+		.where("id", "=", organizationId)
+		.execute();
+}
+
+export function deleteById(organizationId: number) {
+	return db
+		.deleteFrom("TournamentOrganization")
 		.where("id", "=", organizationId)
 		.execute();
 }

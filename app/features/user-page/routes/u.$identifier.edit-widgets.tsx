@@ -3,6 +3,7 @@ import {
 	DndContext,
 	KeyboardSensor,
 	PointerSensor,
+	TouchSensor,
 	useSensor,
 	useSensors,
 } from "@dnd-kit/core";
@@ -15,7 +16,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Form, useLoaderData } from "react-router";
+import { useFetcher, useLoaderData } from "react-router";
 import { SendouButton } from "~/components/elements/Button";
 import { Input } from "~/components/Input";
 import { MainSlotIcon } from "~/components/icons/MainSlot";
@@ -41,6 +42,7 @@ export default function EditWidgetsPage() {
 	const { t } = useTranslation(["user", "common"]);
 	const data = useLoaderData<typeof loader>();
 	const isMounted = useIsMounted();
+	const fetcher = useFetcher();
 
 	const [selectedWidgets, setSelectedWidgets] = useState<
 		Array<Tables["UserWidget"]["widget"]>
@@ -59,6 +61,12 @@ export default function EditWidgetsPage() {
 
 	const sensors = useSensors(
 		useSensor(PointerSensor),
+		useSensor(TouchSensor, {
+			activationConstraint: {
+				delay: 200,
+				tolerance: 5,
+			},
+		}),
 		useSensor(KeyboardSensor, {
 			coordinateGetter: sortableKeyboardCoordinates,
 		}),
@@ -109,6 +117,13 @@ export default function EditWidgetsPage() {
 		}
 	};
 
+	const handleSubmit = () => {
+		fetcher.submit(
+			{ widgets: selectedWidgets } as unknown as Record<string, string>,
+			{ method: "post", encType: "application/json" },
+		);
+	};
+
 	const handleSettingsChange = (widgetId: string, settings: any) => {
 		setSelectedWidgets(
 			selectedWidgets.map((w) => (w.id === widgetId ? { ...w, settings } : w)),
@@ -128,19 +143,13 @@ export default function EditWidgetsPage() {
 			<header className={styles.header}>
 				<h1>{t("user:widgets.editTitle")}</h1>
 				<div className={styles.actions}>
-					<SendouButton type="submit" form="widget-form">
+					<SendouButton onPress={handleSubmit}>
 						{t("common:actions.save")}
 					</SendouButton>
 				</div>
 			</header>
 
-			<Form method="post" id="widget-form" className={styles.content}>
-				<input
-					type="hidden"
-					name="widgets"
-					value={JSON.stringify(selectedWidgets)}
-				/>
-
+			<div className={styles.content}>
 				<div className={styles.grid}>
 					<section className={styles.selected}>
 						<DndContext
@@ -169,7 +178,7 @@ export default function EditWidgetsPage() {
 						/>
 					</section>
 				</div>
-			</Form>
+			</div>
 		</div>
 	);
 }
@@ -265,7 +274,10 @@ function AvailableWidgetsList({
 										</div>
 										<div className="text-xs font-bold">{"//"}</div>
 										<div className={styles.widgetDescription}>
-											{t(`user:widgets.description.${widget.id}` as const)}
+											{t(
+												`user:widgets.description.${widget.id}` as const,
+												widgetDescriptionParams(widget.id),
+											)}
 										</div>
 									</div>
 								</div>
@@ -441,4 +453,13 @@ function DraggableWidgetItem({
 			) : null}
 		</div>
 	);
+}
+
+const WIDGET_DESCRIPTION_PARAMS: Record<string, Record<string, unknown>> = {
+	"game-badges": { max: USER.GAME_BADGES_MAX },
+	"game-badges-small": { max: USER.GAME_BADGES_SMALL_MAX },
+};
+
+function widgetDescriptionParams(widgetId: string) {
+	return WIDGET_DESCRIPTION_PARAMS[widgetId];
 }
