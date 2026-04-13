@@ -10,6 +10,10 @@ const preference = z.enum(["AVOID", "PREFER"]).optional();
 export const settingsActionSchema = z.union([
 	z.object({
 		_action: _action("UPDATE_MAP_MODE_PREFERENCES"),
+		teamId: z.preprocess(
+			(val) => (val === "" || val === undefined ? undefined : Number(val)),
+			id.optional(),
+		),
 		mapModePreferences: z.preprocess(
 			safeJSONParse,
 			z
@@ -34,8 +38,4 @@ export const settingsActionSchema = z.union([
 	}),
 	updateVoiceChatSchema,
 	updateWeaponPoolSchema,
-	z.object({
-		_action: _action("REMOVE_TRUST"),
-		userToRemoveTrustFromId: id,
-	}),
 ]);

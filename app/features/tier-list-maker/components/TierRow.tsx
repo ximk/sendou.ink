@@ -4,14 +4,12 @@ import {
 	SortableContext,
 } from "@dnd-kit/sortable";
 import clsx from "clsx";
+import { ChevronDown, ChevronUp, Trash } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 import { Button } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 import { SendouButton } from "~/components/elements/Button";
 import { SendouPopover } from "~/components/elements/Popover";
-import { ChevronDownIcon } from "~/components/icons/ChevronDown";
-import { ChevronUpIcon } from "~/components/icons/ChevronUp";
-import { TrashIcon } from "~/components/icons/Trash";
 import { useTierListState } from "../contexts/TierListContext";
 import {
 	PRESET_COLORS,
@@ -31,6 +29,7 @@ interface TierRowProps {
 export function TierRow({ tier }: TierRowProps) {
 	const {
 		state,
+		activeItem,
 		getItemsInTier,
 		handleRemoveTier,
 		handleRenameTier,
@@ -39,9 +38,6 @@ export function TierRow({ tier }: TierRowProps) {
 		handleMoveTierDown,
 		showTierHeaders,
 		screenshotMode,
-		tierLabelWidth,
-		registerTierLabelWidth,
-		unregisterTierLabelWidth,
 	} = useTierListState();
 
 	const items = getItemsInTier(tier.id);
@@ -49,28 +45,15 @@ export function TierRow({ tier }: TierRowProps) {
 	const { setNodeRef, isOver } = useDroppable({
 		id: tier.id,
 	});
-	const labelRef = useRef<HTMLButtonElement>(null);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: tier.name impacts width
-	useLayoutEffect(() => {
-		if (labelRef.current) {
-			// Temporarily remove width constraint to measure natural width
-			const currentWidth = labelRef.current.style.width;
-			labelRef.current.style.width = "auto";
-			const naturalWidth = labelRef.current.scrollWidth;
-			labelRef.current.style.width = currentWidth;
-			registerTierLabelWidth(tier.id, naturalWidth);
-		}
-	}, [tier.id, tier.name, registerTierLabelWidth]);
+	const combinedRef = useLockedHeightWhileDragging({
+		setNodeRef,
+		isDragging: activeItem !== null,
+	});
 
 	const tierIndex = state.tiers.findIndex((t) => t.id === tier.id);
 	const isFirstTier = tierIndex === 0;
 	const isLastTier = tierIndex === state.tiers.length - 1;
-
-	const handleDelete = () => {
-		unregisterTierLabelWidth(tier.id);
-		handleRemoveTier(tier.id);
-	};
 
 	return (
 		<div className={styles.container}>
@@ -78,11 +61,9 @@ export function TierRow({ tier }: TierRowProps) {
 				<SendouPopover
 					trigger={
 						<Button
-							ref={labelRef}
 							className={styles.tierLabel}
 							style={{
 								backgroundColor: tier.color,
-								width: tierLabelWidth,
 							}}
 						>
 							<span
@@ -131,16 +112,15 @@ export function TierRow({ tier }: TierRowProps) {
 										onChange={(e) =>
 											handleChangeTierColor(tier.id, e.target.value)
 										}
-										className="plain"
 									/>
 								</label>
 							</div>
 						</div>
 						<div className="stack horizontal justify-end">
 							<SendouButton
-								onPress={handleDelete}
+								onPress={() => handleRemoveTier(tier.id)}
 								variant="minimal-destructive"
-								icon={<TrashIcon />}
+								icon={<Trash />}
 							/>
 						</div>
 					</div>
@@ -148,9 +128,9 @@ export function TierRow({ tier }: TierRowProps) {
 			) : null}
 
 			<div
-				ref={setNodeRef}
+				ref={combinedRef}
 				style={{
-					borderRadius: screenshotMode ? "var(--rounded-sm)" : undefined,
+					borderRadius: screenshotMode ? "var(--radius-field)" : undefined,
 				}}
 				className={clsx(styles.targetZone, {
 					[styles.targetZoneOver]: isOver,
@@ -166,11 +146,7 @@ export function TierRow({ tier }: TierRowProps) {
 						strategy={horizontalListSortingStrategy}
 					>
 						{items.map((item) => (
-							<DraggableItem
-								key={tierListItemId(item)}
-								item={item}
-								forcePng={screenshotMode}
-							/>
+							<DraggableItem key={tierListItemId(item)} item={item} />
 						))}
 					</SortableContext>
 				) : null}
@@ -185,7 +161,7 @@ export function TierRow({ tier }: TierRowProps) {
 						type="button"
 						aria-label="Move tier up"
 					>
-						<ChevronUpIcon className={styles.arrowIcon} />
+						<ChevronUp className={styles.arrowIcon} />
 					</button>
 					<button
 						className={clsx(styles.arrowButton, styles.arrowButtonLower)}
@@ -194,12 +170,55 @@ export function TierRow({ tier }: TierRowProps) {
 						type="button"
 						aria-label="Move tier down"
 					>
-						<ChevronDownIcon className={styles.arrowIcon} />
+						<ChevronDown className={styles.arrowIcon} />
 					</button>
 				</div>
 			) : null}
 		</div>
 	);
+}
+
+function useLockedHeightWhileDragging({
+	setNodeRef,
+	isDragging,
+}: {
+	setNodeRef: (node: HTMLElement | null) => void;
+	isDragging: boolean;
+}) {
+	const ref = useRef<HTMLDivElement>(null);
+
+	const combinedRef = (node: HTMLDivElement | null) => {
+		ref.current = node;
+		setNodeRef(node);
+	};
+
+	useLayoutEffect(() => {
+		const el = ref.current;
+		if (!el) return;
+
+		if (isDragging) {
+			const rect = el.getBoundingClientRect();
+			const firstItem = el.firstElementChild;
+			const topOffset = firstItem
+				? firstItem.getBoundingClientRect().top - rect.top
+				: undefined;
+
+			el.style.height = `${rect.height}px`;
+			el.style.overflow = "hidden";
+
+			if (topOffset !== undefined) {
+				el.style.alignContent = "flex-start";
+				el.style.paddingTop = `${topOffset}px`;
+			}
+		} else {
+			el.style.height = "";
+			el.style.overflow = "";
+			el.style.alignContent = "";
+			el.style.paddingTop = "";
+		}
+	}, [isDragging]);
+
+	return combinedRef;
 }
 
 function tierNameFontSize(name: string) {

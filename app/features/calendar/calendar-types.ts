@@ -44,6 +44,7 @@ export interface ShowcaseCalendarEvent extends CommonEvent {
 	startTime: number;
 	/** Tournament is hidden from the public (test tournament) */
 	hidden: boolean;
+	minMembersPerTeam: number;
 	firstPlacer: {
 		teamName: string;
 		logoUrl: string | null;
@@ -51,6 +52,7 @@ export interface ShowcaseCalendarEvent extends CommonEvent {
 		notShownMembersCount: number;
 		div: string | null;
 	} | null;
+	hasVods?: boolean;
 }
 
 export interface GroupedCalendarEvents {

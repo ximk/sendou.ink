@@ -1,31 +1,27 @@
+import clsx from "clsx";
+import { Map as MapIcon, Mic, Puzzle, Volume2 } from "lucide-react";
 import * as React from "react";
 import { useState } from "react";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import type { MetaFunction } from "react-router";
 import { useFetcher, useLoaderData } from "react-router";
 import { Avatar } from "~/components/Avatar";
-import { SendouButton } from "~/components/elements/Button";
-import { FormMessage } from "~/components/FormMessage";
-import { FormWithConfirm } from "~/components/FormWithConfirm";
+import { SendouSelect, SendouSelectItem } from "~/components/elements/Select";
 import { ModeImage } from "~/components/Image";
-import { MapIcon } from "~/components/icons/Map";
-import { MicrophoneFilledIcon } from "~/components/icons/MicrophoneFilled";
-import { PuzzleIcon } from "~/components/icons/Puzzle";
-import { SpeakerFilledIcon } from "~/components/icons/SpeakerFilled";
-import { TrashIcon } from "~/components/icons/Trash";
-import { UsersIcon } from "~/components/icons/Users";
 import { Main } from "~/components/Main";
 import { SubmitButton } from "~/components/SubmitButton";
 import type { Preference, UserMapModePreferences } from "~/db/tables";
+import { useUser } from "~/features/auth/core/user";
 import {
 	soundCodeToLocalStorageKey,
 	soundVolume,
 } from "~/features/chat/chat-utils";
 import { updateNoScreenSchema } from "~/features/settings/settings-schemas";
 import { SendouForm } from "~/form/SendouForm";
-import { useIsMounted } from "~/hooks/useIsMounted";
+import { useHydrated } from "~/hooks/useHydrated";
 import { modesShort } from "~/modules/in-game-lists/modes";
 import type { ModeShort } from "~/modules/in-game-lists/types";
+import type { SerializeFrom } from "~/utils/remix";
 import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import {
@@ -45,9 +41,10 @@ import {
 	updateVoiceChatSchema,
 	updateWeaponPoolSchema,
 } from "../q-settings-schemas";
-export { loader, action };
 
-import "../q-settings.css";
+export { action, loader };
+
+import styles from "./q.settings.module.css";
 
 export const handle: SendouRouteHandle = {
 	i18n: ["q"],
@@ -74,39 +71,63 @@ export const meta: MetaFunction = (args) => {
 
 export default function SendouQSettingsPage() {
 	return (
-		<Main>
+		<Main className="stack sm">
 			<MapPicker />
-			<WeaponPool />
-			<VoiceChat />
-			<Sounds />
-			<TrustedUsers />
-			<Misc />
+			<div className="half-width stack sm">
+				<WeaponPool />
+				<VoiceChat />
+				<Sounds />
+				<Misc />
+			</div>
 		</Main>
 	);
+}
+
+const PERSONAL_KEY = "personal";
+
+type ManageableTeam = SerializeFrom<typeof loader>["manageableTeams"][number];
+
+function preferencesFromRaw(
+	raw: UserMapModePreferences | null,
+): UserMapModePreferences {
+	if (!raw) return { pool: [], modes: [] };
+
+	return {
+		modes: raw.modes,
+		pool: raw.pool.map((p) => ({
+			mode: p.mode,
+			stages: p.stages.filter((s) => !BANNED_MAPS[p.mode].includes(s)),
+		})),
+	};
 }
 
 function MapPicker() {
 	const { t } = useTranslation(["q", "common"]);
 	const data = useLoaderData<typeof loader>();
 	const fetcher = useFetcher();
-	const [preferences, setPreferences] = React.useState<UserMapModePreferences>(
-		() => {
-			if (!data.settings.mapModePreferences) {
-				return {
-					pool: [],
-					modes: [],
-				};
-			}
+	const hasTeams = data.manageableTeams.length > 0;
 
-			return {
-				modes: data.settings.mapModePreferences.modes,
-				pool: data.settings.mapModePreferences.pool.map((p) => ({
-					mode: p.mode,
-					stages: p.stages.filter((s) => !BANNED_MAPS[p.mode].includes(s)),
-				})),
-			};
-		},
+	const [selectedKey, setSelectedKey] = useState<string>(PERSONAL_KEY);
+
+	const selectedTeamId =
+		selectedKey === PERSONAL_KEY ? undefined : Number(selectedKey);
+
+	const preferencesForSelection = (key: string) => {
+		if (key === PERSONAL_KEY) {
+			return preferencesFromRaw(data.settings.mapModePreferences);
+		}
+		const team = data.manageableTeams.find((t) => String(t.id) === key);
+		return preferencesFromRaw(team?.mapModePreferences ?? null);
+	};
+
+	const [preferences, setPreferences] = useState<UserMapModePreferences>(() =>
+		preferencesForSelection(PERSONAL_KEY),
 	);
+
+	const handleSelectionChange = (key: string) => {
+		setSelectedKey(key);
+		setPreferences(preferencesForSelection(key));
+	};
 
 	const handleModePreferenceChange = ({
 		mode,
@@ -148,9 +169,17 @@ function MapPicker() {
 		return true;
 	};
 
+	const selectItems = [
+		{ id: PERSONAL_KEY, name: t("q:settings.maps.personal") },
+		...data.manageableTeams.map((team) => ({
+			id: String(team.id),
+			name: team.name,
+		})),
+	];
+
 	return (
 		<details>
-			<summary className="q-settings__summary">
+			<summary className={clsx(styles.summary, "half-width")}>
 				<div>
 					<span>{t("q:settings.maps.header")}</span> <MapIcon />
 				</div>
@@ -170,7 +199,34 @@ function MapPicker() {
 						}),
 					})}
 				/>
+				{selectedTeamId ? (
+					<input type="hidden" name="teamId" value={selectedTeamId} />
+				) : null}
 				<div className="stack lg">
+					{hasTeams ? (
+						<div className="half-width">
+							<SendouSelect
+								value={selectedKey}
+								onChange={(key) => handleSelectionChange(String(key))}
+								aria-label={t("q:settings.maps.preferencesFor")}
+								items={selectItems}
+								bottomText={t("q:settings.maps.teamExplanation")}
+							>
+								{(item) => (
+									<SendouSelectItem
+										key={item.id}
+										id={item.id}
+										textValue={item.name}
+									>
+										<MapPickerSelectOption
+											item={item}
+											teams={data.manageableTeams}
+										/>
+									</SendouSelectItem>
+								)}
+							</SendouSelect>
+						</div>
+					) : null}
 					<div className="stack items-center">
 						{modesShort.map((modeShort) => {
 							const preference = preferences.modes.find(
@@ -231,7 +287,6 @@ function MapPicker() {
 							_action="UPDATE_MAP_MODE_PREFERENCES"
 							state={fetcher.state}
 							className="mx-auto"
-							size="big"
 						>
 							{t("common:actions.save")}
 						</SubmitButton>
@@ -248,16 +303,44 @@ function MapPicker() {
 	);
 }
 
+function MapPickerSelectOption({
+	item,
+	teams,
+}: {
+	item: { id: string; name: string };
+	teams: ManageableTeam[];
+}) {
+	const user = useUser();
+
+	if (item.id === PERSONAL_KEY) {
+		return (
+			<div className="stack horizontal xs items-center">
+				<Avatar user={user} size="xxxs" />
+				{item.name}
+			</div>
+		);
+	}
+
+	const team = teams.find((t) => String(t.id) === item.id);
+	if (!team) return item.name;
+
+	return (
+		<div className="stack horizontal xs items-center">
+			<Avatar size="xxxs" url={team.logoUrl} identiconInput={team.name} />
+			{team.name}
+		</div>
+	);
+}
+
 function VoiceChat() {
 	const { t } = useTranslation(["q"]);
 	const data = useLoaderData<typeof loader>();
 
 	return (
 		<details>
-			<summary className="q-settings__summary">
+			<summary className={styles.summary}>
 				<div>
-					<span>{t("q:settings.voiceChat.header")}</span>{" "}
-					<MicrophoneFilledIcon />
+					<span>{t("q:settings.voiceChat.header")}</span> <Mic />
 				</div>
 			</summary>
 			<div className="mb-4 ml-2-5">
@@ -291,9 +374,9 @@ function WeaponPool() {
 
 	return (
 		<details>
-			<summary className="q-settings__summary">
+			<summary className={styles.summary}>
 				<div>
-					<span>{t("q:settings.weaponPool.header")}</span> <PuzzleIcon />
+					<span>{t("q:settings.weaponPool.header")}</span> <Puzzle />
 				</div>
 			</summary>
 			<div className="mb-4">
@@ -312,18 +395,18 @@ function WeaponPool() {
 
 function Sounds() {
 	const { t } = useTranslation(["q"]);
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 
 	return (
 		<details>
-			<summary className="q-settings__summary">
+			<summary className={styles.summary}>
 				<div>
-					<span>{t("q:settings.sounds.header")}</span> <SpeakerFilledIcon />
+					<span>{t("q:settings.sounds.header")}</span> <Volume2 />
 				</div>
 			</summary>
 			<div className="mb-4">
-				{isMounted && <SoundCheckboxes />}
-				{isMounted && <SoundSlider />}
+				{isHydrated && <SoundCheckboxes />}
+				{isHydrated && <SoundSlider />}
 			</div>
 		</details>
 	);
@@ -416,9 +499,9 @@ function SoundSlider() {
 
 	return (
 		<div className="stack horizontal xs items-center ml-2-5">
-			<SpeakerFilledIcon className="q-settings__volume-slider-icon" />
+			<Volume2 className={styles.volumeSliderIcon} />
 			<input
-				className="q-settings__volume-slider-input"
+				className={styles.volumeSliderInput}
 				type="range"
 				value={volume}
 				onChange={changeVolume}
@@ -429,85 +512,13 @@ function SoundSlider() {
 	);
 }
 
-function TrustedUsers() {
-	const { t } = useTranslation(["q"]);
-	const data = useLoaderData<typeof loader>();
-
-	return (
-		<details>
-			<summary className="q-settings__summary">
-				<span>{t("q:settings.trusted.header")}</span> <UsersIcon />
-			</summary>
-			<div className="mb-4">
-				{data.trusted.length > 0 ? (
-					<div className="stack md mt-2">
-						{data.trusted.map((trustedUser) => {
-							return (
-								<div
-									key={trustedUser.id}
-									className="stack horizontal xs items-center"
-								>
-									<Avatar user={trustedUser} size="xxs" />
-									<div className="text-sm font-semi-bold">
-										{trustedUser.username}
-									</div>
-									<FormWithConfirm
-										dialogHeading={t("q:settings.trusted.confirm", {
-											name: trustedUser.username,
-										})}
-										fields={[
-											["_action", "REMOVE_TRUST"],
-											["userToRemoveTrustFromId", trustedUser.id],
-										]}
-										submitButtonText="Remove"
-									>
-										<SendouButton
-											className="small-text"
-											variant="minimal-destructive"
-											size="small"
-											type="submit"
-										>
-											<TrashIcon className="small-icon" />
-										</SendouButton>
-									</FormWithConfirm>
-								</div>
-							);
-						})}
-						<FormMessage type="info">
-							{t("q:settings.trusted.trustedExplanation")}
-						</FormMessage>
-					</div>
-				) : (
-					<FormMessage type="info" className="mb-2">
-						{t("q:settings.trusted.noTrustedExplanation")}
-					</FormMessage>
-				)}
-				{data.team ? (
-					<FormMessage type="info" className="mb-2">
-						<Trans
-							i18nKey="q:settings.trusted.teamExplanation"
-							t={t}
-							values={{
-								name: data.team.name,
-							}}
-						>
-							In addition to the users above, a member of your team{" "}
-							<b>{data.team.name}</b> can you add you directly.
-						</Trans>
-					</FormMessage>
-				) : null}
-			</div>
-		</details>
-	);
-}
-
 function Misc() {
 	const data = useLoaderData<typeof loader>();
 	const { t } = useTranslation(["q"]);
 
 	return (
 		<details>
-			<summary className="q-settings__summary">
+			<summary className={styles.summary}>
 				<div>{t("q:settings.misc.header")}</div>
 			</summary>
 			<div className="mb-4 ml-2-5">

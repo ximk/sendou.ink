@@ -1,17 +1,27 @@
 import clsx from "clsx";
+import {
+	Link as LinkIcon,
+	Minus,
+	MousePointerClick,
+	Plus,
+	RefreshCcw,
+	Unlink,
+} from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { type FetcherWithComponents, Link, useFetcher } from "react-router";
 import { SendouDialog } from "~/components/elements/Dialog";
+import {
+	SendouSelect,
+	SendouSelectItem,
+	SendouSelectItemSection,
+} from "~/components/elements/Select";
 import { ModeImage, StageImage } from "~/components/Image";
 import { InfoPopover } from "~/components/InfoPopover";
 import { Input } from "~/components/Input";
-import { MinusIcon } from "~/components/icons/Minus";
-import { PlusIcon } from "~/components/icons/Plus";
-import { RefreshArrowsIcon } from "~/components/icons/RefreshArrows";
 import { Label } from "~/components/Label";
 import { SubmitButton } from "~/components/SubmitButton";
-import type { TournamentRoundMaps } from "~/db/tables";
+import type { CustomPickBanFlow, TournamentRoundMaps } from "~/db/tables";
 import {
 	useTournament,
 	useTournamentPreparedMaps,
@@ -27,10 +37,6 @@ import invariant from "~/utils/invariant";
 import { assertUnreachable } from "~/utils/types";
 import { calendarEditPage } from "~/utils/urls";
 import { SendouButton } from "../../../components/elements/Button";
-import { ChevronUpDownIcon } from "../../../components/icons/ChevronUpDown";
-import { LinkIcon } from "../../../components/icons/Link";
-import { PickIcon } from "../../../components/icons/Pick";
-import { UnlinkIcon } from "../../../components/icons/Unlink";
 import { logger } from "../../../utils/logger";
 import type { Bracket } from "../core/Bracket";
 import * as PreparedMaps from "../core/PreparedMaps";
@@ -42,6 +48,7 @@ import {
 	type TournamentRoundMapList,
 } from "../core/toMapList";
 import styles from "./BracketMapListDialog.module.css";
+import { CustomFlowBuilder } from "./CustomFlowBuilder";
 
 export function BracketMapListDialog({
 	close,
@@ -164,6 +171,9 @@ export function BracketMapListDialog({
 		Array.from(maps.values()).find((round) => round.pickBan)?.pickBan ??
 			"COUNTERPICK",
 	);
+	const [customFlow, setCustomFlow] = React.useState<CustomPickBanFlow | null>(
+		preparedMaps?.maps.find((m) => m.customFlow)?.customFlow ?? null,
+	);
 	const [hoveredMap, setHoveredMap] = React.useState<string | null>(null);
 
 	const roundsWithPickBan = new Set(
@@ -277,6 +287,27 @@ export function BracketMapListDialog({
 		return true;
 	};
 
+	const validateCustomFlow = () => {
+		if (pickBanStyle !== "CUSTOM") return true;
+		if (roundsWithPickBan.size === 0) return true;
+		if (!customFlow) return false;
+
+		return (
+			PickBan.validateCustomFlowSection(customFlow.preSet, "preSet").length ===
+				0 &&
+			PickBan.validateCustomFlowSection(customFlow.postGame, "postGame")
+				.length === 0
+		);
+	};
+
+	const validateCustomFlowRoundsSelected = () => {
+		if (globalSelections) return true;
+		if (pickBanStyle !== "CUSTOM") return true;
+		if (!customFlow) return true;
+
+		return roundsWithPickBan.size > 0;
+	};
+
 	const lacksToSetMapPool =
 		tournament.ctx.toSetMapPool.length === 0 &&
 		tournament.ctx.mapPickingStyle === "TO";
@@ -312,6 +343,7 @@ export function BracketMapListDialog({
 							roundId: key,
 							groupId: rounds.find((r) => r.id === key)?.group_id,
 							type: countType,
+							customFlow: value.pickBan === "CUSTOM" ? customFlow : undefined,
 						})),
 					)}
 				/>
@@ -443,7 +475,7 @@ export function BracketMapListDialog({
 							!needsToPickEliminationTeamCount ? (
 								<SendouButton
 									size="small"
-									icon={<RefreshArrowsIcon />}
+									icon={<RefreshCcw />}
 									variant="outlined"
 									onPress={() =>
 										setMaps(
@@ -464,6 +496,9 @@ export function BracketMapListDialog({
 								</SendouButton>
 							) : null}
 						</div>
+						{pickBanStyle === "CUSTOM" && !needsToPickEliminationTeamCount ? (
+							<CustomFlowBuilder value={customFlow} onChange={setCustomFlow} />
+						) : null}
 						{needsToPickEliminationTeamCount ? (
 							<div className="text-center text-lg font-bold my-24">
 								Pick the expected teams count above to prepare maps
@@ -621,9 +656,18 @@ export function BracketMapListDialog({
 									})}
 								</div>
 								{!validateNoDecreasingCount() ? (
-									<div className="text-warning text-center">
+									<div className="mt-4 text-warning text-center">
 										Invalid selection: tournament progression decreases in map
 										count
+									</div>
+								) : !validateCustomFlow() ? (
+									<div className="mt-4 text-warning text-center">
+										Invalid selection: custom pick/ban flow is invalid
+									</div>
+								) : !validateCustomFlowRoundsSelected() ? (
+									<div className="mt-4 text-warning text-center">
+										Custom flow is configured but no rounds have pick/ban
+										enabled
 									</div>
 								) : (
 									<SubmitButton
@@ -828,6 +872,7 @@ function PickBanSelect({
 		COUNTERPICK: "Counterpick",
 		COUNTERPICK_MODE_REPEAT_OK: "Counterpick (mode repeat allowed)",
 		BAN_2: "Ban 2",
+		CUSTOM: "Custom",
 	};
 
 	// selection doesn't make sense for one mode only tournaments as you have to repeat the mode
@@ -838,7 +883,7 @@ function PickBanSelect({
 	return (
 		<div>
 			<div className="stack horizontal xs items-center">
-				<PickIcon className="w-4" />
+				<MousePointerClick className="w-4" />
 				<Label htmlFor="pick-ban-style">Pick/ban style</Label>
 			</div>
 			<select
@@ -901,7 +946,7 @@ function RoundMapList({
 					onClick={() => onCountChange(Math.max(minCount, maps.count - 2))}
 					disabled={maps.count <= minCount}
 				>
-					<MinusIcon />
+					<Minus />
 				</button>
 				<div className={clsx(styles.roundButton, styles.roundButtonNumber)}>
 					{maps.count}
@@ -913,7 +958,7 @@ function RoundMapList({
 					disabled={maps.count >= maxCount}
 					data-testid="increase-map-count-button"
 				>
-					<PlusIcon />
+					<Plus />
 				</button>
 				<div className={styles.roundControlsDivider} />
 				<button
@@ -924,7 +969,7 @@ function RoundMapList({
 					onClick={() => onPickBanChange(!maps.pickBan)}
 					title="Toggle counterpick/ban"
 				>
-					<PickIcon />
+					<MousePointerClick />
 				</button>
 				{unlink ? (
 					<button
@@ -934,7 +979,7 @@ function RoundMapList({
 						title="Enter finals and 3rd place match separately"
 						data-testid="unlink-finals-3rd-place-match-button"
 					>
-						<UnlinkIcon />
+						<Unlink />
 					</button>
 				) : null}
 				{link ? (
@@ -950,44 +995,57 @@ function RoundMapList({
 				) : null}
 			</div>
 			<ol className="pl-0">
-				{nullFilledArray(
-					maps.pickBan === "BAN_2" ? maps.count + 2 : maps.count,
-				).map((_, i) => {
-					const map = maps.list?.[i];
-
-					if (map) {
-						return (
-							<MapListRow
+				{maps.pickBan === "CUSTOM"
+					? nullFilledArray(maps.count).map((_, i) => (
+							<MysteryRow
 								key={i}
-								map={map}
 								number={i + 1}
-								onHoverMap={onHoverMap}
-								hoveredMap={hoveredMap}
-								onMapChange={(map) => {
-									onRoundMapListChange({
-										...maps,
-										list: maps.list?.map((m, j) => (i === j ? map : m)),
-									});
-								}}
+								isCounterpicks={false}
+								isTiebreaker={false}
+								isCustomFlow
 							/>
-						);
-					}
+						))
+					: nullFilledArray(
+							maps.pickBan === "BAN_2" ? maps.count + 2 : maps.count,
+						).map((_, i) => {
+							const map = maps.list?.[i];
 
-					const isTeamsPick = !maps.list && i === 0;
-					const isLast =
-						i === (maps.pickBan === "BAN_2" ? maps.count + 2 : maps.count) - 1;
-
-					return (
-						<MysteryRow
-							key={i}
-							number={i + 1}
-							isCounterpicks={!isTeamsPick && maps.pickBan === "COUNTERPICK"}
-							isTiebreaker={
-								tournament.ctx.mapPickingStyle === "AUTO_ALL" && isLast
+							if (map) {
+								return (
+									<MapListRow
+										key={i}
+										map={map}
+										number={i + 1}
+										onHoverMap={onHoverMap}
+										hoveredMap={hoveredMap}
+										onMapChange={(map) => {
+											onRoundMapListChange({
+												...maps,
+												list: maps.list?.map((m, j) => (i === j ? map : m)),
+											});
+										}}
+									/>
+								);
 							}
-						/>
-					);
-				})}
+
+							const isTeamsPick = !maps.list && i === 0;
+							const isLast =
+								i ===
+								(maps.pickBan === "BAN_2" ? maps.count + 2 : maps.count) - 1;
+
+							return (
+								<MysteryRow
+									key={i}
+									number={i + 1}
+									isCounterpicks={
+										!isTeamsPick && maps.pickBan === "COUNTERPICK"
+									}
+									isTiebreaker={
+										tournament.ctx.mapPickingStyle === "AUTO_ALL" && isLast
+									}
+								/>
+							);
+						})}
 			</ol>
 		</div>
 	);
@@ -1006,8 +1064,29 @@ function MapListRow({
 	hoveredMap: string | null;
 	onMapChange: (map: NonNullable<TournamentRoundMaps["list"]>[number]) => void;
 }) {
-	const { t } = useTranslation(["game-misc"]);
+	const { t } = useTranslation(["common", "game-misc"]);
 	const tournament = useTournament();
+
+	const items = modesShort.flatMap((mode) => {
+		const mapsForMode = tournament.ctx.toSetMapPool.filter(
+			(m) => m.mode === mode,
+		);
+
+		if (mapsForMode.length === 0) return [];
+
+		return [
+			{
+				key: mode,
+				modeLabel: t(`game-misc:MODE_LONG_${mode}`),
+				maps: mapsForMode.map((m) => ({
+					id: serializedMapMode(m),
+					mode,
+					stageId: m.stageId,
+					name: t(`game-misc:STAGE_${m.stageId}`),
+				})),
+			},
+		];
+	});
 
 	return (
 		<li
@@ -1016,46 +1095,43 @@ function MapListRow({
 			})}
 			onMouseEnter={() => onHoverMap(serializedMapMode(map))}
 		>
-			<div className={styles.mapSelectContainer}>
-				<span className="text-sm text-lighter font-semi-bold">{number}.</span>
-				<ModeImage mode={map.mode} size={24} />
-				<StageImage stageId={map.stageId} height={24} className="rounded-sm" />
-				{t(`game-misc:STAGE_${map.stageId}`)}
-				<select
-					className={styles.mapSelect}
-					value={serializedMapMode(map)}
-					onChange={(e) => {
-						const [mode, stageId] = e.target.value.split("-");
-						onMapChange({
-							mode: mode as ModeShort,
-							stageId: Number(stageId) as StageId,
-						});
-					}}
-				>
-					{modesShort.map((mode) => {
-						const mapsForMode = tournament.ctx.toSetMapPool.filter(
-							(m) => m.mode === mode,
-						);
-
-						if (mapsForMode.length === 0) return null;
-
-						return (
-							<optgroup key={mode} label={t(`game-misc:MODE_LONG_${mode}`)}>
-								{mapsForMode.map((m) => (
-									<option
-										key={serializedMapMode(m)}
-										value={serializedMapMode(m)}
-									>
-										{t(`game-misc:MODE_SHORT_${mode}`)}{" "}
-										{t(`game-misc:STAGE_${m.stageId}`)}
-									</option>
-								))}
-							</optgroup>
-						);
-					})}
-				</select>
-				<ChevronUpDownIcon className={styles.mapSelectIcon} />
-			</div>
+			<span className="text-sm text-lighter font-semi-bold">{number}.</span>
+			<SendouSelect
+				aria-label="Map"
+				items={items}
+				selectedKey={serializedMapMode(map)}
+				onSelectionChange={(key) => {
+					if (key === null) return;
+					const [mode, stageId] = String(key).split("-");
+					onMapChange({
+						mode: mode as ModeShort,
+						stageId: Number(stageId) as StageId,
+					});
+				}}
+				search={{
+					placeholder: t("common:forms.stageSearch.search.placeholder"),
+				}}
+				className={styles.mapRowSelect}
+				popoverClassName={styles.mapRowSelectPopover}
+			>
+				{(group) => (
+					<SendouSelectItemSection key={group.key} heading={group.modeLabel}>
+						{group.maps.map((m) => (
+							<SendouSelectItem key={m.id} id={m.id} textValue={m.name}>
+								<div className={styles.mapSelectItem}>
+									<ModeImage mode={m.mode} size={20} />
+									<StageImage
+										stageId={m.stageId}
+										height={20}
+										className="rounded-sm"
+									/>
+									<span>{m.name}</span>
+								</div>
+							</SendouSelectItem>
+						))}
+					</SendouSelectItemSection>
+				)}
+			</SendouSelect>
 		</li>
 	);
 }
@@ -1064,24 +1140,28 @@ function MysteryRow({
 	number,
 	isCounterpicks,
 	isTiebreaker,
+	isCustomFlow,
 }: {
 	number: number;
 	isCounterpicks: boolean;
 	isTiebreaker: boolean;
+	isCustomFlow?: boolean;
 }) {
 	return (
 		<li className={styles.mapListRow}>
 			<div
 				className={clsx("stack horizontal items-center xs text-lighter", {
-					"text-info": isCounterpicks,
+					"text-accent-high": isCounterpicks,
 				})}
 			>
 				<span className="text-lg">{number}.</span>
-				{isCounterpicks
-					? "Counterpick"
-					: isTiebreaker
-						? "Tiebreaker"
-						: "Team's pick"}
+				{isCustomFlow
+					? "Custom flow"
+					: isCounterpicks
+						? "Counterpick"
+						: isTiebreaker
+							? "Tiebreaker"
+							: "Team's pick"}
 			</div>
 		</li>
 	);

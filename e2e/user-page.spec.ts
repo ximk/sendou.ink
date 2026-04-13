@@ -1,22 +1,22 @@
 import type { Page } from "@playwright/test";
 import { NZAP_TEST_DISCORD_ID, NZAP_TEST_ID } from "~/db/seed/constants";
 import { ADMIN_DISCORD_ID } from "~/features/admin/admin-constants";
+import { userEditProfileBaseSchema } from "~/features/user-page/user-page-schemas";
 import {
 	expect,
 	impersonate,
 	isNotVisible,
 	navigate,
 	seed,
-	selectWeapon,
 	submit,
 	test,
+	waitForPOSTResponse,
 } from "~/utils/playwright";
+import { createFormHelpers } from "~/utils/playwright-form";
 import { userEditProfilePage, userPage } from "~/utils/urls";
 
 const goToEditPage = (page: Page) =>
 	page.getByText("Edit", { exact: true }).click();
-const submitEditForm = (page: Page) =>
-	page.getByText("Save", { exact: true }).click();
 
 test.describe("User page", () => {
 	test("uses badge pagination", async ({ page }) => {
@@ -95,76 +95,61 @@ test.describe("User page", () => {
 		await page.getByTestId("flag-FI").isVisible();
 		await goToEditPage(page);
 
-		await page
-			.getByRole("textbox", { name: "In game name", exact: true })
-			.fill("Lean");
-		await page
-			.getByRole("textbox", { name: "In game name discriminator" })
-			.fill("1234");
+		const form = createFormHelpers(page, userEditProfileBaseSchema);
+
+		await form.fill("inGameName", "Lean#1234");
 		await page.getByLabel("R-stick sens").selectOption("0");
 		await page.getByLabel("Motion sens").selectOption("-50");
 
 		await page.getByLabel("Country").click();
-		await page.getByPlaceholder("Search countries").fill("Sweden");
+		await page.getByRole("searchbox", { name: "Search" }).fill("Sweden");
 		await page.getByRole("option", { name: "Sweden" }).click();
 
-		await page.getByLabel("Bio").fill("My awesome bio");
-		await submitEditForm(page);
+		await form.fill("bio", "My awesome bio");
+		await form.submit();
 
-		await page.getByTestId("flag-SV").isVisible();
+		await page.getByTestId("flag-SE").isVisible();
 		await page.getByText("My awesome bio").isVisible();
 		await page.getByText("Lean#1234").isVisible();
 		await page.getByText("Stick 0 / Motion -5").isVisible();
 	});
 
-	test("customizes user page colors and resets them", async ({ page }) => {
+	test("customizes theme colors and resets them", async ({ page }) => {
 		await seed(page);
 		await impersonate(page);
-		await navigate({
-			page,
-			url: userPage({ discordId: ADMIN_DISCORD_ID, customUrl: "sendou" }),
-		});
 
-		const body = page.locator("body");
-		const bodyColor = () =>
-			body.evaluate((element) =>
-				window.getComputedStyle(element).getPropertyValue("--bg").trim(),
+		const htmlElement = page.locator("html");
+		const hasCustomTheme = () =>
+			htmlElement.evaluate(
+				(el) => el.style.getPropertyValue("--_base-h") !== "",
 			);
 
-		await expect(bodyColor()).resolves.toMatch(/#ebebf0/);
+		await navigate({ page, url: "/settings" });
 
-		await goToEditPage(page);
+		// initially no custom theme
+		await expect(hasCustomTheme()).resolves.toBe(false);
 
-		await page.locator("span").filter({ hasText: "Custom colors" }).click();
+		// change the base hue slider
+		const baseHueSlider = page.locator("#base-hue");
+		await baseHueSlider.fill("120");
 
-		await page.getByTestId("color-input-bg").fill("#4a412a");
-
-		// also test filling this because it's a special case as it also changes bg-lightest
-		await page.getByTestId("color-input-bg-lighter").fill("#4a412a");
-
-		await submitEditForm(page);
-
-		// got redirected
-		await expect(page).not.toHaveURL(/edit/);
+		// save
+		await waitForPOSTResponse(page, () =>
+			page.getByRole("button", { name: "Save" }).first().click(),
+		);
 		await page.reload();
-		await expect(bodyColor()).resolves.toMatch(/#4a412a/);
 
-		// then lets test resetting the colors is possible
-		await goToEditPage(page);
-		await page.locator("span").filter({ hasText: "Custom colors" }).click();
+		// verify custom theme was applied
+		await expect(hasCustomTheme()).resolves.toBe(true);
 
-		for (const button of await page
-			.getByRole("button", { name: "Reset" })
-			.all()) {
-			await button.click();
-		}
-
-		await submitEditForm(page);
-
-		// got redirected
-		await expect(page).not.toHaveURL(/edit/);
+		// reset
+		await waitForPOSTResponse(page, () =>
+			page.getByRole("button", { name: "Reset" }).first().click(),
+		);
 		await page.reload();
-		await expect(bodyColor()).resolves.toMatch(/#ebebf0/);
+
+		// verify custom theme was removed
+		await expect(hasCustomTheme()).resolves.toBe(false);
 	});
 
 	test("edits weapon pool", async ({ page }) => {
@@ -180,11 +165,16 @@ test.describe("User page", () => {
 		}
 
 		await goToEditPage(page);
-		await selectWeapon({ name: "Range Blaster", page });
-		await page.getByText("Max weapon count reached").isVisible();
-		await page.getByTestId("delete-weapon-1100").click();
 
-		await submitEditForm(page);
+		const form = createFormHelpers(page, userEditProfileBaseSchema);
+
+		await form.selectWeapons("weapons", ["Range Blaster"]);
+		await page
+			.getByRole("button", { name: /Inkbrush/ })
+			.getByRole("button", { name: "Delete" })
+			.click();
+
+		await form.submit();
 
 		for (const [i, id] of [200, 2000, 4000, 220].entries()) {
 			await expect(page.getByTestId(`${id}-${i + 1}`)).toBeVisible();

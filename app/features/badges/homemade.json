@@ -227,6 +227,10 @@
 		"displayName": "Chi-Shoals",
 		"authorDiscordId": "528851510222782474"
 	},
+	"chishoalssr": {
+		"displayName": "Chi-Shoals Salmon Run Edition",
+		"authorDiscordId": "752582395076673577"
+	},
 	"classascen": {
 		"displayName": "Class Ascendency",
 		"authorDiscordId": "528851510222782474"
@@ -539,6 +543,10 @@
 		"displayName": "Barrel Spinner",
 		"authorDiscordId": "534502084134043648"
 	},
+	"inkcup": {
+		"displayName": "Ink Cup",
+		"authorDiscordId": "754368445910614046"
+	},
 	"inkpractice": {
 		"displayName": "Ink Practice",
 		"authorDiscordId": "342369454719631361"
@@ -614,6 +622,10 @@
 	"ktmed": {
 		"displayName": "Reef Reunion (500 KT Power)",
 		"authorDiscordId": "1170249805373657093"
+	},
+	"lanlakes": {
+		"displayName": "LAN of 10,000 Lakes",
+		"authorDiscordId": "100956973356302336"
 	},
 	"ld4copper": {
 		"displayName": "LD4 (3eme)",
@@ -860,8 +872,16 @@
 		"authorDiscordId": "528851510222782474"
 	},
 	"paralarvae": {
-		"displayName": "Paralarvae Parfait",
+		"displayName": "Paralarvae Parfait - D7 Cap",
 		"authorDiscordId": "338806780446638082"
+	},
+	"paralarvead2": {
+		"displayName": "Paralarvae Parfait - D2 Cap",
+		"authorDiscordId": "338806780446638082"
+	},
+	"pdraft": {
+		"displayName": "PEÑA DRAFT",
+		"authorDiscordId": "752582395076673577"
 	},
 	"peashooter": {
 		"displayName": "Peashooter Achievement",
@@ -1082,6 +1102,10 @@
 	"shrimpoftheday": {
 		"displayName": "Shrimp of the Day",
 		"authorDiscordId": "309327923129745409"
+	},
+	"shs00": {
+		"displayName": "Sweetheart Splats Underground",
+		"authorDiscordId": "707620991500550235"
 	},
 	"shs01": {
 		"displayName": "Sweetheart Splats",
@@ -1395,6 +1419,10 @@
 		"displayName": "Urchin-Cup",
 		"authorDiscordId": "338806780446638082"
 	},
+	"usagibadge": {
+		"displayName": "Usagi",
+		"authorDiscordId": "1466857444851581040"
+	},
 	"valentines2v2tuesdays": {
 		"displayName": "Valentines 2v2 TUESDAYS",
 		"authorDiscordId": "754368445910614046"
@@ -1454,6 +1482,10 @@
 	"worldrallychampionship": {
 		"displayName": "WRC #0",
 		"authorDiscordId": "683603297839743009"
+	},
+	"wwarning": {
+		"displayName": "Without Warning",
+		"authorDiscordId": "752582395076673577"
 	},
 	"zekkocup": {
 		"displayName": "Zekko Cup",

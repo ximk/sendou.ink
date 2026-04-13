@@ -12,24 +12,21 @@ import { Placeholder } from "~/components/Placeholder";
 import { SubNav, SubNavLink } from "~/components/SubNav";
 import { DANGEROUS_CAN_ACCESS_DEV_CONTROLS } from "~/features/admin/core/dev-controls";
 import { useUser } from "~/features/auth/core/user";
+import { useChatContext } from "~/features/chat/useChatContext";
 import { Tournament } from "~/features/tournament-bracket/core/Tournament";
-import { useIsMounted } from "~/hooks/useIsMounted";
+import { useHydrated } from "~/hooks/useHydrated";
 import type { SendouRouteHandle } from "~/utils/remix.server";
 import { removeMarkdown } from "~/utils/strings";
-import { assertUnreachable } from "~/utils/types";
 import {
 	tournamentDivisionsPage,
-	tournamentOrganizationPage,
 	tournamentPage,
 	tournamentRegisterPage,
 } from "~/utils/urls";
 import { metaTags } from "../../../utils/remix";
 
 import { loader, type TournamentLoaderData } from "../loaders/to.$id.server";
-export { loader };
 
-import "~/styles/calendar-event.css";
-import "../tournament.css";
+export { loader };
 
 export const shouldRevalidate: ShouldRevalidateFunction = (args) => {
 	const navigatedToMatchPage =
@@ -73,37 +70,25 @@ export const handle: SendouRouteHandle = {
 		const data = JSON.parse(rawData) as TournamentLoaderData;
 
 		return [
-			data.tournament.ctx.organization?.logoUrl
-				? {
-						imgPath: data.tournament.ctx.organization.logoUrl,
-						href: tournamentOrganizationPage({
-							organizationSlug: data.tournament.ctx.organization.slug,
-						}),
-						type: "IMAGE" as const,
-						text: "",
-						rounded: true,
-					}
-				: null,
 			{
 				imgPath: data.tournament.ctx.logoUrl,
 				href: tournamentPage(data.tournament.ctx.id),
 				type: "IMAGE" as const,
 				text: data.tournament.ctx.name,
-				rounded: true,
 			},
-		].filter((crumb) => crumb !== null);
+		];
 	},
 };
 
 const TournamentContext = React.createContext<Tournament>(null!);
 
 export default function TournamentLayoutShell() {
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 
 	// tournaments are something that people like to refresh a lot
 	// which can cause spikes that are hard for the server to handle
 	// this is just making sure the SSR for this page is as fast as possible in prod
-	if (!isMounted)
+	if (!isHydrated)
 		return (
 			<Main bigger>
 				<Placeholder />
@@ -117,12 +102,17 @@ export function TournamentLayout() {
 	const { t } = useTranslation(["tournament"]);
 	const user = useUser();
 	const rawData = useLoaderData<typeof loader>();
-	const data = JSON.parse(rawData) as TournamentLoaderData;
+	const data = React.useMemo(
+		() => JSON.parse(rawData) as TournamentLoaderData,
+		[rawData],
+	);
 	const tournament = React.useMemo(
 		() => new Tournament(data.tournament),
 		[data],
 	);
 	const [bracketExpanded, setBracketExpanded] = React.useState(true);
+
+	useTournamentChatLabels(tournament);
 
 	// this is nice to debug with tournament in browser console
 	if (process.env.NODE_ENV === "development") {
@@ -132,29 +122,6 @@ export function TournamentLayout() {
 			window.tourney = tournament;
 		}, [tournament]);
 	}
-	const subsCount = () =>
-		// biome-ignore lint/suspicious/useIterableCallbackReturn: Biome 2.3.1 upgrade
-		tournament.ctx.subCounts.reduce((acc, cur) => {
-			if (cur.visibility === "ALL") return acc + cur.count;
-
-			const userPlusTier = user?.plusTier ?? 4;
-
-			switch (cur.visibility) {
-				case "+1": {
-					return userPlusTier === 1 ? acc + cur.count : acc;
-				}
-				case "+2": {
-					return userPlusTier <= 2 ? acc + cur.count : acc;
-				}
-				case "+3": {
-					return userPlusTier <= 3 ? acc + cur.count : acc;
-				}
-				default: {
-					assertUnreachable(cur.visibility);
-				}
-			}
-		}, 0);
-
 	return (
 		<Main bigger>
 			<SubNav>
@@ -189,19 +156,28 @@ export function TournamentLayout() {
 						Divisions
 					</SubNavLink>
 				) : null}
-				<SubNavLink
-					to="teams"
-					end={false}
-					prefetch="render"
-					data-testid="teams-tab"
-				>
-					{t("tournament:tabs.teams", { count: tournament.ctx.teams.length })}
-				</SubNavLink>
-				{!tournament.everyBracketOver && tournament.subsFeatureEnabled && (
-					<SubNavLink to="subs" end={false}>
-						{t("tournament:tabs.subs", { count: subsCount() })}
+				{!(tournament.isLeagueSignup && data.hasChildTournaments) ? (
+					<SubNavLink
+						to="teams"
+						end={false}
+						prefetch="render"
+						data-testid="teams-tab"
+					>
+						{t("tournament:tabs.teams", {
+							count: tournament.ctx.teams.length,
+						})}
 					</SubNavLink>
-				)}
+				) : null}
+				{!tournament.isInvitational &&
+				!tournament.everyBracketOver &&
+				!(tournament.isLeagueSignup && !tournament.registrationOpen) &&
+				tournament.lfgEnabled ? (
+					<SubNavLink to="looking">
+						{tournament.registrationOpen
+							? t("tournament:tabs.looking")
+							: t("tournament:tabs.subs")}
+					</SubNavLink>
+				) : null}
 				{tournament.hasStarted && !tournament.everyBracketOver ? (
 					<SubNavLink to="streams">
 						{t("tournament:tabs.streams", {
@@ -234,8 +210,10 @@ export function TournamentLayout() {
 							tournament,
 							bracketExpanded,
 							setBracketExpanded,
+							hasChildTournaments: data.hasChildTournaments,
 							friendCodes: data.friendCodes,
 							preparedMaps: data.preparedMaps,
+							vods: data.vods ?? [],
 						} satisfies TournamentContext
 					}
 				/>
@@ -248,9 +226,11 @@ type TournamentContext = {
 	tournament: Tournament;
 	bracketExpanded: boolean;
 	setBracketExpanded: (expanded: boolean) => void;
+	hasChildTournaments: boolean;
 	friendCode?: string;
 	friendCodes?: TournamentLoaderData["friendCodes"];
 	preparedMaps: TournamentLoaderData["preparedMaps"];
+	vods: NonNullable<TournamentLoaderData["vods"]>;
 };
 
 export function useTournament() {
@@ -264,10 +244,56 @@ export function useBracketExpanded() {
 	return { bracketExpanded, setBracketExpanded };
 }
 
+export function useHasChildTournaments() {
+	return useOutletContext<TournamentContext>().hasChildTournaments;
+}
+
 export function useTournamentFriendCodes() {
 	return useOutletContext<TournamentContext>().friendCodes;
 }
 
 export function useTournamentPreparedMaps() {
 	return useOutletContext<TournamentContext>().preparedMaps;
+}
+
+export function useTournamentVods() {
+	return useOutletContext<TournamentContext>().vods;
+}
+
+function useTournamentChatLabels(tournament: Tournament) {
+	const chatContext = useChatContext();
+	const setChatLabels = chatContext?.setChatLabels;
+	const clearChatLabels = chatContext?.clearChatLabels;
+
+	React.useEffect(() => {
+		if (!setChatLabels || !clearChatLabels) return;
+
+		const labels: Record<number, string> = {};
+
+		labels[tournament.ctx.author.id] = "TO";
+
+		for (const staff of tournament.ctx.staff) {
+			if (staff.role === "ORGANIZER") {
+				labels[staff.id] = "TO";
+			} else if (staff.role === "STREAMER") {
+				labels[staff.id] = "Stream";
+			}
+		}
+
+		if (tournament.ctx.organization) {
+			for (const member of tournament.ctx.organization.members) {
+				if (["ADMIN", "ORGANIZER"].includes(member.role)) {
+					labels[member.userId] = "TO";
+				} else if (member.role === "STREAMER") {
+					labels[member.userId] = "Stream";
+				}
+			}
+		}
+
+		setChatLabels(labels);
+
+		return () => {
+			clearChatLabels();
+		};
+	}, [setChatLabels, clearChatLabels, tournament]);
 }

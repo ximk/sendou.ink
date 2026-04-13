@@ -1,7 +1,11 @@
 import clsx from "clsx";
+import { differenceInDays } from "date-fns";
+import { ShieldMinus } from "lucide-react";
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { Avatar } from "~/components/Avatar";
+import { SendouButton } from "~/components/elements/Button";
 import {
 	SendouTab,
 	SendouTabList,
@@ -13,16 +17,41 @@ import { InfoPopover } from "~/components/InfoPopover";
 import { Placement } from "~/components/Placement";
 import { Table } from "~/components/Table";
 import type { Standing } from "~/features/tournament-bracket/core/Bracket";
+import { useSpoilerFree } from "~/hooks/useSpoilerFree";
 import {
 	SPR_INFO_URL,
 	tournamentMatchPage,
 	tournamentTeamPage,
 } from "~/utils/urls";
 import * as Standings from "../core/Standings";
+import styles from "../tournament.module.css";
+import { TOURNAMENT } from "../tournament-constants";
 import { useTournament } from "./to.$id";
 
 export default function TournamentResultsPage() {
+	const { t } = useTranslation(["common"]);
 	const tournament = useTournament();
+	const { isCensored, reveal } = useSpoilerFree();
+
+	const withinSpoilerWindow =
+		differenceInDays(new Date(), tournament.ctx.startTime) <
+		TOURNAMENT.VOD_VISIBILITY_DAYS;
+	const censored = withinSpoilerWindow && isCensored(tournament.ctx.id);
+
+	if (censored) {
+		return (
+			<div className={styles.spoilerRevealContainer}>
+				<SendouButton
+					variant="outlined"
+					size="big"
+					onPress={() => reveal(tournament.ctx.id)}
+					icon={<ShieldMinus />}
+				>
+					{t("common:spoilerFree.showResults")}
+				</SendouButton>
+			</div>
+		);
+	}
 
 	const standingsResult = Standings.tournamentStandings(tournament);
 
@@ -135,10 +164,14 @@ function ResultsTable({ standings }: { standings: Standing[] }) {
 										tournamentId: tournament.ctx.id,
 										tournamentTeamId: standing.team.id,
 									})}
-									className="tournament__standings__team-name"
+									className={styles.standingsTeamName}
 									data-testid="result-team-name"
 								>
-									{teamLogoSrc ? <Avatar size="xs" url={teamLogoSrc} /> : null}{" "}
+									<Avatar
+										size="xs"
+										url={teamLogoSrc}
+										identiconInput={standing.team.name}
+									/>{" "}
 									{standing.team.name}
 								</Link>
 							</td>
@@ -190,7 +223,7 @@ function MatchHistoryRow({ teamId }: { teamId: number }) {
 				return (
 					<React.Fragment key={match.id}>
 						{bracketChanged ? (
-							<div className="tournament__standings__divider" />
+							<div className={styles.standingsDivider} />
 						) : null}
 						<MatchResultSquare result={match.result} matchId={match.id}>
 							{match.vsSeed}
@@ -219,9 +252,9 @@ function MatchResultSquare({
 				matchId,
 				tournamentId: tournament.ctx.id,
 			})}
-			className={clsx("tournament__standings__match-result-square", {
-				"tournament__standings__match-result-square--win": result === "win",
-				"tournament__standings__match-result-square--loss": result === "loss",
+			className={clsx(styles.standingsMatchResultSquare, {
+				[styles.standingsMatchResultSquareWin]: result === "win",
+				[styles.standingsMatchResultSquareLoss]: result === "loss",
 			})}
 		>
 			{children}

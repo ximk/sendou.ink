@@ -5,6 +5,7 @@ import * as R from "remeda";
 import { db, sql as dbDirect } from "~/db/sql";
 import type {
 	BuildSort,
+	CustomTheme,
 	DB,
 	Tables,
 	TablesInsertable,
@@ -19,7 +20,7 @@ import {
 	COMMON_USER_FIELDS,
 	concatUserSubmittedImagePrefix,
 	tournamentLogoOrNull,
-	userChatNameColor,
+	userChatNameHue,
 } from "~/utils/kysely.server";
 import { logger } from "~/utils/logger";
 import { safeNumberParse } from "~/utils/number";
@@ -29,6 +30,7 @@ import { sortBadgesByFavorites } from "./core/badge-sorting.server";
 import { findWidgetById } from "./core/widgets/portfolio";
 import { WIDGET_LOADERS } from "./core/widgets/portfolio-loaders.server";
 import type { LoadedWidget } from "./core/widgets/types";
+import { SPL2_JOIN_ORDER_CUTOFF } from "./user-page-constants";
 
 export const identifierToUserIdQuery = (identifier: string) =>
 	db
@@ -94,8 +96,8 @@ export function findLayoutDataByIdentifier(
 			sql<Record<
 				string,
 				string
-			> | null>`IIF(COALESCE("User"."patronTier", 0) >= 2, "User"."css", null)`.as(
-				"css",
+			> | null>`IIF(COALESCE("User"."patronTier", 0) >= 2, "User"."customTheme", null)`.as(
+				"customTheme",
 			),
 			eb
 				.selectFrom("TournamentResult")
@@ -371,43 +373,6 @@ export function findByFriendCode(friendCode: string) {
 		.execute();
 }
 
-export async function findSubDefaultsByUserId(userId: number) {
-	const user = await db
-		.selectFrom("User")
-		.select(["User.vc", "User.qWeaponPool", "User.lastSubMessage"])
-		.where("User.id", "=", userId)
-		.executeTakeFirst();
-
-	if (!user) return null;
-
-	const vcToCanVc = (vc: "YES" | "NO" | "LISTEN_ONLY"): 0 | 1 | 2 => {
-		if (vc === "YES") return 1;
-		if (vc === "NO") return 0;
-		return 2;
-	};
-
-	const qWeaponPool = user.qWeaponPool ?? [];
-
-	let bestWeapons = qWeaponPool
-		.filter((w) => w.isFavorite === 1)
-		.map((w) => w.weaponSplId);
-	let okWeapons = qWeaponPool
-		.filter((w) => w.isFavorite === 0)
-		.map((w) => w.weaponSplId);
-
-	if (bestWeapons.length === 0) {
-		bestWeapons = okWeapons;
-		okWeapons = [];
-	}
-
-	return {
-		canVc: vcToCanVc(user.vc),
-		bestWeapons,
-		okWeapons,
-		message: user.lastSubMessage,
-	};
-}
-
 export async function findLeanById(id: number) {
 	const user = await db
 		.selectFrom("User")
@@ -415,6 +380,7 @@ export async function findLeanById(id: number) {
 		.where("User.id", "=", id)
 		.select(({ eb }) => [
 			...COMMON_USER_FIELDS,
+			"User.customTheme",
 			"User.isArtist",
 			"User.isVideoAdder",
 			"User.isTournamentOrganizer",
@@ -520,7 +486,7 @@ export async function findChatUsersByUserIds(userIds: number[]) {
 			"User.discordAvatar",
 			"User.username",
 			"User.pronouns",
-			userChatNameColor,
+			userChatNameHue,
 		])
 		.where("User.id", "in", userIds)
 		.execute();
@@ -961,6 +927,21 @@ export async function patronSinceByUserId(userId: number) {
 	)?.patronSince;
 }
 
+export async function joinOrderByUserId(userId: number) {
+	const row = await db
+		.selectFrom("User")
+		.select("User.joinOrder")
+		.where("id", "=", userId)
+		.executeTakeFirst();
+
+	if (!row?.joinOrder) return null;
+
+	return {
+		joinOrder: row.joinOrder,
+		isSpl2: row.joinOrder <= SPL2_JOIN_ORDER_CUTOFF,
+	};
+}
+
 export async function commissionsByUserId(userId: number) {
 	return await db
 		.selectFrom("User")
@@ -993,7 +974,19 @@ export function upsert(
 ) {
 	return db
 		.insertInto("User")
-		.values({ ...args, createdAt: databaseTimestampNow() })
+		.values((eb) => ({
+			...args,
+			createdAt: databaseTimestampNow(),
+			joinOrder: eb
+				.selectFrom("User")
+				.select(
+					eb(
+						eb.fn.coalesce(eb.fn.max("joinOrder"), eb.val(0)),
+						"+",
+						eb.val(1),
+					).as("nextJoinOrder"),
+				),
+		}))
 		.onConflict((oc) => {
 			return oc.column("discordId").doUpdateSet({
 				...R.omit(args, ["discordId"]),
@@ -1014,7 +1007,6 @@ type UpdateProfileArgs = Pick<
 	| "pronouns"
 	| "inGameName"
 	| "battlefy"
-	| "css"
 	| "showDiscordUniqueName"
 	| "commissionText"
 	| "commissionsOpen"
@@ -1055,7 +1047,6 @@ export function updateProfile(args: UpdateProfileArgs) {
 				stickSens: args.stickSens,
 				pronouns: args.pronouns,
 				inGameName: args.inGameName,
-				css: args.css,
 				battlefy: args.battlefy,
 				favoriteBadgeIds: args.favoriteBadgeIds
 					? JSON.stringify(args.favoriteBadgeIds)
@@ -1070,6 +1061,16 @@ export function updateProfile(args: UpdateProfileArgs) {
 			.returning(["User.id", "User.customUrl", "User.discordId"])
 			.executeTakeFirstOrThrow();
 	});
+}
+
+export function updateCustomTheme(userId: number, css: CustomTheme | null) {
+	return db
+		.updateTable("User")
+		.set({
+			customTheme: css ? JSON.stringify(css) : null,
+		})
+		.where("id", "=", userId)
+		.execute();
 }
 
 export function updatePreferences(

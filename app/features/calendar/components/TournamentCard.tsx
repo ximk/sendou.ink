@@ -1,15 +1,15 @@
 import clsx from "clsx";
+import { ShieldMinus, Trophy, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { SendouButton } from "~/components/elements/Button";
 import { SendouPopover } from "~/components/elements/Popover";
 import { Flag } from "~/components/Flag";
 import { Image, ModeImage } from "~/components/Image";
-import { TrophyIcon } from "~/components/icons/Trophy";
-import { UsersIcon } from "~/components/icons/Users";
 import { TierPill } from "~/components/TierPill";
 import { BadgeDisplay } from "~/features/badges/components/BadgeDisplay";
-import { useIsMounted } from "~/hooks/useIsMounted";
+import { useHydrated } from "~/hooks/useHydrated";
+import { useSpoilerFree } from "~/hooks/useSpoilerFree";
 import { useTimeFormat } from "~/hooks/useTimeFormat";
 import { databaseTimestampToDate } from "~/utils/dates";
 import { navIconUrl } from "~/utils/urls";
@@ -26,8 +26,9 @@ export function TournamentCard({
 	className?: string;
 	withRelativeTime?: boolean;
 }) {
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 	const { formatDateTimeSmartMinutes, formatDistanceToNow } = useTimeFormat();
+	const { isCensored, reveal } = useSpoilerFree();
 
 	const isShowcase = tournament.type === "showcase";
 	const isCalendar = tournament.type === "calendar";
@@ -35,7 +36,7 @@ export function TournamentCard({
 
 	const time = () => {
 		if (!isShowcase) return null;
-		if (!isMounted) return "Placeholder";
+		if (!isHydrated) return "Placeholder";
 
 		const date = databaseTimestampToDate(tournament.startTime);
 
@@ -102,7 +103,7 @@ export function TournamentCard({
 				{isShowcase ? (
 					<time
 						className={clsx(styles.time, {
-							invisible: !isMounted,
+							invisible: !isHydrated,
 						})}
 						dateTime={databaseTimestampToDate(
 							tournament.startTime,
@@ -117,10 +118,19 @@ export function TournamentCard({
 					</div>
 				) : null}
 				{isShowcase && tournament.firstPlacer ? (
-					<TournamentFirstPlacers firstPlacer={tournament.firstPlacer} />
+					<TournamentFirstPlacers
+						firstPlacer={tournament.firstPlacer}
+						censored={isCensored(tournament.id)}
+					/>
 				) : null}
 			</Link>
 			<div className="stack horizontal justify-between items-center">
+				{isShowcase && tournament.firstPlacer && isCensored(tournament.id) ? (
+					<SpoilerRevealPill onReveal={() => reveal(tournament.id)} />
+				) : null}
+				{isShowcase && "hasVods" in tournament && tournament.hasVods ? (
+					<div className={styles.vodIndicator}>📺 VODs</div>
+				) : null}
 				{tournament.modes ? <ModesPill modes={tournament.modes} /> : null}
 				<div
 					className={clsx(styles.pillsContainer, {
@@ -129,7 +139,7 @@ export function TournamentCard({
 				>
 					{tournament.isRanked ? (
 						<div className={clsx(styles.pill, styles.pillRanked)}>
-							<TrophyIcon title="Ranked (impacts this seasons SP)" />
+							<Trophy />
 						</div>
 					) : null}
 					{isCalendar && tournament.badges && tournament.badges.length > 0 ? (
@@ -137,7 +147,7 @@ export function TournamentCard({
 					) : null}
 					{isHostedOnSendouInk ? (
 						<div className={styles.teamCount}>
-							<UsersIcon /> {tournament.teamsCount}
+							<Users /> {tournament.teamsCount}
 						</div>
 					) : null}
 				</div>
@@ -148,15 +158,17 @@ export function TournamentCard({
 
 function TournamentFirstPlacers({
 	firstPlacer,
+	censored,
 }: {
 	firstPlacer: NonNullable<ShowcaseCalendarEvent["firstPlacer"]>;
+	censored: boolean;
 }) {
 	const { t } = useTranslation(["front"]);
 
 	return (
 		<div className={styles.firstPlacers}>
 			<div className="stack xs horizontal items-center text-xs">
-				{firstPlacer.logoUrl ? (
+				{!censored && firstPlacer.logoUrl ? (
 					<img
 						src={firstPlacer.logoUrl}
 						alt=""
@@ -166,7 +178,7 @@ function TournamentFirstPlacers({
 				) : null}{" "}
 				<div className="stack items-start">
 					<span className={styles.firstPlacersTeamName}>
-						{firstPlacer.teamName}
+						{censored ? "???" : firstPlacer.teamName}
 					</span>
 					<div className="text-xxxs text-lighter font-bold text-uppercase">
 						{t("front:showcase.card.winner")}
@@ -177,17 +189,34 @@ function TournamentFirstPlacers({
 			<div className="text-xxs stack items-start mt-1">
 				{firstPlacer.members.map((member) => (
 					<div key={member.id} className="stack horizontal xs items-center">
-						{member.country ? <Flag tiny countryCode={member.country} /> : null}
-						{member.username}{" "}
+						{!censored && member.country ? (
+							<Flag tiny countryCode={member.country} />
+						) : null}
+						{censored ? "???" : member.username}{" "}
 					</div>
 				))}
-				{firstPlacer.notShownMembersCount > 0 ? (
+				{!censored && firstPlacer.notShownMembersCount > 0 ? (
 					<div className="font-bold text-lighter">
 						+{firstPlacer.notShownMembersCount}
 					</div>
 				) : null}
 			</div>
 		</div>
+	);
+}
+
+function SpoilerRevealPill({ onReveal }: { onReveal: () => void }) {
+	const { t } = useTranslation(["common"]);
+
+	return (
+		<SendouButton
+			variant="outlined"
+			size="miniscule"
+			onPress={onReveal}
+			icon={<ShieldMinus />}
+		>
+			{t("common:actions.reveal")}
+		</SendouButton>
 	);
 }
 
@@ -213,7 +242,11 @@ function BadgePrizesPill({
 	return (
 		<SendouPopover
 			trigger={
-				<SendouButton variant="minimal" className={styles.badgePill}>
+				<SendouButton
+					variant="minimal"
+					size="miniscule"
+					className={styles.badgePill}
+				>
 					<Image
 						size={16}
 						path={navIconUrl("badges")}

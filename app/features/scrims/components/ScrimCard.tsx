@@ -1,5 +1,14 @@
 import clsx from "clsx";
 import { formatDistance } from "date-fns";
+import {
+	Check,
+	Download,
+	EyeOff,
+	MessageCircleMore,
+	Trash,
+	Upload,
+	Users,
+} from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,13 +19,6 @@ import { SendouDialog } from "~/components/elements/Dialog";
 import { SendouPopover } from "~/components/elements/Popover";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { ModeImage } from "~/components/Image";
-import { ArrowDownOnSquareIcon } from "~/components/icons/ArrowDownOnSquare";
-import { ArrowUpOnSquareIcon } from "~/components/icons/ArrowUpOnSquare";
-import { CheckmarkIcon } from "~/components/icons/Checkmark";
-import { EyeSlashIcon } from "~/components/icons/EyeSlash";
-import { SpeechBubbleFilledIcon } from "~/components/icons/SpeechBubbleFilled";
-import { TrashIcon } from "~/components/icons/Trash";
-import { UsersIcon } from "~/components/icons/Users";
 import TimePopover from "~/components/TimePopover";
 import { useUser } from "~/features/auth/core/user";
 import { useTimeFormat } from "~/hooks/useTimeFormat";
@@ -153,7 +155,7 @@ function ScrimVisibilityPopover() {
 			trigger={
 				<SendouButton
 					variant="minimal"
-					icon={<EyeSlashIcon className={styles.usersIcon} />}
+					icon={<EyeOff className={styles.usersIcon} />}
 					data-testid="limited-visibility-popover"
 				/>
 			}
@@ -169,7 +171,7 @@ function ScrimTeamMembersPopover({ users }: { users: ScrimPost["users"] }) {
 			trigger={
 				<SendouButton
 					variant="minimal"
-					icon={<UsersIcon className={styles.usersIcon} />}
+					icon={<Users className={styles.usersIcon} />}
 				/>
 			}
 		>
@@ -293,26 +295,24 @@ function ScrimInfoItem({
 	);
 }
 
-function ScrimExpandableText({
-	text,
-	maxBeforeTruncate = 50,
-}: {
-	text: string;
-	maxBeforeTruncate?: number;
-}) {
+function ScrimExpandableText({ text }: { text: string }) {
 	const { t } = useTranslation(["common"]);
 	const [isExpanded, setIsExpanded] = useState(false);
+	const [isOverflowing, setIsOverflowing] = useState(false);
 
-	const shouldTruncate = text.length > maxBeforeTruncate;
-	const displayText =
-		shouldTruncate && !isExpanded
-			? `${text.slice(0, maxBeforeTruncate)}...`
-			: text;
+	const measureRef = (node: HTMLDivElement | null) => {
+		if (!node) return;
+		if (node.scrollHeight - node.clientHeight > 1) {
+			setIsOverflowing(true);
+		}
+	};
 
 	return (
 		<div className={styles.textContent}>
-			<span>{displayText}</span>
-			{shouldTruncate ? (
+			<div ref={measureRef} className={clsx(!isExpanded && styles.clampedText)}>
+				{text}
+			</div>
+			{isOverflowing ? (
 				<button
 					type="button"
 					onClick={() => setIsExpanded(!isExpanded)}
@@ -350,7 +350,7 @@ function ScrimActionButtons({
 				<SendouButton
 					size="small"
 					onPress={() => setIsRequestModalOpen(true)}
-					icon={<ArrowUpOnSquareIcon />}
+					icon={<Upload />}
 					data-testid="request-scrim-button"
 				>
 					{t("scrims:actions.request")}
@@ -376,7 +376,7 @@ function ScrimActionButtons({
 					size="small"
 					onPress={() => setIsViewRequestModalOpen(true)}
 					variant="outlined"
-					icon={<ArrowDownOnSquareIcon />}
+					icon={<Download />}
 					data-testid="view-request-button"
 				>
 					{t("scrims:actions.viewRequest")}
@@ -420,7 +420,7 @@ function ScrimActionButtons({
 								<SendouButton
 									type="submit"
 									variant="destructive"
-									icon={<TrashIcon />}
+									icon={<Trash />}
 								>
 									{t("common:actions.cancel")}
 								</SendouButton>
@@ -437,7 +437,7 @@ function ScrimActionButtons({
 			<LinkButton
 				to={scrimPage(post.id)}
 				size="small"
-				icon={<SpeechBubbleFilledIcon />}
+				icon={<MessageCircleMore />}
 			>
 				{t("scrims:actions.contact")}
 			</LinkButton>
@@ -453,7 +453,7 @@ function ScrimActionButtons({
 				["_action", "DELETE_POST"],
 			]}
 		>
-			<SendouButton size="small" variant="destructive" icon={<TrashIcon />}>
+			<SendouButton size="small" variant="destructive" icon={<Trash />}>
 				{t("common:actions.delete")}
 			</SendouButton>
 		</FormWithConfirm>
@@ -509,9 +509,7 @@ export function ScrimRequestCard({
 				</div>
 			</div>
 
-			{request.message ? (
-				<ScrimExpandableText text={request.message} maxBeforeTruncate={100} />
-			) : null}
+			{request.message ? <ScrimExpandableText text={request.message} /> : null}
 
 			{showFooter ? (
 				<div className={clsx(styles.footer, styles.requestFooter)}>
@@ -529,7 +527,7 @@ export function ScrimRequestCard({
 						>
 							<SendouButton
 								size="small"
-								icon={<CheckmarkIcon />}
+								icon={<Check />}
 								data-testid="confirm-modal-trigger-button"
 							>
 								{t("scrims:acceptModal.confirmFor", {

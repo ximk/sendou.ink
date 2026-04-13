@@ -3,6 +3,7 @@ import type { Insertable } from "kysely";
 import { jsonArrayFrom, jsonBuildObject } from "kysely/helpers/sqlite";
 import type { Tables, TablesInsertable } from "~/db/tables";
 import { databaseTimestampNow, dateToDatabaseTimestamp } from "~/utils/dates";
+import { ConcurrentModificationError } from "~/utils/errors";
 import { shortNanoid } from "~/utils/id";
 import {
 	COMMON_USER_FIELDS,
@@ -342,11 +343,32 @@ export async function findAllRelevant(userId?: number): Promise<ScrimPost[]> {
 }
 
 export function acceptRequest(scrimPostRequestId: number) {
-	return db
-		.updateTable("ScrimPostRequest")
-		.set({ isAccepted: 1 })
-		.where("id", "=", scrimPostRequestId)
-		.execute();
+	return db.transaction().execute(async (trx) => {
+		const target = await trx
+			.selectFrom("ScrimPostRequest")
+			.select("scrimPostId")
+			.where("id", "=", scrimPostRequestId)
+			.executeTakeFirstOrThrow();
+
+		await trx
+			.updateTable("ScrimPostRequest")
+			.set({ isAccepted: 1 })
+			.where("id", "=", scrimPostRequestId)
+			.execute();
+
+		const acceptedRequests = await trx
+			.selectFrom("ScrimPostRequest")
+			.select("id")
+			.where("scrimPostId", "=", target.scrimPostId)
+			.where("isAccepted", "=", 1)
+			.execute();
+
+		if (acceptedRequests.length > 1) {
+			throw new ConcurrentModificationError(
+				"Another request for this scrim post was already accepted",
+			);
+		}
+	});
 }
 
 export function deleteRequest(scrimPostRequestId: number) {
@@ -401,4 +423,82 @@ export async function findAcceptedScrimsBetweenTwoTimestamps({
 		.execute();
 
 	return rows.map(mapDBRowToScrimPost).filter((post) => Scrim.isAccepted(post));
+}
+
+export type SidebarScrim = {
+	id: number;
+	at: number;
+	opponentName: string | null;
+	opponentAvatarUrl: string | null;
+	status: "booked" | "looking" | "requestPending";
+};
+
+export async function findUserScrims(userId: number): Promise<SidebarScrim[]> {
+	const now = dateToDatabaseTimestamp(new Date());
+
+	const rows = await baseFindQuery
+		.where("ScrimPost.canceledAt", "is", null)
+		.where("ScrimPost.at", ">=", now)
+		.where((eb) =>
+			eb.or([
+				eb.exists(
+					eb
+						.selectFrom("ScrimPostUser")
+						.select("ScrimPostUser.scrimPostId")
+						.whereRef("ScrimPostUser.scrimPostId", "=", "ScrimPost.id")
+						.where("ScrimPostUser.userId", "=", userId),
+				),
+				eb.exists(
+					eb
+						.selectFrom("ScrimPostRequest")
+						.innerJoin(
+							"ScrimPostRequestUser",
+							"ScrimPostRequestUser.scrimPostRequestId",
+							"ScrimPostRequest.id",
+						)
+						.select("ScrimPostRequest.scrimPostId")
+						.whereRef("ScrimPostRequest.scrimPostId", "=", "ScrimPost.id")
+						.where("ScrimPostRequestUser.userId", "=", userId),
+				),
+			]),
+		)
+		.orderBy("ScrimPost.at", "asc")
+		.execute();
+
+	return rows
+		.map(mapDBRowToScrimPost)
+		.filter(
+			(post) => !Scrim.isAccepted(post) || Scrim.isParticipating(post, userId),
+		)
+		.map((post) => {
+			const isAccepted = Scrim.isAccepted(post);
+			const userIsInPost = post.users.some((u) => u.id === userId);
+
+			if (!isAccepted) {
+				return {
+					id: post.id,
+					at: post.at,
+					opponentName: null,
+					opponentAvatarUrl: null,
+					status: userIsInPost
+						? ("looking" as const)
+						: ("requestPending" as const),
+				};
+			}
+
+			const opponent = userIsInPost
+				? post.requests[0]
+				: { team: post.team, users: post.users };
+			const opponentTeam = opponent?.team;
+			const opponentOwner = opponent?.users.find((u) => u.isOwner);
+
+			return {
+				id: post.id,
+				at: post.at,
+				opponentName: opponentTeam?.name ?? null,
+				opponentAvatarUrl:
+					opponentTeam?.avatarUrl ?? opponentOwner?.discordAvatar ?? null,
+				status: "booked" as const,
+			};
+		});
 }

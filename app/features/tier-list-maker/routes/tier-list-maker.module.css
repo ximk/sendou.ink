@@ -8,9 +8,10 @@
 }
 
 .tierList {
-	display: flex;
-	flex-direction: column;
-	gap: var(--s-2);
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	row-gap: var(--s-2);
+	column-gap: var(--s-1);
 	margin-bottom: var(--s-6);
 }
 
@@ -32,27 +33,29 @@
 }
 
 .titleInput {
+	grid-column: 1 / -1;
 	width: 100%;
 	padding: 0 var(--s-2) var(--s-2) var(--s-2);
-	font-size: var(--fonts-lg);
-	font-weight: 600;
+	font-size: var(--font-lg);
+	font-weight: var(--weight-bold);
 	text-align: center;
 	background: transparent;
 	border: none;
-	color: var(--text);
+	color: var(--color-text);
 	outline: none;
-}
 
-.titleInput::placeholder {
-	color: var(--text-lighter);
-	opacity: 0.3;
-}
+	&::placeholder {
+		color: var(--color-text-high);
+		opacity: 0.3;
+	}
 
-.titleInput:focus::placeholder {
-	opacity: 0.5;
+	&:focus::placeholder {
+		opacity: 0.5;
+	}
 }
 
 .authorSection {
+	grid-column: 1 / -1;
 	display: flex;
 	flex-direction: row;
 	justify-content: center;
@@ -63,9 +66,9 @@
 }
 
 .authorBy {
-	font-size: var(--fonts-xxs);
-	font-weight: var(--bold);
-	color: var(--text-lighter);
+	font-size: var(--font-2xs);
+	font-weight: var(--weight-bold);
+	color: var(--color-text-high);
 	text-transform: lowercase;
 	white-space: nowrap;
 }
@@ -77,8 +80,8 @@
 }
 
 .authorUsername {
-	font-weight: var(--bold);
-	font-size: var(--fonts-xs);
-	color: var(--text);
+	font-weight: var(--weight-bold);
+	font-size: var(--font-xs);
+	color: var(--color-text);
 	white-space: nowrap;
 }

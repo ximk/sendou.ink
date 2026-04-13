@@ -11,10 +11,12 @@ import {
 import { useSearchParamState } from "~/hooks/useSearchParamState";
 import type { Match as MatchType } from "~/modules/brackets-model";
 import type { Bracket as BracketType } from "../../core/Bracket";
+import styles from "../../tournament-bracket.module.css";
 import { groupNumberToLetters } from "../../tournament-bracket-utils";
 import { Match } from "./Match";
 import { PlacementsTable } from "./PlacementsTable";
 import { RoundHeader } from "./RoundHeader";
+import { useBracketSpoilerCensor } from "./useBracketSpoilerCensor";
 
 export function SwissBracket({
 	bracket,
@@ -26,6 +28,7 @@ export function SwissBracket({
 	const user = useUser();
 	const tournament = useTournament();
 	const { bracketExpanded } = useBracketExpanded();
+	const { censored, matchCensorLevel } = useBracketSpoilerCensor();
 
 	const groups = getGroups(bracket);
 	const [selectedGroupId, setSelectedGroupId] = useSearchParamState({
@@ -106,9 +109,10 @@ export function SwissBracket({
 								key={g.groupId}
 								onPress={() => setSelectedGroupId(g.groupId)}
 								className={clsx(
-									"tournament-bracket__bracket-nav__link tournament-bracket__bracket-nav__link__big",
+									styles.bracketNavLink,
+									styles.bracketNavLinkBig,
 									{
-										"tournament-bracket__bracket-nav__link__selected":
+										[styles.bracketNavLinkSelected]:
 											selectedGroupId === g.groupId,
 									},
 								)}
@@ -239,11 +243,17 @@ export function SwissBracket({
 												type="groups"
 												group={selectedGroup.groupName.split(" ")[1]}
 												hideMatchTimer
+												spoilerCensor={matchCensorLevel({
+													bracketType: "swiss",
+													roundNumber: round.number,
+													roundIdx: roundI,
+													matchType: "groups",
+												})}
 											/>
 										);
 									})}
 								</div>
-								{teamWithBye ? (
+								{teamWithBye && !(censored && round.number > 1) ? (
 									<div
 										className="text-xs text-lighter font-semi-bold"
 										data-testid="bye-team"
@@ -255,11 +265,13 @@ export function SwissBracket({
 						);
 					})}
 				</div>
-				<PlacementsTable
-					bracket={bracket}
-					groupId={selectedGroupId}
-					allMatchesFinished={allRoundsFinished()}
-				/>
+				{censored ? null : (
+					<PlacementsTable
+						bracket={bracket}
+						groupId={selectedGroupId}
+						allMatchesFinished={allRoundsFinished()}
+					/>
+				)}
 			</div>
 		</div>
 	);

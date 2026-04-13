@@ -72,6 +72,8 @@ export const RHODESMAS_FREESOUND_PROFILE_URL =
 	"https://freesound.org/people/rhodesmas/";
 export const SPR_INFO_URL =
 	"https://web.archive.org/web/20250513034545/https://www.pgstats.com/articles/introducing-spr-and-uf";
+export const SPLATOON3_INK_SCHEDULES_URL =
+	"https://splatoon3.ink/data/schedules.json";
 
 export const bskyUrl = (accountName: string) =>
 	`https://bsky.app/profile/${accountName}`;
@@ -86,19 +88,16 @@ export const ADMIN_PAGE = "/admin";
 export const API_PAGE = "/api";
 export const ARTICLES_MAIN_PAGE = "/a";
 export const FAQ_PAGE = "/faq";
-export const PRIVACY_POLICY_PAGE = "/privacy-policy";
 export const SUPPORT_PAGE = "/support";
 export const CONTRIBUTIONS_PAGE = "/contributions";
 export const BADGES_PAGE = "/badges";
 export const BUILDS_PAGE = "/builds";
-export const USER_SEARCH_PAGE = "/u";
 export const TEAM_SEARCH_PAGE = "/t";
-export const NEW_TEAM_PAGE = "/t?new=true";
+export const NEW_TEAM_PAGE = "/t/new";
 export const CALENDAR_PAGE = "/calendar";
 export const CALENDAR_NEW_PAGE = "/calendar/new";
 export const TOURNAMENT_NEW_PAGE = "/calendar/new?tournament=true";
 export const ORGANIZATION_NEW_PAGE = "/org/new";
-export const CALENDAR_TOURNAMENTS_PAGE = "/calendar?tournaments=true";
 export const STOP_IMPERSONATING_URL = "/auth/impersonate/stop";
 export const SEED_URL = "/seed";
 export const PLANNER_URL = "/plans";
@@ -121,6 +120,8 @@ export const SENDOUQ_STREAMS_PAGE = "/q/streams";
 export const TIERS_PAGE = "/tiers";
 export const SUSPENDED_PAGE = "/suspended";
 export const LFG_PAGE = "/lfg";
+export const EVENTS_PAGE = "/events";
+export const FRIENDS_PAGE = "/friends";
 export const SETTINGS_PAGE = "/settings";
 export const LUTI_PAGE = "/luti";
 export const PLUS_VOTING_PAGE = "/plus/voting";
@@ -140,7 +141,7 @@ export const THIRD_PLACEMENT_ICON_PATH =
 export const soundPath = (fileName: string) =>
 	`/static-assets/sounds/${fileName}.wav`;
 
-export const GET_TRUSTERS_ROUTE = "/trusters";
+export const GET_FRIENDS_FOR_ADDING_ROUTE = "/friends-for-adding";
 export const PATRONS_LIST_ROUTE = "/patrons-list";
 
 export const NOTIFICATIONS_URL = "/notifications";
@@ -356,7 +357,7 @@ export const tournamentJoinPage = ({
 	inviteCode: string;
 }) => `/to/${tournamentId}/join?code=${inviteCode}`;
 export const tournamentSubsPage = (tournamentId: number) => {
-	return `/to/${tournamentId}/subs`;
+	return `/to/${tournamentId}/looking`;
 };
 export const tournamentStreamsPage = (tournamentId: number) => {
 	return `/to/${tournamentId}/streams`;
@@ -549,3 +550,10 @@ export const mySlugify = (name: string) => {
 export const isCustomUrl = (value: string) => {
 	return Number.isNaN(Number(value));
 };
+
+export function vodUrl(vod: {
+	platformVideoId: string;
+	timestampSeconds: number;
+}) {
+	return `https://www.twitch.tv/videos/${vod.platformVideoId}?t=${vod.timestampSeconds}s`;
+}

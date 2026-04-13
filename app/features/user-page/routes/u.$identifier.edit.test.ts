@@ -1,33 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { MainWeaponId } from "~/modules/in-game-lists/types";
 import { dbInsertUsers, dbReset, wrappedAction } from "~/utils/Test";
-import type { userEditActionSchema } from "../user-page-schemas";
+import type { userEditProfileBaseSchema } from "../user-page-schemas";
 import { action as editUserProfileAction } from "./u.$identifier.edit";
 
-const action = wrappedAction<typeof userEditActionSchema>({
+const action = wrappedAction<typeof userEditProfileBaseSchema>({
 	action: editUserProfileAction,
+	isJsonSubmission: true,
 });
 
 const DEFAULT_FIELDS = {
 	battlefy: null,
 	bio: null,
-	commissionsOpen: 1,
+	commissionsOpen: false,
 	commissionText: null,
 	country: "FI",
 	customName: null,
 	customUrl: null,
-	favoriteBadgeIds: null,
-	inGameNameDiscriminator: null,
-	inGameNameText: null,
-	motionSens: null,
-	showDiscordUniqueName: 1,
-	newProfileEnabled: 0,
-	stickSens: null,
-	subjectPronoun: null,
-	objectPronoun: null,
-	weapons: JSON.stringify([
-		{ weaponSplId: 1 as MainWeaponId, isFavorite: 0 },
-	]) as any,
+	favoriteBadgeIds: [],
+	inGameName: null,
+	sensitivity: [null, null] as [null, null],
+	pronouns: [null, null] as [null, null],
+	weapons: [{ id: 1 as MainWeaponId, isFavorite: false }],
+	showDiscordUniqueName: true,
+	newProfileEnabled: false,
 };
 
 describe("user page editing", () => {
@@ -38,43 +34,14 @@ describe("user page editing", () => {
 		dbReset();
 	});
 
-	it("adds valid custom css vars", async () => {
+	it("saves profile with default fields", async () => {
 		const response = await action(
 			{
-				css: JSON.stringify({ bg: "#fff" }),
 				...DEFAULT_FIELDS,
 			},
 			{ user: "regular", params: { identifier: "2" } },
 		);
 
 		expect(response.status).toBe(302);
-	});
-
-	it("prevents adding custom css var of unknown property", async () => {
-		const res = await action(
-			{
-				css: JSON.stringify({
-					"backdrop-filter": "#fff",
-				}),
-				...DEFAULT_FIELDS,
-			},
-			{ user: "regular", params: { identifier: "2" } },
-		);
-
-		expect(res.errors[0]).toBe("Invalid custom CSS var object");
-	});
-
-	it("prevents adding custom css var of unknown value", async () => {
-		const res = await action(
-			{
-				css: JSON.stringify({
-					bg: "url(https://sendou.ink/u?q=1&_data=features%2Fuser-search%2Froutes%2Fu)",
-				}),
-				...DEFAULT_FIELDS,
-			},
-			{ user: "regular", params: { identifier: "2" } },
-		);
-
-		expect(res.errors[0]).toBe("Invalid custom CSS var object");
 	});
 });

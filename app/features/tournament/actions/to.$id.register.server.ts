@@ -5,12 +5,13 @@ import { MapPool } from "~/features/map-list-generator/core/map-pool";
 import { notify } from "~/features/notifications/core/notify.server";
 import * as SQGroupRepository from "~/features/sendouq/SQGroupRepository.server";
 import * as TeamRepository from "~/features/team/TeamRepository.server";
+import * as SavedCalendarEventRepository from "~/features/tournament/SavedCalendarEventRepository.server";
 import * as TournamentTeamRepository from "~/features/tournament/TournamentTeamRepository.server";
 import {
 	clearTournamentDataCache,
 	tournamentFromDB,
 } from "~/features/tournament-bracket/core/Tournament.server";
-import { deleteSub } from "~/features/tournament-subs/queries/deleteSub.server";
+import * as TournamentLFGRepository from "~/features/tournament-lfg/TournamentLFGRepository.server";
 import * as UserRepository from "~/features/user-page/UserRepository.server";
 import { logger } from "~/utils/logger";
 import {
@@ -27,6 +28,7 @@ import deleteTeamMember from "../queries/deleteTeamMember.server";
 import { findOwnTournamentTeam } from "../queries/findOwnTournamentTeam.server";
 import { joinTeam } from "../queries/joinLeaveTeam.server";
 import { upsertCounterpickMaps } from "../queries/upsertCounterpickMaps.server";
+import { TOURNAMENT } from "../tournament-constants";
 import { registerSchema } from "../tournament-schemas.server";
 import {
 	isOneModeTournamentOf,
@@ -35,6 +37,7 @@ import {
 import {
 	inGameNameIfNeeded,
 	requireNotBannedByOrganization,
+	requireSendouQParticipationIfNeeded,
 } from "../tournament-utils.server";
 
 export const action: ActionFunction = async ({ request, params }) => {
@@ -99,6 +102,10 @@ export const action: ActionFunction = async ({ request, params }) => {
 					tournament,
 					user,
 				});
+				await requireSendouQParticipationIfNeeded({
+					tournament,
+					userId: user.id,
+				});
 
 				errorToastIfFalsy(!tournament.isInvitational, "Event is invite only");
 				errorToastIfFalsy(
@@ -118,6 +125,10 @@ export const action: ActionFunction = async ({ request, params }) => {
 					"Team name already taken for this tournament",
 				);
 
+				await TournamentLFGRepository.leaveLfg({
+					userId: user.id,
+					tournamentId,
+				});
 				await TournamentTeamRepository.create({
 					ownerInGameName: await inGameNameIfNeeded({
 						tournament,
@@ -132,7 +143,10 @@ export const action: ActionFunction = async ({ request, params }) => {
 					tournamentId,
 					avatarFileName,
 				});
-				deleteSub({ tournamentId, userId: user.id });
+				await SavedCalendarEventRepository.unsave({
+					userId: user.id,
+					tournamentId,
+				});
 
 				ShowcaseTournaments.addToCached({
 					tournamentId,
@@ -254,10 +268,10 @@ export const action: ActionFunction = async ({ request, params }) => {
 			);
 			errorToastIfFalsy(ownTeam, "You are not registered to this tournament");
 			errorToastIfFalsy(
-				(await SQGroupRepository.usersThatTrusted(user.id)).trusters.some(
-					(trusterPlayer) => trusterPlayer.id === data.userId,
+				(await SQGroupRepository.friendsAndTeammates(user.id)).friends.some(
+					(friendPlayer) => friendPlayer.id === data.userId,
 				),
-				"No trust given from this user",
+				"Not a friend",
 			);
 			errorToastIfFalsy(
 				(await UserRepository.findLeanById(data.userId))?.friendCode,
@@ -270,7 +284,15 @@ export const action: ActionFunction = async ({ request, params }) => {
 				user: { id: data.userId },
 				message: "The user is banned from events hosted by this organization",
 			});
+			await requireSendouQParticipationIfNeeded({
+				tournament,
+				userId: data.userId,
+			});
 
+			await TournamentLFGRepository.leaveLfg({
+				userId: data.userId,
+				tournamentId,
+			});
 			joinTeam({
 				userId: data.userId,
 				newTeamId: ownTeam.id,
@@ -280,9 +302,10 @@ export const action: ActionFunction = async ({ request, params }) => {
 					userId: data.userId,
 				}),
 			});
-			await SQGroupRepository.refreshTrust({
-				trustGiverUserId: data.userId,
-				trustReceiverUserId: user.id,
+
+			await SavedCalendarEventRepository.unsave({
+				userId: data.userId,
+				tournamentId,
 			});
 
 			ShowcaseTournaments.addToCached({
@@ -343,6 +366,26 @@ export const action: ActionFunction = async ({ request, params }) => {
 
 			await TournamentTeamRepository.deleteLogo(ownTeam.id);
 
+			break;
+		}
+		case "SAVE_TOURNAMENT": {
+			const count = await SavedCalendarEventRepository.countByUserId(user.id);
+			errorToastIfFalsy(
+				count < TOURNAMENT.MAX_SAVED_COUNT,
+				"Maximum saved tournaments reached",
+			);
+
+			await SavedCalendarEventRepository.save({
+				userId: user.id,
+				tournamentId,
+			});
+			break;
+		}
+		case "UNSAVE_TOURNAMENT": {
+			await SavedCalendarEventRepository.unsave({
+				userId: user.id,
+				tournamentId,
+			});
 			break;
 		}
 		default: {

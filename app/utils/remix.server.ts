@@ -174,7 +174,7 @@ export async function safeParseRequestFormData<T extends z.ZodTypeAny>({
 	};
 }
 
-function formDataToObject(formData: FormData) {
+export function formDataToObject(formData: FormData) {
 	const result: Record<string, string | string[]> = {};
 
 	for (const [key, value] of formData.entries()) {
@@ -265,7 +265,6 @@ export type Breadcrumb =
 			type: "IMAGE";
 			href: string;
 			text?: string;
-			rounded?: boolean;
 	  }
 	| { text: string; type: "TEXT"; href: string };
 
@@ -303,7 +302,7 @@ export function privatelyCachedJson<T>(dataValue: T) {
 	});
 }
 
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const DEFAULT_MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 
 type FileUploadHandler = (
 	fileUpload: FileUpload,
@@ -324,6 +323,11 @@ export async function safeParseMultipartFormData(
 	optionsOrHandler?: ParseFormDataOptions | FileUploadHandler,
 	uploadHandler?: FileUploadHandler,
 ): Promise<FormData> {
+	const maxFileSize =
+		typeof optionsOrHandler === "object" && optionsOrHandler?.maxFileSize
+			? optionsOrHandler.maxFileSize
+			: DEFAULT_MAX_FILE_SIZE_BYTES;
+
 	try {
 		if (typeof optionsOrHandler === "function") {
 			return await parseMultipartFormData(request, optionsOrHandler);
@@ -336,11 +340,12 @@ export async function safeParseMultipartFormData(
 	} catch (err) {
 		if (
 			err instanceof Error &&
-			err.cause instanceof Error &&
-			err.cause.name === "MaxFileSizeExceededError"
+			(err.name === "MaxFileSizeExceededError" ||
+				(err.cause instanceof Error &&
+					err.cause.name === "MaxFileSizeExceededError"))
 		) {
 			throw errorToastRedirect(
-				`File size exceeds maximum allowed size of ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB`,
+				`File size exceeds maximum allowed size of ${maxFileSize / 1024 / 1024}MB`,
 			);
 		}
 		throw err;

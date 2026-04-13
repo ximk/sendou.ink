@@ -36,18 +36,57 @@ export type MemberRole = (typeof TEAM_MEMBER_ROLES)[number];
 /** In SQLite booleans are presented as 0 (false) and 1 (true) */
 export type DBBoolean = number;
 
+export const CUSTOM_THEME_VARS = [
+	"--_base-h",
+	"--_base-c-0",
+	"--_base-c-1",
+	"--_base-c-2",
+	"--_base-c-3",
+	"--_base-c-4",
+	"--_base-c-5",
+	"--_base-c-6",
+	"--_base-c-7",
+	"--_acc-h",
+	"--_acc-c-0",
+	"--_acc-c-1",
+	"--_acc-c-2",
+	"--_acc-c-3",
+	"--_acc-c-4",
+	"--_acc-c-5",
+	"--_second-h",
+	"--_second-c-0",
+	"--_second-c-1",
+	"--_second-c-2",
+	"--_second-c-3",
+	"--_second-c-4",
+	"--_second-c-5",
+	"--_chat-h",
+	"--_radius-box",
+	"--_radius-field",
+	"--_radius-selector",
+	"--_border-width",
+	"--_size-field",
+	"--_size-selector",
+	"--_size-spacing",
+] as const;
+export type CustomThemeVar = (typeof CUSTOM_THEME_VARS)[number];
+export type CustomTheme = Omit<Record<CustomThemeVar, number>, "--_chat-h"> & {
+	"--_chat-h": number | null;
+};
+
 export interface Team {
 	avatarImgId: number | null;
 	bannerImgId: number | null;
 	bio: string | null;
 	createdAt: Generated<number>;
-	css: JSONColumnTypeNullable<Record<string, string>>;
 	customUrl: string;
+	customTheme: JSONColumnTypeNullable<CustomTheme>;
 	deletedAt: number | null;
 	id: GeneratedAlways<number>;
 	inviteCode: string;
 	name: string;
 	bsky: string | null;
+	mapModePreferences: JSONColumnTypeNullable<UserMapModePreferences>;
 	/** Team's tag, typically used in-game in front of users' names to indicate they are a member of the team. */
 	tag: string | null;
 }
@@ -111,14 +150,14 @@ export type BadgeOwner = {
 };
 
 export interface Build {
-	clothesGearSplId: number;
+	clothesGearSplId: number | null;
 	description: string | null;
-	headGearSplId: number;
+	headGearSplId: number | null;
 	id: GeneratedAlways<number>;
 	modes: JSONColumnTypeNullable<ModeShort[]>;
 	ownerId: number;
 	private: DBBoolean | null;
-	shoesGearSplId: number;
+	shoesGearSplId: number | null;
 	title: string;
 	updatedAt: Generated<number>;
 }
@@ -251,7 +290,11 @@ export type ParsedMemento = {
 	>;
 	/** mapPreferences of season 2 */
 	mapPreferences?: Array<{ userId: number; preference?: Preference }[]>;
-	pools: Array<{ userId: number; pool: UserMapModePreferences["pool"] }>;
+	pools: Array<{
+		userId: number;
+		pool: UserMapModePreferences["pool"];
+		teamName?: string;
+	}>;
 };
 
 export interface GroupMatch {
@@ -365,6 +408,7 @@ export interface PlusSuggestion {
 	suggestedId: number;
 	text: string;
 	tier: number;
+	updatedAt: number | null;
 	year: number;
 }
 
@@ -476,13 +520,19 @@ export interface TournamentSettings {
 	maxMembersPerTeam?: number;
 	isTest?: boolean;
 	isDraft?: boolean;
+	requireSendouQParticipation?: boolean;
 }
 
 export interface CastedMatchesInfo {
-	/** Array for match ID's that are locked because they are pending to be casted */
-	lockedMatches: number[];
+	/** Array for matches that are locked because they are pending to be casted */
+	lockedMatches: Array<{ twitchAccount: string; matchId: number }>;
 	/** What matches are streamed currently & where */
 	castedMatches: { twitchAccount: string; matchId: number }[];
+	castedMatchHistory?: Array<{
+		twitchAccount: string;
+		matchId: number;
+		timestamp: number;
+	}>;
 }
 
 export interface Tournament {
@@ -502,6 +552,9 @@ export interface Tournament {
 	seedingSnapshot: JSONColumnTypeNullable<SeedingSnapshot>;
 	/** Tournament tier based on top teams' skill. 1=X, 2=S+, 3=S, 4=A+, 5=A, 6=B+, 7=B, 8=C+, 9=C */
 	tier: TournamentTierNumber | null;
+	vodsLastSyncAt: Generated<number | null>;
+	/** How many times vods have been synced (automatic process that happens when tournament has concluded). */
+	vodsSyncCount: Generated<number>;
 }
 
 export interface SeedingSnapshot {
@@ -517,6 +570,13 @@ export interface PreparedMaps {
 	createdAt: number;
 	maps: Array<TournamentRoundMaps & { roundId: number; groupId: number }>;
 	eliminationTeamCount?: number;
+}
+
+export interface SavedCalendarEvent {
+	id: GeneratedAlways<number>;
+	userId: number;
+	calendarEventId: number;
+	createdAt: Generated<number>;
 }
 
 export interface TournamentBadgeOwner {
@@ -577,11 +637,11 @@ export interface TournamentMatch {
 
 /** Represents one decision, pick or ban, during tournaments pick/ban (counterpick, ban 2) phase. */
 export interface TournamentMatchPickBanEvent {
-	type: "PICK" | "BAN";
-	stageId: StageId;
-	mode: ModeShort;
+	type: "PICK" | "BAN" | "ROLL" | "MODE_PICK" | "MODE_BAN";
+	stageId: StageId | null;
+	mode: ModeShort | null;
 	matchId: number;
-	authorId: number;
+	authorId: number | null;
 	number: number;
 	createdAt: GeneratedAlways<number>;
 }
@@ -631,6 +691,36 @@ export interface TournamentRoundMaps {
 	count: number;
 	type: "BEST_OF" | "PLAY_ALL";
 	pickBan?: PickBan.Type | null;
+	customFlow?: CustomPickBanFlow | null;
+}
+
+export const WHO_SIDES = [
+	"ALPHA",
+	"BRAVO",
+	"HIGHER_SEED",
+	"LOWER_SEED",
+	"WINNER",
+	"LOSER",
+] as const;
+export type WhoSide = (typeof WHO_SIDES)[number];
+
+export const ACTION_TYPES = [
+	"ROLL",
+	"PICK",
+	"BAN",
+	"MODE_PICK",
+	"MODE_BAN",
+] as const;
+export type ActionType = (typeof ACTION_TYPES)[number];
+
+export interface CustomPickBanStep {
+	action: ActionType;
+	side?: WhoSide;
+}
+
+export interface CustomPickBanFlow {
+	preSet: CustomPickBanStep[];
+	postGame: CustomPickBanStep[];
 }
 
 /**
@@ -694,6 +784,12 @@ export interface TournamentSub {
 	visibility: "+1" | "+2" | "+3" | "ALL";
 }
 
+export interface TournamentLFGLike {
+	likerTeamId: number;
+	targetTeamId: number;
+	createdAt: Generated<number>;
+}
+
 export interface TournamentStaff {
 	tournamentId: number;
 	userId: number;
@@ -714,6 +810,10 @@ export interface TournamentTeam {
 	tournamentId: number;
 	teamId: number | null;
 	avatarImgId: number | null;
+	isLooking: Generated<DBBoolean>;
+	isPlaceholder: Generated<DBBoolean>;
+	lfgNote: string | null;
+	chatCode: Generated<string | null>;
 }
 
 export interface TournamentTeamCheckIn {
@@ -727,10 +827,13 @@ export interface TournamentTeamCheckIn {
 
 export interface TournamentTeamMember {
 	createdAt: Generated<number>;
-	isOwner: Generated<number>;
 	inGameName: string | null;
 	tournamentTeamId: number;
 	userId: number;
+	role: Generated<"OWNER" | "MANAGER" | "REGULAR">;
+	isStayAsSub: Generated<DBBoolean>;
+	// denormalized from TournamentTeam.isLooking
+	isLooking: Generated<DBBoolean>;
 }
 
 export interface TournamentOrganization {
@@ -794,6 +897,22 @@ export interface TrustRelationship {
 	trustGiverUserId: number;
 	trustReceiverUserId: number;
 	lastUsedAt: number;
+}
+
+/** Mutual friendship between two users. Invariant: userOneId < userTwoId. */
+export interface Friendship {
+	id: GeneratedAlways<number>;
+	userOneId: number;
+	userTwoId: number;
+	createdAt: Generated<number>;
+}
+
+/** Pending friend request from one user to another. */
+export interface FriendRequest {
+	id: GeneratedAlways<number>;
+	senderId: number;
+	receiverId: number;
+	createdAt: Generated<number>;
 }
 
 export interface UnvalidatedUserSubmittedImage {
@@ -865,6 +984,8 @@ export interface UserPreferences {
 	clockFormat?: "24h" | "12h" | "auto";
 	/** Is the new widget based user page enabled? (Supporter early preview) */
 	newProfileEnabled?: boolean;
+	/** Is spoiler-free mode enabled? Hides recent tournament results and scores until the user chooses to reveal them. */
+	spoilerFreeMode?: boolean;
 }
 
 export const SUBJECT_PRONOUNS = ["he", "she", "they", "it", "any"] as const;
@@ -891,7 +1012,7 @@ export interface User {
 	commissionsOpenedAt: number | null;
 	commissionText: string | null;
 	country: string | null;
-	css: JSONColumnTypeNullable<Record<string, string>>;
+	customTheme: JSONColumnTypeNullable<CustomTheme>;
 	customUrl: string | null;
 	discordAvatar: string | null;
 	discordId: string;
@@ -929,6 +1050,7 @@ export interface User {
 	preferences: JSONColumnTypeNullable<UserPreferences>;
 	/** User creation date. Can be null because we did not always save this. */
 	createdAt: number | null;
+	joinOrder: number | null;
 	/** Last message used when creating a tournament sub post */
 	lastSubMessage: string | null;
 }
@@ -986,6 +1108,24 @@ export interface LiveStream {
 	viewerCount: number;
 	thumbnailUrl: string;
 	twitch: string | null;
+}
+
+export interface TournamentStreamer {
+	id: GeneratedAlways<number>;
+	userId: number | null;
+	tournamentId: number;
+	twitchAccount: string;
+}
+
+export interface TournamentMatchVod {
+	id: GeneratedAlways<number>;
+	matchId: number;
+	userId: number | null;
+	platform: string;
+	account: string;
+	platformVideoId: string;
+	timestampSeconds: number;
+	viewCount: number;
 }
 
 export interface BanLog {
@@ -1153,6 +1293,19 @@ export interface NotificationUserSubscription {
 	subscription: JSONColumnType<NotificationSubscription>;
 }
 
+export const SPLATOON_ROTATION_TYPES = ["SERIES", "OPEN", "X"] as const;
+export type SplatoonRotationType = (typeof SPLATOON_ROTATION_TYPES)[number];
+
+export interface SplatoonRotation {
+	id: GeneratedAlways<number>;
+	type: SplatoonRotationType;
+	mode: string;
+	stageId1: number;
+	stageId2: number;
+	startTime: number;
+	endTime: number;
+}
+
 export type Tables = { [P in keyof DB]: Selectable<DB[P]> };
 export type TablesInsertable = { [P in keyof DB]: Insertable<DB[P]> };
 export type TablesUpdatable = { [P in keyof DB]: Updateable<DB[P]> };
@@ -1207,6 +1360,7 @@ export interface DB {
 	Tournament: Tournament;
 	TournamentStaff: TournamentStaff;
 	TournamentGroup: TournamentGroup;
+	TournamentLFGLike: TournamentLFGLike;
 	TournamentMatch: TournamentMatch;
 	TournamentMatchPickBanEvent: TournamentMatchPickBanEvent;
 	TournamentMatchGameResult: TournamentMatchGameResult;
@@ -1224,7 +1378,11 @@ export interface DB {
 	TournamentOrganizationSeries: TournamentOrganizationSeries;
 	TournamentBracketProgressionOverride: TournamentBracketProgressionOverride;
 	TournamentOrganizationBannedUser: TournamentOrganizationBannedUser;
+	TournamentStreamer: TournamentStreamer;
+	TournamentMatchVod: TournamentMatchVod;
 	TrustRelationship: TrustRelationship;
+	Friendship: Friendship;
+	FriendRequest: FriendRequest;
 	UnvalidatedUserSubmittedImage: UnvalidatedUserSubmittedImage;
 	UnvalidatedVideo: UnvalidatedVideo;
 	User: User;
@@ -1246,4 +1404,6 @@ export interface DB {
 	Notification: Notification;
 	NotificationUser: NotificationUser;
 	NotificationUserSubscription: NotificationUserSubscription;
+	SavedCalendarEvent: SavedCalendarEvent;
+	SplatoonRotation: SplatoonRotation;
 }

@@ -1,6 +1,6 @@
 .widget {
-	background-color: var(--bg);
-	border-radius: var(--rounded);
+	background-color: var(--color-bg);
+	border-radius: var(--radius-box);
 	padding: 0;
 	display: flex;
 	flex-direction: column;
@@ -12,24 +12,24 @@
 	align-items: center;
 	justify-content: space-between;
 	padding-block: var(--s-2);
-	border-bottom: 2px solid var(--bg-lightest);
+	border-bottom: 2px solid var(--color-bg-higher);
 }
 
 .headerText {
-	font-size: var(--fonts-xs);
-	font-weight: var(--semi-bold);
+	font-size: var(--font-xs);
+	font-weight: var(--weight-semi);
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 	margin: 0;
-	color: var(--text-lighter);
+	color: var(--color-text-high);
 }
 
 .headerLink {
-	font-size: var(--fonts-xs);
-	font-weight: var(--semi-bold);
+	font-size: var(--font-xs);
+	font-weight: var(--weight-semi);
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
-	color: var(--theme);
+	color: var(--color-text-accent);
 }
 
 .content {
@@ -48,10 +48,10 @@
 .membership {
 	display: flex;
 	align-items: center;
-	gap: var(--s-2-5);
-	color: var(--text);
+	gap: var(--s-3);
+	color: var(--color-text);
 	margin-block-end: var(--s-1);
-	border-radius: var(--rounded-sm);
+	border-radius: var(--radius-field);
 	transition: background-color 0.2s;
 }
 
@@ -62,12 +62,12 @@
 }
 
 .membershipName {
-	font-weight: var(--semi-bold);
+	font-weight: var(--weight-semi);
 }
 
 .membershipRole {
-	font-size: var(--fonts-xxs);
-	color: var(--text-lighter);
+	font-size: var(--font-2xs);
+	color: var(--color-text-high);
 }
 
 .peakValue {
@@ -78,15 +78,15 @@
 }
 
 .widgetValueMain {
-	font-size: var(--fonts-xl);
-	font-weight: var(--semi-bold);
-	color: var(--text);
+	font-size: var(--font-xl);
+	font-weight: var(--weight-semi);
+	color: var(--color-text);
 }
 
 .widgetValueFooter {
-	font-size: var(--fonts-xxs);
-	font-weight: var(--semi-bold);
-	color: var(--text-lighter);
+	font-size: var(--font-2xs);
+	font-weight: var(--weight-semi);
+	color: var(--color-text-high);
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 }
@@ -100,7 +100,7 @@
 .result {
 	display: flex;
 	align-items: center;
-	gap: var(--s-2-5);
+	gap: var(--s-3);
 }
 
 .resultPlacement {
@@ -116,7 +116,7 @@
 }
 
 .resultName {
-	font-weight: var(--semi-bold);
+	font-weight: var(--weight-semi);
 }
 
 .tournamentName {
@@ -125,19 +125,19 @@
 	gap: var(--s-1);
 	max-width: 100%;
 	overflow: hidden;
-}
 
-.tournamentName a {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	min-width: 0;
-	max-width: 175px;
+	& a {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		min-width: 0;
+		max-width: 175px;
+	}
 }
 
 .resultDate {
-	font-size: var(--fonts-xxs);
-	color: var(--text-lighter);
+	font-size: var(--font-2xs);
+	color: var(--color-text-high);
 }
 
 .videos {
@@ -157,13 +157,13 @@
 .weaponCount {
 	margin-top: var(--s-3);
 	text-align: center;
-	font-size: var(--fonts-xs);
-	font-weight: var(--semi-bold);
-	color: var(--text-lighter);
+	font-size: var(--font-xs);
+	font-weight: var(--weight-semi);
+	color: var(--color-text-high);
 }
 
 .weaponCountComplete {
-	color: var(--theme-success);
+	color: var(--color-success);
 }
 
 .lfgPosts {
@@ -173,16 +173,16 @@
 }
 
 .lfgPost {
-	color: var(--text);
-	font-size: var(--fonts-sm);
-	border-radius: var(--rounded-sm);
+	color: var(--color-text);
+	font-size: var(--font-sm);
+	border-radius: var(--radius-field);
 	padding: var(--s-2);
 	transition: background-color 0.2s;
-	background-color: var(--bg-lighter);
-}
+	background-color: var(--color-bg-high);
 
-.lfgPost:hover {
-	background-color: var(--bg-lightest);
+	&:hover {
+		background-color: var(--color-bg-higher);
+	}
 }
 
 .xRankPeaks {
@@ -190,8 +190,8 @@
 	flex-wrap: wrap;
 	gap: var(--s-3);
 	justify-content: center;
-	font-size: var(--fonts-sm);
-	font-weight: var(--semi-bold);
+	font-size: var(--font-sm);
+	font-weight: var(--weight-semi);
 }
 
 .xRankPeakMode {
@@ -214,7 +214,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background-color: var(--bg-lightest);
+	background-color: var(--color-bg-higher);
 	border-radius: 50%;
 	padding: 1px;
 }
@@ -230,8 +230,8 @@
 	display: flex;
 	align-items: center;
 	gap: var(--s-1);
-	font-size: var(--fonts-sm);
-	font-weight: var(--semi-bold);
+	font-size: var(--font-sm);
+	font-weight: var(--weight-semi);
 }
 
 .builds {
@@ -261,47 +261,47 @@
 }
 
 .socialLink {
-	font-size: var(--fonts-sm);
+	font-size: var(--font-sm);
 	display: flex;
 	gap: var(--s-2);
 	align-items: center;
 	word-break: break-all;
 	overflow-wrap: break-word;
-}
 
-.socialLink svg {
-	width: 18px;
+	& svg {
+		width: 18px;
+	}
 }
 
 .socialLinkIconContainer {
-	background-color: var(--bg-lightest);
+	background-color: var(--color-bg-higher);
 	display: grid;
 	place-items: center;
-	border-radius: var(--rounded);
+	border-radius: var(--radius-box);
 	padding: var(--s-2);
 	flex-shrink: 0;
-}
 
-.socialLinkIconContainer svg {
-	width: 18px;
-	height: 18px;
-	fill: var(--text);
-}
+	& svg {
+		width: 18px;
+		height: 18px;
+		fill: var(--color-text);
+	}
 
-.socialLinkIconContainer.twitch svg {
-	fill: #9146ff;
-}
+	&.twitch svg {
+		fill: #9146ff;
+	}
 
-.socialLinkIconContainer.youtube svg {
-	fill: #f00;
-}
+	&.youtube svg {
+		fill: #f00;
+	}
 
-.socialLinkIconContainer.bsky path {
-	fill: #1285fe;
-}
+	&.bsky path {
+		fill: #1285fe;
+	}
 
-.socialLinkIconContainer.discord svg {
-	fill: #5865f2;
+	&.discord svg {
+		fill: #5865f2;
+	}
 }
 
 .socialLinksIcons {
@@ -326,4 +326,24 @@
 	width: 48px;
 	height: 48px;
 	object-fit: contain;
+}
+
+.friendsList {
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-2);
+}
+
+.friendLink {
+	display: flex;
+	align-items: center;
+	gap: var(--s-1);
+	padding: var(--s-0-5) var(--s-1);
+	text-decoration: none;
+	color: var(--color-text);
+	border-radius: var(--radius-field);
+
+	&:hover {
+		background-color: var(--color-bg-higher);
+	}
 }

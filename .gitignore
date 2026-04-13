@@ -1,4 +1,5 @@
 node_modules
+package-lock.json
 
 /.cache*
 /build
@@ -6,7 +7,6 @@ node_modules
 .react-router/
 .env
 translation-progress.md
-**/*/__screenshots__
 
 notes.md
 
@@ -21,11 +21,17 @@ dump
 /scripts/output/*
 !/scripts/output/.gitkeep
 
-/scripts/dicts/**/*.json
+/scripts/dicts/**/*
 /scripts/badge
 /test-results/
 /playwright-report/
 /playwright/.cache/
+/.vitest-attachments
+.vitest-attachments/
+
+# Vitest auto-captured failure screenshots (numbered, without browser info)
+# Real baselines have pattern: *-chromium-darwin.png
+**/__screenshots__/**/*-[0-9].png
 .e2e-minio-started
 
 notepad.txt

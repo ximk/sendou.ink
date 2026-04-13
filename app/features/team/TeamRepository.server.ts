@@ -1,7 +1,7 @@
 import type { Insertable, Transaction } from "kysely";
 import { jsonArrayFrom } from "kysely/helpers/sqlite";
 import { db } from "~/db/sql";
-import type { DB, Tables } from "~/db/tables";
+import type { CustomTheme, DB, Tables } from "~/db/tables";
 import * as LFGRepository from "~/features/lfg/LFGRepository.server";
 import { subsOfResult } from "~/features/team/team-utils";
 import { databaseTimestampNow } from "~/utils/dates";
@@ -37,6 +37,29 @@ export function findAllUndisbanded() {
 		.execute();
 }
 
+export function searchByName({
+	query,
+	limit,
+}: {
+	query: string;
+	limit: number;
+}) {
+	return db
+		.selectFrom("Team")
+		.leftJoin("UserSubmittedImage", "UserSubmittedImage.id", "Team.avatarImgId")
+		.select(({ eb }) => [
+			"Team.customUrl",
+			"Team.name",
+			concatUserSubmittedImagePrefix(eb.ref("UserSubmittedImage.url")).as(
+				"avatarUrl",
+			),
+		])
+		.where("Team.name", "like", `%${query}%`)
+		.orderBy("Team.name", "asc")
+		.limit(limit)
+		.execute();
+}
+
 export function findAllMemberOfByUserId(userId: number) {
 	return db
 		.selectFrom("TeamMemberWithSecondary")
@@ -46,7 +69,10 @@ export function findAllMemberOfByUserId(userId: number) {
 			"Team.id",
 			"Team.customUrl",
 			"Team.name",
+			"Team.mapModePreferences",
 			"TeamMemberWithSecondary.role",
+			"TeamMemberWithSecondary.isOwner",
+			"TeamMemberWithSecondary.isManager",
 			concatUserSubmittedImagePrefix(eb.ref("UserSubmittedImage.url")).as(
 				"logoUrl",
 			),
@@ -84,7 +110,7 @@ export function findByCustomUrl(
 			"Team.bio",
 			"Team.tag",
 			"Team.customUrl",
-			"Team.css",
+			"Team.customTheme",
 			concatUserSubmittedImagePrefix(eb.ref("AvatarImage.url")).as("avatarUrl"),
 			concatUserSubmittedImagePrefix(eb.ref("BannerImage.url")).as("bannerUrl"),
 			jsonArrayFrom(
@@ -166,6 +192,7 @@ export async function findResultsById(teamId: number) {
 			"CalendarEventDate.eventId",
 			"CalendarEvent.id",
 		)
+		.innerJoin("Tournament", "Tournament.id", "results.tournamentId")
 		.select((eb) => [
 			"results.placement",
 			"results.tournamentId",
@@ -173,6 +200,7 @@ export async function findResultsById(teamId: number) {
 			"results.tournamentTeamId",
 			"CalendarEvent.name as tournamentName",
 			"CalendarEventDate.startTime",
+			"Tournament.tier",
 			tournamentLogoOrNull(eb).as("logoUrl"),
 			jsonArrayFrom(
 				eb
@@ -285,10 +313,7 @@ export async function update({
 	bio,
 	bsky,
 	tag,
-	css,
-}: Pick<Insertable<Tables["Team"]>, "id" | "name" | "bio" | "bsky" | "tag"> & {
-	css: string | null;
-}) {
+}: Pick<Insertable<Tables["Team"]>, "id" | "name" | "bio" | "bsky" | "tag">) {
 	const customUrl = mySlugify(name);
 
 	const team = await db
@@ -299,13 +324,28 @@ export async function update({
 			bio,
 			bsky,
 			tag,
-			css,
 		})
 		.where("id", "=", id)
 		.returningAll()
 		.executeTakeFirstOrThrow();
 
 	return team;
+}
+
+export async function updateCustomTheme({
+	id,
+	customTheme,
+}: {
+	id: number;
+	customTheme: CustomTheme | null;
+}) {
+	await db
+		.updateTable("AllTeam")
+		.set({
+			customTheme: customTheme ? JSON.stringify(customTheme) : null,
+		})
+		.where("id", "=", id)
+		.execute();
 }
 
 export function switchMainTeam({

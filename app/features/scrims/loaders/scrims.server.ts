@@ -12,7 +12,6 @@ import { dividePosts } from "../scrims-utils";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 	const user = getUser();
 
-	const now = new Date();
 	const associations = user
 		? await AssociationsRepository.findByMemberUserId(user?.id)
 		: null;
@@ -32,15 +31,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 				(user && Scrim.isParticipating(post, user.id)) ||
 				Association.isVisible({
 					associations,
-					time: now,
 					visibility: post.visibility,
+					contentOwnerUserId: post.users.find((u) => u.isOwner)?.id,
 				}),
 		)
 		.map((post) => ({
 			...post,
 			visibility: null,
 			isPrivate: !Association.isPublic({
-				time: now,
 				visibility: post.visibility,
 			}),
 		}));

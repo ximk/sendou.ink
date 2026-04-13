@@ -7,7 +7,6 @@ describe("isVisible", () => {
 	it("should return true if visibility is null", () => {
 		const args: Association.IsVisibleArgs = {
 			visibility: null,
-			time: new Date(),
 			associations: null,
 		};
 		expect(Association.isVisible(args)).toBe(true);
@@ -16,7 +15,6 @@ describe("isVisible", () => {
 	it("should return false if not member of the association", () => {
 		const args: Association.IsVisibleArgs = {
 			visibility: { forAssociation: 1 },
-			time: new Date(),
 			associations: null,
 		};
 		expect(Association.isVisible(args)).toBe(false);
@@ -25,7 +23,6 @@ describe("isVisible", () => {
 	it("should return true if member of the association", () => {
 		const args: Association.IsVisibleArgs = {
 			visibility: { forAssociation: 1 },
-			time: new Date(),
 			associations: {
 				actual: [{ id: 1 }],
 				virtual: [],
@@ -37,7 +34,6 @@ describe("isVisible", () => {
 	it("should return true if member of the virtual association", () => {
 		const args: Association.IsVisibleArgs = {
 			visibility: { forAssociation: "+1" },
-			time: new Date(),
 			associations: {
 				actual: [],
 				virtual: ["+1"],
@@ -56,7 +52,6 @@ describe("isVisible", () => {
 					{ at: dateToDatabaseTimestamp(visibleAt), forAssociation: 1 },
 				],
 			},
-			time: new Date(),
 			associations: {
 				actual: [{ id: 1 }],
 				virtual: [],
@@ -98,6 +93,60 @@ describe("isVisible", () => {
 			associations: {
 				actual: [],
 				virtual: [],
+			},
+		};
+		expect(Association.isVisible(args)).toBe(true);
+	});
+
+	it("should return true if viewer is a friend of the content owner", () => {
+		const args: Association.IsVisibleArgs = {
+			visibility: { forAssociation: "FRIENDS" },
+			associations: {
+				actual: [],
+				virtual: [],
+				friendIds: [42],
+			},
+			contentOwnerUserId: 42,
+		};
+		expect(Association.isVisible(args)).toBe(true);
+	});
+
+	it("should return false if viewer is not a friend of the content owner", () => {
+		const args: Association.IsVisibleArgs = {
+			visibility: { forAssociation: "FRIENDS" },
+			associations: {
+				actual: [],
+				virtual: [],
+				friendIds: [99],
+			},
+			contentOwnerUserId: 42,
+		};
+		expect(Association.isVisible(args)).toBe(false);
+	});
+
+	it("should return false for FRIENDS visibility when not logged in", () => {
+		const args: Association.IsVisibleArgs = {
+			visibility: { forAssociation: "FRIENDS" },
+			associations: null,
+		};
+		expect(Association.isVisible(args)).toBe(false);
+	});
+
+	it("should return true when FRIENDS visibility becomes public via notFoundInstructions", () => {
+		const visibleAt = add(new Date(), { days: 1 });
+
+		const args: Association.IsVisibleArgs = {
+			visibility: {
+				forAssociation: "FRIENDS",
+				notFoundInstructions: [
+					{ at: dateToDatabaseTimestamp(visibleAt), forAssociation: null },
+				],
+			},
+			time: add(new Date(), { days: 2 }),
+			associations: {
+				actual: [],
+				virtual: [],
+				friendIds: [],
 			},
 		};
 		expect(Association.isVisible(args)).toBe(true);

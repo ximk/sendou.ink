@@ -3,6 +3,7 @@ import * as R from "remeda";
 import { DANGEROUS_CAN_ACCESS_DEV_CONTROLS } from "~/features/admin/core/dev-controls";
 import { requireUser } from "~/features/auth/core/user.server";
 import { userIsBanned } from "~/features/ban/core/banned.server";
+import * as ChatSystemMessage from "~/features/chat/ChatSystemMessage.server";
 import * as ShowcaseTournaments from "~/features/front-page/core/ShowcaseTournaments.server";
 import { notify } from "~/features/notifications/core/notify.server";
 import * as TournamentTeamRepository from "~/features/tournament/TournamentTeamRepository.server";
@@ -12,7 +13,11 @@ import {
 	clearTournamentDataCache,
 	tournamentFromDB,
 } from "~/features/tournament-bracket/core/Tournament.server";
-import { deleteSub } from "~/features/tournament-subs/queries/deleteSub.server";
+import {
+	tournamentMatchWebsocketRoom,
+	tournamentWebsocketRoom,
+} from "~/features/tournament-bracket/tournament-bracket-utils";
+import * as TournamentLFGRepository from "~/features/tournament-lfg/TournamentLFGRepository.server";
 import * as UserRepository from "~/features/user-page/UserRepository.server";
 import invariant from "~/utils/invariant";
 import { logger } from "~/utils/logger";
@@ -83,7 +88,10 @@ export const action: ActionFunction = async ({ request, params }) => {
 				userId: data.userId,
 				tournamentId,
 			});
-			deleteSub({ tournamentId, userId: data.userId });
+			await TournamentLFGRepository.leaveLfg({
+				userId: data.userId,
+				tournamentId,
+			});
 
 			ShowcaseTournaments.addToCached({
 				tournamentId,
@@ -99,7 +107,7 @@ export const action: ActionFunction = async ({ request, params }) => {
 			validateIsTournamentOrganizer();
 			const team = tournament.teamById(data.teamId);
 			errorToastIfFalsy(team, "Invalid team id");
-			const oldCaptain = team.members.find((m) => m.isOwner);
+			const oldCaptain = team.members.find((m) => m.role === "OWNER");
 			invariant(oldCaptain, "Team has no captain");
 			const newCaptain = team.members.find((m) => m.userId === data.memberId);
 			errorToastIfFalsy(newCaptain, "Invalid member id");
@@ -118,7 +126,7 @@ export const action: ActionFunction = async ({ request, params }) => {
 			const team = tournament.teamById(data.teamId);
 			errorToastIfFalsy(team, "Invalid team id");
 
-			await TournamentRepository.updateTeamName({
+			await TournamentTeamRepository.updateName({
 				tournamentTeamId: data.teamId,
 				name: data.teamName,
 			});
@@ -144,7 +152,7 @@ export const action: ActionFunction = async ({ request, params }) => {
 			invariant(bracket, "Invalid bracket idx");
 			errorToastIfFalsy(bracket.preview, "Bracket has been started");
 
-			await TournamentRepository.checkIn({
+			await TournamentTeamRepository.checkIn({
 				tournamentTeamId: data.teamId,
 				// no sources = regular check in
 				bracketIdx: !bracket.sources ? null : data.bracketIdx,
@@ -166,7 +174,7 @@ export const action: ActionFunction = async ({ request, params }) => {
 			invariant(bracket, "Invalid bracket idx");
 			errorToastIfFalsy(bracket.preview, "Bracket has been started");
 
-			await TournamentRepository.checkOut({
+			await TournamentTeamRepository.checkOut({
 				tournamentTeamId: data.teamId,
 				// no sources = regular check in
 				bracketIdx: !bracket.sources ? null : data.bracketIdx,
@@ -188,7 +196,7 @@ export const action: ActionFunction = async ({ request, params }) => {
 				"Can't remove last member from checked in team",
 			);
 			errorToastIfFalsy(
-				!team.members.find((m) => m.userId === data.memberId)?.isOwner,
+				team.members.find((m) => m.userId === data.memberId)?.role !== "OWNER",
 				"Cannot remove team owner",
 			);
 			errorToastIfFalsy(
@@ -247,6 +255,10 @@ export const action: ActionFunction = async ({ request, params }) => {
 				"User has no friend code set",
 			);
 
+			await TournamentLFGRepository.leaveLfg({
+				userId: data.userId,
+				tournamentId,
+			});
 			joinTeam({
 				userId: data.userId,
 				newTeamId: team.id,
@@ -389,18 +401,33 @@ export const action: ActionFunction = async ({ request, params }) => {
 				});
 			}
 
-			endDroppedTeamMatches({
+			const endedMatchIds = endDroppedTeamMatches({
 				tournament,
 				manager: getServerTournamentManager(),
 				droppedTeamId: data.teamId,
 			});
 
-			await TournamentRepository.dropTeamOut({
+			await TournamentTeamRepository.dropOut({
 				tournamentTeamId: data.teamId,
 				previewBracketIdxs: tournament.brackets.flatMap((b, idx) =>
 					b.preview ? idx : [],
 				),
 			});
+
+			if (endedMatchIds.length > 0) {
+				ChatSystemMessage.send([
+					...endedMatchIds.map((matchId) => ({
+						room: tournamentMatchWebsocketRoom(matchId),
+						type: "TOURNAMENT_MATCH_UPDATED" as const,
+						revalidateOnly: true as const,
+					})),
+					{
+						room: tournamentWebsocketRoom(tournament.ctx.id),
+						type: "TOURNAMENT_UPDATED" as const,
+						revalidateOnly: true as const,
+					},
+				]);
+			}
 
 			message = "Team dropped out";
 			break;
@@ -408,7 +435,7 @@ export const action: ActionFunction = async ({ request, params }) => {
 		case "UNDO_DROP_TEAM_OUT": {
 			validateIsTournamentOrganizer();
 
-			await TournamentRepository.undoDropTeamOut(data.teamId);
+			await TournamentTeamRepository.undoDropOut(data.teamId);
 
 			message = "Team drop out undone";
 			break;

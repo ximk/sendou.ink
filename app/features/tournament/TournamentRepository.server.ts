@@ -1,3 +1,4 @@
+import { sub } from "date-fns";
 import { type Insertable, type NotNull, sql, type Transaction } from "kysely";
 import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/sqlite";
 import { db } from "~/db/sql";
@@ -7,7 +8,6 @@ import type {
 	PreparedMaps,
 	Tables,
 	TournamentSettings,
-	TournamentSub,
 } from "~/db/tables";
 import * as Progression from "~/features/tournament-bracket/core/Progression";
 import { Status } from "~/modules/brackets-model";
@@ -19,10 +19,10 @@ import {
 	COMMON_USER_FIELDS,
 	concatUserSubmittedImagePrefix,
 	tournamentLogoWithDefault,
-	userChatNameColor,
 } from "~/utils/kysely.server";
 import type { Unwrapped } from "~/utils/types";
 import type { TournamentTierNumber } from "./core/tiering";
+import { updatedCastedMatchesInfo } from "./tournament-utils";
 
 export type FindById = NonNullable<Unwrapped<typeof findById>>;
 export async function findById(id: number) {
@@ -85,7 +85,6 @@ export async function findById(id: number) {
 									"TournamentOrganizationMember.userId",
 									"TournamentOrganizationMember.role",
 									...COMMON_USER_FIELDS,
-									userChatNameColor,
 									"User.pronouns",
 								])
 								.whereRef(
@@ -105,7 +104,7 @@ export async function findById(id: number) {
 			jsonObjectFrom(
 				eb
 					.selectFrom("User")
-					.select([...COMMON_USER_FIELDS, userChatNameColor, "User.pronouns"])
+					.select([...COMMON_USER_FIELDS, "User.pronouns"])
 					.whereRef("User.id", "=", "CalendarEvent.authorId"),
 			).as("author"),
 			jsonArrayFrom(
@@ -114,22 +113,11 @@ export async function findById(id: number) {
 					.innerJoin("User", "TournamentStaff.userId", "User.id")
 					.select([
 						...COMMON_USER_FIELDS,
-						userChatNameColor,
 						"User.pronouns",
 						"TournamentStaff.role",
 					])
 					.where("TournamentStaff.tournamentId", "=", id),
 			).as("staff"),
-			jsonArrayFrom(
-				eb
-					.selectFrom("TournamentSub")
-					.select(({ fn }) => [
-						"TournamentSub.visibility",
-						fn.countAll<number>().as("count"),
-					])
-					.where("TournamentSub.tournamentId", "=", id)
-					.groupBy("TournamentSub.visibility"),
-			).as("subCounts"),
 			jsonArrayFrom(
 				eb
 					.selectFrom("TournamentBracketProgressionOverride")
@@ -190,7 +178,7 @@ export async function findById(id: number) {
 									"User.twitch",
 									"SeedingSkill.ordinal",
 									"PlusTier.tier as plusTier",
-									"TournamentTeamMember.isOwner",
+									"TournamentTeamMember.role",
 									"TournamentTeamMember.createdAt",
 									sql<string | null> /*sql*/`coalesce(
                     "TournamentTeamMember"."inGameName",
@@ -251,6 +239,7 @@ export async function findById(id: number) {
 						).as("team"),
 					])
 					.where("TournamentTeam.tournamentId", "=", id)
+					.where("TournamentTeam.isPlaceholder", "=", 0)
 					.orderBy("TournamentTeam.seed", "asc")
 					.orderBy("TournamentTeam.createdAt", "asc")
 					.orderBy("TournamentTeam.id", "asc"),
@@ -314,11 +303,6 @@ export async function findById(id: number) {
 
 	return {
 		...result,
-		// TODO: types broke with dependency update somehow
-		subCounts: result.subCounts as Array<{
-			visibility: TournamentSub["visibility"];
-			count: number;
-		}>,
 		teams: result.teams.map((team) => ({
 			...team,
 			members: team.members.map(({ ordinal, ...member }) => member),
@@ -332,6 +316,17 @@ export async function findById(id: number) {
 	};
 }
 
+export async function hasChildTournaments(parentTournamentId: number) {
+	const row = await db
+		.selectFrom("Tournament")
+		.select("Tournament.id")
+		.where("Tournament.parentTournamentId", "=", parentTournamentId)
+		.limit(1)
+		.executeTakeFirst();
+
+	return Boolean(row);
+}
+
 export async function findChildTournaments(parentTournamentId: number) {
 	const rows = await db
 		.selectFrom("Tournament")
@@ -343,6 +338,7 @@ export async function findChildTournaments(parentTournamentId: number) {
 				.selectFrom("TournamentTeam")
 				.select(({ fn }) => [fn.countAll<number>().as("teamsCount")])
 				.whereRef("TournamentTeam.tournamentId", "=", "Tournament.id")
+				.where("TournamentTeam.isPlaceholder", "=", 0)
 				.as("teamsCount"),
 			jsonArrayFrom(
 				eb
@@ -353,7 +349,8 @@ export async function findChildTournaments(parentTournamentId: number) {
 						"TournamentTeam.id",
 					)
 					.select(["TournamentTeamMember.userId"])
-					.whereRef("TournamentTeam.tournamentId", "=", "Tournament.id"),
+					.whereRef("TournamentTeam.tournamentId", "=", "Tournament.id")
+					.where("TournamentTeam.isPlaceholder", "=", 0),
 			).as("teamMembers"),
 		])
 		.where("Tournament.parentTournamentId", "=", parentTournamentId)
@@ -484,6 +481,7 @@ export function forShowcase() {
 						),
 				)
 				.whereRef("TournamentTeam.tournamentId", "=", "Tournament.id")
+				.where("TournamentTeam.isPlaceholder", "=", 0)
 				.where((eb) =>
 					eb.or([
 						eb("TournamentTeamCheckIn.checkedInAt", "is not", null),
@@ -541,6 +539,21 @@ export function forShowcase() {
 						).as("pickupAvatarUrl"),
 					]),
 			).as("firstPlacers"),
+			eb
+				.selectFrom("TournamentMatchVod")
+				.innerJoin(
+					"TournamentMatch",
+					"TournamentMatch.id",
+					"TournamentMatchVod.matchId",
+				)
+				.innerJoin(
+					"TournamentStage",
+					"TournamentStage.id",
+					"TournamentMatch.stageId",
+				)
+				.whereRef("TournamentStage.tournamentId", "=", "Tournament.id")
+				.select(({ fn }) => [fn.countAll<number>().as("count")])
+				.as("vodCount"),
 		])
 		.where("CalendarEventDate.startTime", ">", databaseTimestampWeekAgo())
 		.orderBy("CalendarEventDate.startTime", "asc")
@@ -633,68 +646,6 @@ export async function friendCodesByTournamentId(tournamentId: number) {
 	);
 }
 
-export function checkIn({
-	tournamentTeamId,
-	bracketIdx,
-}: {
-	tournamentTeamId: number;
-	bracketIdx: number | null;
-}) {
-	return db.transaction().execute(async (trx) => {
-		let query = trx
-			.deleteFrom("TournamentTeamCheckIn")
-			.where("TournamentTeamCheckIn.tournamentTeamId", "=", tournamentTeamId)
-			.where("TournamentTeamCheckIn.isCheckOut", "=", 1);
-
-		if (typeof bracketIdx === "number") {
-			query = query.where("TournamentTeamCheckIn.bracketIdx", "=", bracketIdx);
-		}
-
-		await query.execute();
-
-		await trx
-			.insertInto("TournamentTeamCheckIn")
-			.values({
-				checkedInAt: dateToDatabaseTimestamp(new Date()),
-				tournamentTeamId,
-				bracketIdx,
-			})
-			.execute();
-	});
-}
-
-export function checkOut({
-	tournamentTeamId,
-	bracketIdx,
-}: {
-	tournamentTeamId: number;
-	bracketIdx: number | null;
-}) {
-	return db.transaction().execute(async (trx) => {
-		let query = trx
-			.deleteFrom("TournamentTeamCheckIn")
-			.where("TournamentTeamCheckIn.tournamentTeamId", "=", tournamentTeamId);
-
-		if (typeof bracketIdx === "number") {
-			query = query.where("TournamentTeamCheckIn.bracketIdx", "=", bracketIdx);
-		}
-
-		await query.execute();
-
-		if (typeof bracketIdx === "number") {
-			await trx
-				.insertInto("TournamentTeamCheckIn")
-				.values({
-					checkedInAt: dateToDatabaseTimestamp(new Date()),
-					tournamentTeamId,
-					bracketIdx,
-					isCheckOut: 1,
-				})
-				.execute();
-		}
-	});
-}
-
 export function updateProgression({
 	tournamentId,
 	bracketProgression,
@@ -784,56 +735,6 @@ export function overrideTeamBracketProgression({
 			sourceBracketIdx,
 			destinationBracketIdx,
 		})
-		.execute();
-}
-
-export function updateTeamName({
-	tournamentTeamId,
-	name,
-}: {
-	tournamentTeamId: number;
-	name: string;
-}) {
-	return db
-		.updateTable("TournamentTeam")
-		.set({
-			name,
-		})
-		.where("id", "=", tournamentTeamId)
-		.execute();
-}
-
-export function dropTeamOut({
-	tournamentTeamId,
-	previewBracketIdxs,
-}: {
-	tournamentTeamId: number;
-	previewBracketIdxs: number[];
-}) {
-	return db.transaction().execute(async (trx) => {
-		await trx
-			.deleteFrom("TournamentTeamCheckIn")
-			.where("tournamentTeamId", "=", tournamentTeamId)
-			.where("TournamentTeamCheckIn.bracketIdx", "in", previewBracketIdxs)
-			.execute();
-
-		await trx
-			.updateTable("TournamentTeam")
-			.set({
-				droppedOut: 1,
-			})
-			.where("id", "=", tournamentTeamId)
-			.execute();
-	});
-}
-
-export function undoDropTeamOut(tournamentTeamId: number) {
-	return db
-		.updateTable("TournamentTeam")
-		.set({
-			droppedOut: 0,
-		})
-		.where("id", "=", tournamentTeamId)
 		.execute();
 }
 
@@ -937,9 +838,11 @@ const castedMatchesInfoByTournamentId = async (
 export function lockMatch({
 	matchId,
 	tournamentId,
+	twitchAccount,
 }: {
 	matchId: number;
 	tournamentId: number;
+	twitchAccount: string;
 }) {
 	return db.transaction().execute(async (trx) => {
 		const castedMatchesInfo = await castedMatchesInfoByTournamentId(
@@ -947,8 +850,8 @@ export function lockMatch({
 			tournamentId,
 		);
 
-		if (!castedMatchesInfo.lockedMatches.includes(matchId)) {
-			castedMatchesInfo.lockedMatches.push(matchId);
+		if (!castedMatchesInfo.lockedMatches.some((lm) => lm.matchId === matchId)) {
+			castedMatchesInfo.lockedMatches.push({ matchId, twitchAccount });
 		}
 
 		await trx
@@ -975,7 +878,7 @@ export function unlockMatch({
 		);
 
 		castedMatchesInfo.lockedMatches = castedMatchesInfo.lockedMatches.filter(
-			(lockedMatchId) => lockedMatchId !== matchId,
+			(lm) => lm.matchId !== matchId,
 		);
 
 		await trx
@@ -1016,28 +919,11 @@ export function setMatchAsCasted({
 			tournamentId,
 		);
 
-		let newCastedMatchesInfo: CastedMatchesInfo;
-		if (twitchAccount === null) {
-			newCastedMatchesInfo = {
-				...castedMatchesInfo,
-				castedMatches: castedMatchesInfo.castedMatches.filter(
-					(cm) => cm.matchId !== matchId,
-				),
-			};
-		} else {
-			newCastedMatchesInfo = {
-				...castedMatchesInfo,
-				castedMatches: castedMatchesInfo.castedMatches
-					.filter(
-						(cm) =>
-							// currently a match can only  be streamed by one account
-							// and a cast can only stream one match at a time
-							// these can change in the future
-							cm.matchId !== matchId && cm.twitchAccount !== twitchAccount,
-					)
-					.concat([{ twitchAccount, matchId }]),
-			};
-		}
+		const newCastedMatchesInfo = updatedCastedMatchesInfo(castedMatchesInfo, {
+			matchId,
+			twitchAccount,
+			timestamp: databaseTimestampNow(),
+		});
 
 		await trx
 			.updateTable("Tournament")
@@ -1251,4 +1137,38 @@ export function updateTournamentTier({
 		.set({ tier })
 		.where("id", "=", tournamentId)
 		.execute();
+}
+
+export async function findRunningTournamentIds() {
+	const now = new Date();
+	const cutoff = sub(now, { days: 2 });
+
+	const rows = await db
+		.selectFrom("Tournament")
+		.innerJoin("CalendarEvent", "Tournament.id", "CalendarEvent.tournamentId")
+		.innerJoin(
+			"CalendarEventDate",
+			"CalendarEvent.id",
+			"CalendarEventDate.eventId",
+		)
+		.select("Tournament.id")
+		.where("Tournament.isFinalized", "=", 0)
+		.where("CalendarEventDate.startTime", "<", dateToDatabaseTimestamp(now))
+		.where("CalendarEventDate.startTime", ">", dateToDatabaseTimestamp(cutoff))
+		.where((eb) =>
+			eb.exists(
+				eb
+					.selectFrom("TournamentStage")
+					.select("TournamentStage.id")
+					.whereRef("TournamentStage.tournamentId", "=", "Tournament.id"),
+			),
+		)
+		.where(
+			sql<number>`json_extract("Tournament"."settings", '$.isTest')`,
+			"is not",
+			1,
+		)
+		.execute();
+
+	return rows.map((row) => row.id);
 }

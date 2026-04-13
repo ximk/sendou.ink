@@ -31,9 +31,10 @@ function eventsAsICal(events: Array<CalendarEvent>): ics.ReturnObject {
 
 function eventInfoAsICalEvent(event: CalendarEvent): ics.EventAttributes {
 	const startDate = new Date(event.at);
-	const eventLink = `${SENDOU_INK_BASE_URL}/${event.url}`;
+	const eventLink = `${SENDOU_INK_BASE_URL}${event.url}`;
 
 	return {
+		uid: `event-${event.id}@sendou.ink`,
 		title: event.name,
 		start: [
 			startDate.getUTCFullYear(),

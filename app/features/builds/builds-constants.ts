@@ -4,7 +4,13 @@ export const MAX_BUILD_FILTERS = 6;
 
 export const FILTER_SEARCH_PARAM_KEY = "f";
 
-export const PATCHES = [
+type Patch = { patch: string; date: string };
+
+export const PATCHES: Array<Patch> = [
+	{
+		patch: "11.1.0",
+		date: "2026-03-18",
+	},
 	{
 		patch: "11.0.0",
 		date: "2026-01-29",
@@ -13,10 +19,10 @@ export const PATCHES = [
 		patch: "10.1.0",
 		date: "2025-09-03",
 	},
-	{
-		patch: "10.0.0",
-		date: "2025-06-12",
-	},
+	// {
+	// 	patch: "10.0.0",
+	// 	date: "2025-06-12",
+	// },
 	// {
 	// 	patch: "9.3.0",
 	// 	date: "2025-03-13",

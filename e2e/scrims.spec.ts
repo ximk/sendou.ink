@@ -22,7 +22,7 @@ test.describe("Scrims", () => {
 			url: "/",
 		});
 
-		await page.getByTestId("anything-adder-menu-button").click();
+		await page.getByTestId("anything-adder-menu-button").first().click();
 		await page.getByTestId("menu-item-scrimPost").click();
 
 		const form = createFormHelpers(page, scrimsNewFormSchema);
@@ -45,7 +45,6 @@ test.describe("Scrims", () => {
 		});
 		await page.getByLabel("Visibility").selectOption("2");
 
-		// Schema-defined field - use form helper
 		await form.fill("postText", "Test scrim");
 
 		await submit(page);

@@ -11,11 +11,12 @@ const stm = sql.prepare(/*sql*/ `
     "TournamentTeam"
     left join "TournamentTeamCheckIn" on
       "TournamentTeamCheckIn"."tournamentTeamId" = "TournamentTeam"."id"
-    left join "TournamentTeamMember" on 
-      "TournamentTeamMember"."tournamentTeamId" = "TournamentTeam"."id" 
-      and "TournamentTeamMember"."isOwner" = 1
+    left join "TournamentTeamMember" on
+      "TournamentTeamMember"."tournamentTeamId" = "TournamentTeam"."id"
+      and "TournamentTeamMember"."role" = 'OWNER'
   where
     "TournamentTeam"."tournamentId" = @tournamentId
+    and "TournamentTeam"."isPlaceholder" = 0
     and "TournamentTeamMember"."userId" = @userId
 `);
 

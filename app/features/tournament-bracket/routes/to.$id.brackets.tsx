@@ -1,5 +1,13 @@
-import clsx from "clsx";
 import { sub } from "date-fns";
+import {
+	Check,
+	Eye,
+	EyeOff,
+	Map as MapIcon,
+	ShieldMinus,
+	ShieldPlus,
+	Stamp,
+} from "lucide-react";
 import * as React from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { useTranslation } from "react-i18next";
@@ -8,17 +16,16 @@ import { useCopyToClipboard } from "react-use";
 import { Alert } from "~/components/Alert";
 import { Divider } from "~/components/Divider";
 import { LinkButton, SendouButton } from "~/components/elements/Button";
-import { SendouMenu, SendouMenuItem } from "~/components/elements/Menu";
 import { SendouPopover } from "~/components/elements/Popover";
-import { CheckmarkIcon } from "~/components/icons/Checkmark";
-import { EyeIcon } from "~/components/icons/Eye";
-import { EyeSlashIcon } from "~/components/icons/EyeSlash";
-import { MapIcon } from "~/components/icons/Map";
+import {
+	SendouTab,
+	SendouTabList,
+	SendouTabPanel,
+	SendouTabs,
+} from "~/components/elements/Tabs";
 import { useUser } from "~/features/auth/core/user";
-import { useWebsocketRevalidation } from "~/features/chat/chat-hooks";
 import { TOURNAMENT } from "~/features/tournament/tournament-constants";
-import { tournamentWebsocketRoom } from "~/features/tournament-bracket/tournament-bracket-utils";
-import { useIsMounted } from "~/hooks/useIsMounted";
+import { useHydrated } from "~/hooks/useHydrated";
 import { useSearchParamState } from "~/hooks/useSearchParamState";
 import { useTimeFormat } from "~/hooks/useTimeFormat";
 import { useVisibilityChange } from "~/hooks/useVisibilityChange";
@@ -30,29 +37,25 @@ import {
 } from "../../tournament/routes/to.$id";
 import { action } from "../actions/to.$id.brackets.server";
 import { Bracket } from "../components/Bracket";
+import { useBracketSpoilerCensor } from "../components/Bracket/useBracketSpoilerCensor";
 import { BracketMapListDialog } from "../components/BracketMapListDialog";
 import { TournamentTeamActions } from "../components/TournamentTeamActions";
 import type { Bracket as BracketType } from "../core/Bracket";
 import * as PreparedMaps from "../core/PreparedMaps";
+
 export { action };
 
-import "../tournament-bracket.css";
-import "../components/Bracket/bracket.css";
+import styles from "../tournament-bracket.module.css";
 
 export default function TournamentBracketsPage() {
-	const { t } = useTranslation(["tournament"]);
+	const { t } = useTranslation(["common", "tournament"]);
 	const { formatDateTime, formatTime } = useTimeFormat();
 	const visibility = useVisibilityChange();
 	const { revalidate } = useRevalidator();
 	const user = useUser();
 	const tournament = useTournament();
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 	const ctx = useOutletContext();
-
-	useWebsocketRevalidation({
-		room: tournamentWebsocketRoom(tournament.ctx.id),
-		connected: !tournament.ctx.isFinalized,
-	});
 
 	const defaultBracketIdx = () => {
 		if (
@@ -90,11 +93,18 @@ export default function TournamentBracketsPage() {
 		tournament.autonomousSubs &&
 		teamProgressStatus?.type !== "THANKS_FOR_PLAYING";
 
+	const {
+		censored,
+		canToggle,
+		reveal: revealSpoiler,
+		hide: hideSpoiler,
+	} = useBracketSpoilerCensor();
+
 	const showPrepareMapsButton =
 		tournament.isOrganizer(user) &&
 		!bracket.canBeStarted &&
 		bracket.preview &&
-		isMounted;
+		isHydrated;
 
 	const waitingForTeamsText = () => {
 		if (bracketIdx > 0 || tournament.regularCheckInStartInThePast) {
@@ -174,17 +184,6 @@ export default function TournamentBracketsPage() {
 	return (
 		<div>
 			<Outlet context={ctx} />
-			{tournament.canFinalize(user) ? (
-				<div className="tournament-bracket__finalize">
-					<LinkButton
-						variant="minimal"
-						testId="finalize-tournament-button"
-						to="finalize"
-					>
-						{t("tournament:actions.finalize.question")}
-					</LinkButton>
-				</div>
-			) : null}
 			{bracket.preview &&
 			bracket.enoughTeams &&
 			tournament.isOrganizer(user) &&
@@ -193,7 +192,7 @@ export default function TournamentBracketsPage() {
 					<div className="stack sm items-center">
 						<Alert
 							variation="INFO"
-							alertClassName="tournament-bracket__start-bracket-alert"
+							alertClassName={styles.startBracketAlert}
 							textClassName="stack horizontal md items-center"
 						>
 							{bracket.participantTournamentTeamIds.length}/
@@ -207,7 +206,7 @@ export default function TournamentBracketsPage() {
 							) : null}
 						</Alert>
 						{!bracket.canBeStarted ? (
-							<div className="tournament-bracket__mini-alert">
+							<div className={styles.miniAlert}>
 								⚠️{" "}
 								{bracket.isStartingBracket
 									? "Tournament start time is in the future"
@@ -225,51 +224,47 @@ export default function TournamentBracketsPage() {
 				{!tournament.isLeagueDivision ? <TournamentTeamActions /> : null}
 				{showAddSubsButton ? <AddSubsPopOver /> : null}
 			</div>
-			<div className="stack md">
-				<div className="stack horizontal sm">
-					<BracketNav bracketIdx={bracketIdx} setBracketIdx={setBracketIdx} />
-					{bracket.type !== "round_robin" && !bracket.preview ? (
-						<CompactifyButton />
-					) : null}
-					{showPrepareMapsButton ? (
-						// Error Boundary because preparing maps is optional, so no need to make the whole page inaccessible if it fails
-						<ErrorBoundary fallback={null}>
-							<MapPreparer bracket={bracket} bracketIdx={bracketIdx} />
-						</ErrorBoundary>
-					) : null}
-				</div>
-				{bracket.enoughTeams ? (
-					<Bracket bracket={bracket} bracketIdx={bracketIdx} />
+			<div className="stack horizontal sm mb-4">
+				{bracket.type !== "round_robin" && !bracket.preview ? (
+					<CompactifyButton />
+				) : null}
+				{tournament.canFinalize(user) ? (
+					<LinkButton
+						to="finalize"
+						testId="finalize-tournament-button"
+						icon={<Stamp />}
+					>
+						{t("tournament:actions.finalize.button")}
+					</LinkButton>
+				) : null}
+				{censored ? (
+					<SendouButton onPress={revealSpoiler} icon={<ShieldMinus />}>
+						{t("common:spoilerFree.showResults")}
+					</SendouButton>
+				) : canToggle ? (
+					<SendouButton onPress={hideSpoiler} icon={<ShieldPlus />}>
+						{t("common:spoilerFree.hideResults")}
+					</SendouButton>
+				) : null}
+				{showPrepareMapsButton ? (
+					// Error Boundary because preparing maps is optional, so no need to make the whole page inaccessible if it fails
+					<ErrorBoundary fallback={null}>
+						<MapPreparer bracket={bracket} bracketIdx={bracketIdx} />
+					</ErrorBoundary>
 				) : null}
 			</div>
-			{!bracket.enoughTeams ? (
-				<div>
-					<div className="text-center text-lg font-semi-bold text-lighter mt-6">
-						{waitingForTeamsText()}
-					</div>
-					{bracket.sources ? (
-						<div className="text-center text-sm font-semi-bold text-lighter mt-2">
-							{teamsSourceText()}
-						</div>
-					) : null}
-					{bracket.requiresCheckIn ? (
-						<div className="text-center text-sm font-semi-bold text-lighter mt-2 text-warning">
-							Bracket requires check-in{" "}
-							{bracket.startTime ? (
-								<span suppressHydrationWarning>
-									(open{" "}
-									{formatDateTime(sub(bracket.startTime, { hours: 1 }), {
-										hour: "numeric",
-										minute: "numeric",
-										weekday: "long",
-									})}{" "}
-									- {formatTime(bracket.startTime)})
-								</span>
-							) : null}
-						</div>
-					) : null}
-				</div>
-			) : null}
+			<BracketTabs bracketIdx={bracketIdx} setBracketIdx={setBracketIdx}>
+				{(currentBracket, currentBracketIdx) => (
+					<BracketTabContent
+						bracket={currentBracket}
+						bracketIdx={currentBracketIdx}
+						waitingForTeamsText={waitingForTeamsText}
+						teamsSourceText={teamsSourceText}
+						formatDateTime={formatDateTime}
+						formatTime={formatTime}
+					/>
+				)}
+			</BracketTabs>
 		</div>
 	);
 }
@@ -282,7 +277,7 @@ function BracketStarter({
 	bracketIdx: number;
 }) {
 	const [dialogOpen, setDialogOpen] = React.useState(false);
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 
 	const close = React.useCallback(() => {
 		setDialogOpen(false);
@@ -290,7 +285,7 @@ function BracketStarter({
 
 	return (
 		<>
-			{isMounted && dialogOpen ? (
+			{isHydrated && dialogOpen ? (
 				<BracketMapListDialog
 					close={close}
 					bracket={bracket}
@@ -338,7 +333,7 @@ function MapPreparer({
 	bracketIdx: number;
 }) {
 	const [dialogOpen, setDialogOpen] = React.useState(false);
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 	const prepared = useTournamentPreparedMaps();
 	const tournament = useTournament();
 
@@ -356,7 +351,7 @@ function MapPreparer({
 
 	return (
 		<>
-			{isMounted && dialogOpen ? (
+			{isHydrated && dialogOpen ? (
 				<BracketMapListDialog
 					close={close}
 					bracket={bracket}
@@ -366,9 +361,9 @@ function MapPreparer({
 			) : null}
 			<div className="stack sm horizontal ml-auto">
 				{hasPreparedMaps ? (
-					<CheckmarkIcon
-						className="fill-success w-6"
-						testId="prepared-maps-check-icon"
+					<Check
+						className="color-success w-6"
+						data-testid="prepared-maps-check-icon"
 					/>
 				) : null}
 				<SendouButton
@@ -453,79 +448,93 @@ function SubsPopover({ children }: { children: React.ReactNode }) {
 	);
 }
 
-function BracketNav({
+function BracketTabs({
 	bracketIdx,
 	setBracketIdx,
+	children,
 }: {
 	bracketIdx: number;
 	setBracketIdx: (bracketIdx: number) => void;
+	children: (bracket: BracketType, bracketIdx: number) => React.ReactNode;
 }) {
 	const tournament = useTournament();
 
-	const shouldRender = () => {
-		const brackets = tournament.ctx.isFinalized
-			? tournament.brackets.filter((b) => !b.preview)
-			: tournament.ctx.settings.bracketProgression;
-
-		return brackets.length > 1;
-	};
-
-	if (!shouldRender()) return null;
-
 	const visibleBrackets = tournament.ctx.settings.bracketProgression.filter(
-		// an underground bracket was never played despite being in the format
 		(_, i) =>
 			!tournament.ctx.isFinalized ||
 			!tournament.bracketByIdxOrDefault(i).preview,
 	);
 
-	const bracketNameForButton = (name: string) => name.replace("bracket", "");
+	const bracketNameForTab = (name: string) => name.replace("bracket", "");
 
 	return (
-		<>
-			{/** MOBILE */}
-			<SendouMenu
-				trigger={
-					<SendouButton
-						className={clsx(
-							"tournament-bracket__bracket-nav__link",
-							"tournament-bracket__menu",
-						)}
-					>
-						{bracketNameForButton(
-							tournament.bracketByIdxOrDefault(bracketIdx).name,
-						)}
-						<span className="tournament-bracket__bracket-nav__chevron">▼</span>
-					</SendouButton>
-				}
-			>
+		<SendouTabs
+			selectedKey={String(bracketIdx)}
+			onSelectionChange={(key) => setBracketIdx(Number(key))}
+		>
+			<SendouTabList>
 				{visibleBrackets.map((bracket, i) => (
-					<SendouMenuItem
-						key={bracket.name}
-						onAction={() => setBracketIdx(i)}
-						isActive={i === bracketIdx}
-					>
-						{bracketNameForButton(bracket.name)}
-					</SendouMenuItem>
+					<SendouTab key={bracket.name} id={String(i)}>
+						{bracketNameForTab(bracket.name)}
+					</SendouTab>
 				))}
-			</SendouMenu>
-			{/** DESKTOP */}
-			<div className="tournament-bracket__bracket-nav tournament-bracket__button-row">
-				{visibleBrackets.map((bracket, i) => {
-					return (
-						<SendouButton
-							key={bracket.name}
-							onPress={() => setBracketIdx(i)}
-							className={clsx("tournament-bracket__bracket-nav__link", {
-								"tournament-bracket__bracket-nav__link__selected":
-									bracketIdx === i,
-							})}
-						>
-							{bracketNameForButton(bracket.name)}
-						</SendouButton>
-					);
-				})}
-			</div>
+			</SendouTabList>
+			{visibleBrackets.map((_, i) => (
+				<SendouTabPanel key={i} id={String(i)}>
+					{children(tournament.bracketByIdxOrDefault(i), i)}
+				</SendouTabPanel>
+			))}
+		</SendouTabs>
+	);
+}
+
+function BracketTabContent({
+	bracket,
+	bracketIdx,
+	waitingForTeamsText,
+	teamsSourceText,
+	formatDateTime,
+	formatTime,
+}: {
+	bracket: BracketType;
+	bracketIdx: number;
+	waitingForTeamsText: () => string;
+	teamsSourceText: () => string | null;
+	formatDateTime: (date: Date, options?: Intl.DateTimeFormatOptions) => string;
+	formatTime: (date: Date) => string;
+}) {
+	return (
+		<>
+			{bracket.enoughTeams ? (
+				<Bracket bracket={bracket} bracketIdx={bracketIdx} />
+			) : (
+				<div>
+					<div className="text-center text-lg font-semi-bold text-lighter mt-6">
+						{waitingForTeamsText()}
+					</div>
+					{bracket.sources ? (
+						<div className="text-center text-sm font-semi-bold text-lighter mt-2">
+							{teamsSourceText()}
+						</div>
+					) : null}
+					{bracket.requiresCheckIn ? (
+						<div className="text-center text-sm font-semi-bold text-lighter mt-2 text-warning">
+							Bracket requires check-in{" "}
+							{bracket.startTime ? (
+								<span suppressHydrationWarning>
+									(open{" "}
+									{formatDateTime(sub(bracket.startTime, { hours: 1 }), {
+										hour: "numeric",
+										minute: "numeric",
+										weekday: "long",
+									})}{" "}
+									- {formatTime(bracket.startTime)})
+								</span>
+							) : null}
+						</div>
+					) : null}
+				</div>
+			)}
 		</>
 	);
 }
@@ -538,8 +547,8 @@ function CompactifyButton() {
 			onPress={() => {
 				setBracketExpanded(!bracketExpanded);
 			}}
-			className="tournament-bracket__compactify-button"
-			icon={bracketExpanded ? <EyeSlashIcon /> : <EyeIcon />}
+			className={styles.compactifyButton}
+			icon={bracketExpanded ? <EyeOff /> : <Eye />}
 		>
 			{bracketExpanded ? "Compactify" : "Show all"}
 		</SendouButton>

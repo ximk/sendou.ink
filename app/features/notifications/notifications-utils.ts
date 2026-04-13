@@ -1,6 +1,7 @@
 import { assertUnreachable } from "~/utils/types";
 import {
 	badgePage,
+	FRIENDS_PAGE,
 	PLUS_VOTING_PAGE,
 	plusSuggestionPage,
 	SENDOUQ_PAGE,
@@ -9,6 +10,7 @@ import {
 	sendouQMatchPage,
 	tournamentBracketsPage,
 	tournamentRegisterPage,
+	tournamentSubsPage,
 	tournamentTeamPage,
 	userArtPage,
 	userEditProfilePage,
@@ -34,12 +36,16 @@ export const notificationNavIcon = (type: Notification["type"]) => {
 		case "TO_BRACKET_STARTED":
 		case "TO_CHECK_IN_OPENED":
 		case "TO_TEST_CREATED":
+		case "TO_LIKE_RECEIVED":
+		case "TO_LIKE_ACCEPTED":
 			return "medal";
 		case "SCRIM_NEW_REQUEST":
 		case "SCRIM_SCHEDULED":
 		case "SCRIM_CANCELED":
 		case "SCRIM_STARTING_SOON":
 			return "scrims";
+		case "FRIEND_REQUEST_RECEIVED":
+			return "sendou_love";
 		default:
 			assertUnreachable(type);
 	}
@@ -89,6 +95,13 @@ export const notificationLink = (notification: Notification) => {
 		}
 		case "COMMISSIONS_CLOSED": {
 			return userEditProfilePage({ discordId: notification.meta.discordId });
+		}
+		case "FRIEND_REQUEST_RECEIVED": {
+			return FRIENDS_PAGE;
+		}
+		case "TO_LIKE_RECEIVED":
+		case "TO_LIKE_ACCEPTED": {
+			return tournamentSubsPage(notification.meta.tournamentId);
 		}
 		default:
 			assertUnreachable(notification);

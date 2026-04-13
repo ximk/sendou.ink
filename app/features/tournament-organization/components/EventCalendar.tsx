@@ -2,11 +2,12 @@ import clsx from "clsx";
 import { useTranslation } from "react-i18next";
 import { LinkButton } from "~/components/elements/Button";
 import type { MonthYear } from "~/features/plus-voting/core";
-import { useIsMounted } from "~/hooks/useIsMounted";
+import { useHydrated } from "~/hooks/useHydrated";
 import { useTimeFormat } from "~/hooks/useTimeFormat";
 import { databaseTimestampToDate, nullPaddedDatesOfMonth } from "~/utils/dates";
 import type { SerializeFrom } from "~/utils/remix";
 import type { loader } from "../loaders/org.$slug.server";
+import styles from "../tournament-organization.module.css";
 
 interface EventCalendarProps {
 	month: number;
@@ -22,7 +23,7 @@ export function EventCalendar({
 	fallbackLogoUrl,
 }: EventCalendarProps) {
 	const dates = nullPaddedDatesOfMonth({ month, year });
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 	const { i18n } = useTranslation();
 
 	const dayHeaders = Array.from({ length: 7 }, (_, i) => {
@@ -33,11 +34,11 @@ export function EventCalendar({
 	});
 
 	return (
-		<div className="org__calendar__container">
+		<div className={styles.calendarContainer}>
 			<MonthSelector month={month} year={year} />
-			<div className="org__calendar">
+			<div className={styles.calendar}>
 				{dayHeaders.map((day) => (
-					<div key={day} className="org__calendar__day-header">
+					<div key={day} className={styles.calendarDayHeader}>
 						{day}
 					</div>
 				))}
@@ -46,7 +47,7 @@ export function EventCalendar({
 						const startTimeDate = databaseTimestampToDate(event.startTime);
 
 						return (
-							isMounted &&
+							isHydrated &&
 							startTimeDate.getDate() === date?.getUTCDate() &&
 							startTimeDate.getMonth() === date.getUTCMonth()
 						);
@@ -75,29 +76,29 @@ function EventCalendarCell({
 	events: SerializeFrom<typeof loader>["events"];
 	fallbackLogoUrl: string;
 }) {
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 
 	return (
 		<div
-			className={clsx("org__calendar__day", {
-				org__calendar__day__previous: !date,
-				org__calendar__day__today:
-					isMounted &&
+			className={clsx(styles.calendarDay, {
+				[styles.calendarDayPrevious]: !date,
+				[styles.calendarDayToday]:
+					isHydrated &&
 					date?.getDate() === new Date().getDate() &&
 					date?.getMonth() === new Date().getMonth() &&
 					date?.getFullYear() === new Date().getFullYear(),
 			})}
 		>
-			<div className="org__calendar__day__date">{date?.getUTCDate()}</div>
+			<div className={styles.calendarDayDate}>{date?.getUTCDate()}</div>
 			{events.length === 1 ? (
 				<img
-					className="org__calendar__day__logo"
+					className={styles.calendarDayLogo}
 					src={events[0].logoUrl ?? fallbackLogoUrl}
 					alt={events[0].name}
 				/>
 			) : null}
 			{events.length > 1 ? (
-				<div className="org__calendar__day__many-events">{events.length}</div>
+				<div className={styles.calendarDayManyEvents}>{events.length}</div>
 			) : null}
 		</div>
 	);
@@ -113,7 +114,7 @@ function MonthSelector({ month, year }: { month: number; year: number }) {
 	const { formatDate } = useTimeFormat();
 
 	return (
-		<div className="org__calendar__month-selector">
+		<div className={styles.calendarMonthSelector}>
 			<LinkButton
 				variant="minimal"
 				aria-label="Previous month"

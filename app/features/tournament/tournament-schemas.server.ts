@@ -52,6 +52,12 @@ export const registerSchema = z.union([
 	z.object({
 		_action: _action("DELETE_LOGO"),
 	}),
+	z.object({
+		_action: _action("SAVE_TOURNAMENT"),
+	}),
+	z.object({
+		_action: _action("UNSAVE_TOURNAMENT"),
+	}),
 ]);
 
 export const seedsActionSchema = z.union([
@@ -72,10 +78,6 @@ export const seedsActionSchema = z.union([
 		),
 	}),
 ]);
-
-export const joinSchema = z.object({
-	trust: z.preprocess(checkboxValueToBoolean, z.boolean()),
-});
 
 export const tournamentSearchSearchParamsSchema = z.object({
 	q: z.string().max(100),
@@ -163,7 +165,9 @@ export const adminActionSchema = z.union([
 	}),
 	z.object({
 		_action: _action("UPDATE_IN_GAME_NAME"),
-		inGameNameText: z.string().max(USER.IN_GAME_NAME_TEXT_MAX_LENGTH),
+		inGameNameText: z
+			.string()
+			.refine((val) => [...val].length <= USER.IN_GAME_NAME_TEXT_MAX_LENGTH),
 		inGameNameDiscriminator: z
 			.string()
 			.refine((val) => /^[0-9a-z]{4,5}$/.test(val)),

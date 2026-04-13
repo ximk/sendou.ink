@@ -530,6 +530,7 @@ export function checkboxGroup<V extends string>(
 	return z
 		.array(itemsSchema(args.items))
 		.min(args.minLength ?? 0)
+		.refine((val) => val.length === R.unique(val).length)
 		.register(formRegistry, {
 			...args,
 			label: prefixKey(args.label),
@@ -582,7 +583,7 @@ export function stringConstant<T extends string>(value: T) {
 export function idConstant<T extends number>(value: T): z.ZodLiteral<T>;
 export function idConstant(): RequiresDefault<z.ZodNumber>;
 export function idConstant<T extends number>(value?: T) {
-	const schema = value !== undefined ? z.literal(value) : id;
+	const schema = value !== undefined ? z.literal(value) : id.clone();
 	return schema.register(formRegistry, {
 		type: "id-constant",
 		initialValue: value,
@@ -669,7 +670,7 @@ export function userSearch(
 		>
 	>,
 ) {
-	return id.register(formRegistry, {
+	return id.clone().register(formRegistry, {
 		...args,
 		label: prefixKey(args.label),
 		bottomText: prefixKey(args.bottomText),

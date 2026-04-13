@@ -6,16 +6,37 @@ import type { DB, Tables, UserMapModePreferences } from "~/db/tables";
 import { databaseTimestampNow, dateToDatabaseTimestamp } from "~/utils/dates";
 import { shortNanoid } from "~/utils/id";
 import invariant from "~/utils/invariant";
-import {
-	COMMON_USER_FIELDS,
-	userChatNameColorForJson,
-} from "~/utils/kysely.server";
+import { COMMON_USER_FIELDS } from "~/utils/kysely.server";
 import { errorIsSqliteForeignKeyConstraintFailure } from "~/utils/sql";
 import { userIsBanned } from "../ban/core/banned.server";
 import { FULL_GROUP_SIZE } from "./q-constants";
 import { SendouQError } from "./q-utils.server";
 
-export function mapModePreferencesByGroupId(groupId: number) {
+export async function mapModePreferencesByGroupId(groupId: number) {
+	const group = await db
+		.selectFrom("Group")
+		.leftJoin("AllTeam", "AllTeam.id", "Group.teamId")
+		.select([
+			"AllTeam.mapModePreferences as teamMapModePreferences",
+			"AllTeam.name as teamName",
+		])
+		.where("Group.id", "=", groupId)
+		.executeTakeFirst();
+
+	if (group?.teamMapModePreferences) {
+		const members = await db
+			.selectFrom("GroupMember")
+			.select("GroupMember.userId")
+			.where("GroupMember.groupId", "=", groupId)
+			.execute();
+
+		return members.map((m) => ({
+			userId: m.userId,
+			preferences: group.teamMapModePreferences as UserMapModePreferences,
+			teamName: group.teamName,
+		}));
+	}
+
 	return db
 		.selectFrom("GroupMember")
 		.innerJoin("User", "User.id", "GroupMember.userId")
@@ -41,7 +62,6 @@ export async function findCurrentGroups() {
 		role: Tables["GroupMember"]["role"];
 		note: Tables["GroupMember"]["note"];
 		weapons: Tables["User"]["qWeaponPool"];
-		chatNameColor: string | null;
 		plusTier: Tables["PlusTier"]["tier"] | null;
 	};
 
@@ -83,7 +103,6 @@ export async function findCurrentGroups() {
 						languages: eb.ref("User.languages"),
 						plusTier: eb.ref("PlusTier.tier"),
 						vc: eb.ref("User.vc"),
-						chatNameColor: userChatNameColorForJson,
 					}),
 				])
 				.$castTo<SendouQMemberObject[]>()
@@ -371,11 +390,7 @@ export function rechallenge({
 		.execute();
 }
 
-/**
- * Retrieves information about users who have trusted the specified user,
- * including their associated teams and explicit trust relationships. Banned users are excluded.
- */
-export async function usersThatTrusted(userId: number) {
+export async function friendsAndTeammates(userId: number) {
 	const teams = await db
 		.selectFrom("TeamMemberWithSecondary")
 		.innerJoin("Team", "Team.id", "TeamMemberWithSecondary.teamId")
@@ -399,15 +414,27 @@ export async function usersThatTrusted(userId: number) {
 		)
 		.union((eb) =>
 			eb
-				.selectFrom("TrustRelationship")
-				.innerJoin("User", "User.id", "TrustRelationship.trustGiverUserId")
+				.selectFrom("Friendship")
+				.innerJoin("User", (join) =>
+					join.on((eb) =>
+						eb.or([
+							eb.and([
+								eb("Friendship.userOneId", "=", userId),
+								eb("User.id", "=", eb.ref("Friendship.userTwoId")),
+							]),
+							eb.and([
+								eb("Friendship.userTwoId", "=", userId),
+								eb("User.id", "=", eb.ref("Friendship.userOneId")),
+							]),
+						]),
+					),
+				)
 				.innerJoin("UserFriendCode", "UserFriendCode.userId", "User.id")
 				.select([
 					...COMMON_USER_FIELDS,
 					"User.inGameName",
 					sql<any>`null`.as("teamId"),
-				])
-				.where("TrustRelationship.trustReceiverUserId", "=", userId),
+				]),
 		)
 		.execute();
 
@@ -428,33 +455,8 @@ export async function usersThatTrusted(userId: number) {
 
 	return {
 		teams: teams.sort((a, b) => b.isMainTeam - a.isMainTeam),
-		trusters: deduplicatedRows,
+		friends: deduplicatedRows,
 	};
-}
-
-/** Update the timestamp of the trust relationship, delaying its automatic deletion */
-export async function refreshTrust({
-	trustGiverUserId,
-	trustReceiverUserId,
-}: {
-	trustGiverUserId: number;
-	trustReceiverUserId: number;
-}) {
-	return db
-		.updateTable("TrustRelationship")
-		.set({ lastUsedAt: databaseTimestampNow() })
-		.where("trustGiverUserId", "=", trustGiverUserId)
-		.where("trustReceiverUserId", "=", trustReceiverUserId)
-		.execute();
-}
-
-export async function deleteOldTrust() {
-	const twoMonthsAgo = sub(new Date(), { months: 2 });
-
-	return db
-		.deleteFrom("TrustRelationship")
-		.where("lastUsedAt", "<", dateToDatabaseTimestamp(twoMonthsAgo))
-		.executeTakeFirst();
 }
 
 export async function setOldGroupsAsInactive() {

@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { Archive, RefreshCcw, Scale, Users } from "lucide-react";
 import * as React from "react";
 import { Flipped, Flipper } from "react-flip-toolkit";
 import { useTranslation } from "react-i18next";
@@ -16,28 +17,15 @@ import { Divider } from "~/components/Divider";
 import { LinkButton, SendouButton } from "~/components/elements/Button";
 import { SendouPopover } from "~/components/elements/Popover";
 import { SendouSwitch } from "~/components/elements/Switch";
-import {
-	SendouTab,
-	SendouTabList,
-	SendouTabPanel,
-	SendouTabs,
-} from "~/components/elements/Tabs";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { Image, ModeImage, StageImage, WeaponImage } from "~/components/Image";
-import { ArchiveBoxIcon } from "~/components/icons/ArchiveBox";
 import { DiscordIcon } from "~/components/icons/Discord";
-import { RefreshArrowsIcon } from "~/components/icons/RefreshArrows";
-import { ScaleIcon } from "~/components/icons/Scale";
-import { UsersIcon } from "~/components/icons/Users";
 import { Main } from "~/components/Main";
 import { Placeholder } from "~/components/Placeholder";
 import { SubmitButton } from "~/components/SubmitButton";
 import { WeaponSelect } from "~/components/WeaponSelect";
 import type { Tables } from "~/db/tables";
 import { useUser } from "~/features/auth/core/user";
-import { useChat } from "~/features/chat/chat-hooks";
-import type { ChatProps } from "~/features/chat/chat-types";
-import { Chat } from "~/features/chat/components/Chat";
 import * as Seasons from "~/features/mmr/core/Seasons";
 import { GroupCard } from "~/features/sendouq/components/GroupCard";
 import { FULL_GROUP_SIZE } from "~/features/sendouq/q-constants";
@@ -45,9 +33,9 @@ import { useRecentlyReportedWeapons } from "~/features/sendouq/q-hooks";
 import { AddPrivateNoteDialog } from "~/features/sendouq-match/components/AddPrivateNoteDialog";
 import type { ReportedWeaponForMerging } from "~/features/sendouq-match/core/reported-weapons.server";
 import { resolveRoomPass } from "~/features/tournament-bracket/tournament-bracket-utils";
-import { useIsMounted } from "~/hooks/useIsMounted";
+import { useHydrated } from "~/hooks/useHydrated";
+import { useMainContentWidth } from "~/hooks/useMainContentWidth";
 import { useTimeFormat } from "~/hooks/useTimeFormat";
-import { useWindowSize } from "~/hooks/useWindowSize";
 import type { MainWeaponId } from "~/modules/in-game-lists/types";
 import { SPLATTERCOLOR_SCREEN_ID } from "~/modules/in-game-lists/weapon-ids";
 import { useHasRole } from "~/modules/permissions/hooks";
@@ -74,7 +62,8 @@ import { action } from "../actions/q.match.$id.server";
 import { matchEndedAtIndex } from "../core/match";
 import { loader } from "../loaders/q.match.$id.server";
 import { resolveGroupMemberOf } from "../q-match-utils";
-export { loader, action };
+
+export { action, loader };
 
 import styles from "./q.match.$id.module.css";
 
@@ -104,9 +93,9 @@ export const handle: SendouRouteHandle = {
 };
 
 export default function QMatchShell() {
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 
-	if (!isMounted)
+	if (!isHydrated)
 		return (
 			<Main>
 				<Placeholder />
@@ -119,7 +108,7 @@ export default function QMatchShell() {
 function QMatchPage() {
 	const user = useUser();
 	const isStaff = useHasRole("STAFF");
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 	const { t } = useTranslation(["q"]);
 	const { formatDateTime } = useTimeFormat();
 	const data = useLoaderData<typeof loader>();
@@ -130,7 +119,7 @@ function QMatchPage() {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: biome migration
 	React.useEffect(() => {
 		setShowWeaponsForm(false);
-	}, [data.reportedWeapons, data.match.id]);
+	}, [JSON.stringify(data.reportedWeapons), data.match.id]);
 
 	const ownMember =
 		data.match.groupAlpha.members.find((m) => m.id === user?.id) ??
@@ -172,10 +161,10 @@ function QMatchPage() {
 				<h2>{t("q:match.header", { number: data.match.id })}</h2>
 				<div
 					className={clsx("text-xs text-lighter", {
-						invisible: !isMounted,
+						invisible: !isHydrated,
 					})}
 				>
-					{isMounted
+					{isHydrated
 						? formatDateTime(databaseTimestampToDate(data.match.createdAt), {
 								day: "numeric",
 								month: "numeric",
@@ -260,7 +249,7 @@ function Score({
 	reportedAt: number;
 	ownTeamReported: boolean;
 }) {
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 	const { t } = useTranslation(["q"]);
 	const { formatDateTime } = useTimeFormat();
 	const data = useLoaderData<typeof loader>();
@@ -311,10 +300,10 @@ function Score({
 			<div className="text-lg font-bold">{score.join(" - ")}</div>
 			{data.match.isLocked ? (
 				<div
-					className={clsx("text-xs text-lighter", { invisible: !isMounted })}
+					className={clsx("text-xs text-lighter", { invisible: !isHydrated })}
 				>
 					{t("q:match.reportedBy", { name: reporter?.username ?? "admin" })}{" "}
-					{isMounted
+					{isHydrated
 						? formatDateTime(databaseTimestampToDate(reportedAt), {
 								day: "numeric",
 								month: "numeric",
@@ -393,7 +382,7 @@ function AfterMatchActions({
 				<input type="hidden" name="previousGroupId" value={ownGroupId} />
 				{showLookAgain ? (
 					<SubmitButton
-						icon={<RefreshArrowsIcon />}
+						icon={<RefreshCcw />}
 						state={lookAgainFetcher.state}
 						_action="LOOK_AGAIN"
 					>
@@ -402,7 +391,7 @@ function AfterMatchActions({
 				) : null}
 				{showWeaponsFormButton ? (
 					<SendouButton
-						icon={<ArchiveBoxIcon />}
+						icon={<Archive />}
 						onPress={() => setShowWeaponsForm(!showWeaponsForm)}
 						variant={showWeaponsForm ? "destructive" : undefined}
 					>
@@ -596,7 +585,12 @@ function ReportWeaponsForm() {
 														member.username
 													)}
 												</div>
-												<div className="stack horizontal sm items-center">
+												<div
+													className={clsx(
+														styles.userWeaponContainer,
+														"stack horizontal sm items-center",
+													)}
+												>
 													<WeaponSelect
 														value={weaponSplId}
 														quickSelectWeaponsIds={recentlyReportedWeapons}
@@ -657,72 +651,14 @@ function BottomSection({
 	participatingInTheMatch: boolean;
 }) {
 	const { t } = useTranslation(["q", "common"]);
-	const { width } = useWindowSize();
-	const isMobile = width < 750;
-	const isMounted = useIsMounted();
-	const [isReportingWeapons, setIsReportingWeapons] = React.useState(false);
-
+	const width = useMainContentWidth();
+	const isMobile = width < 650;
+	const isHydrated = useHydrated();
 	const user = useUser();
 	const isStaff = useHasRole("STAFF");
 	const data = useLoaderData<typeof loader>();
 	const submitScoreFetcher = useFetcher<typeof action>();
 	const cancelFetcher = useFetcher<typeof action>();
-
-	const chatUsers = React.useMemo(() => {
-		return Object.fromEntries(
-			[...data.match.groupAlpha.members, ...data.match.groupBravo.members].map(
-				(m) => [m.id, m],
-			),
-		);
-	}, [data]);
-
-	const [_unseenMessages, setUnseenMessages] = React.useState(0);
-	const [chatVisible, setChatVisible] = React.useState(false);
-
-	const onNewMessage = React.useCallback(() => {
-		setUnseenMessages((msg) => msg + 1);
-	}, []);
-
-	const groupChatCode =
-		data.match.groupAlpha.chatCode ?? data.match.groupBravo.chatCode;
-
-	const chatRooms = React.useMemo(() => {
-		return [
-			data.match.chatCode
-				? { code: data.match.chatCode, label: "Match" }
-				: null,
-			groupChatCode ? { code: groupChatCode, label: "Group" } : null,
-		].filter(Boolean) as ChatProps["rooms"];
-	}, [data.match.chatCode, groupChatCode]);
-
-	const chatHidden = chatRooms.length === 0;
-
-	const [selectedTabKey, setSelectedTabKey] = React.useState<string>(
-		chatHidden ? "report" : "chat",
-	);
-
-	const ownWeaponsReported = data.rawReportedWeapons?.some(
-		(rw) => rw.userId === user?.id,
-	);
-
-	// revalidates: false when we don't want the user to lose the weapons
-	// they are reporting when the match gets suddenly locked
-	const chat = useChat({
-		rooms: chatRooms,
-		onNewMessage,
-		revalidates: ownWeaponsReported || !isReportingWeapons,
-	});
-
-	const onChatMount = React.useCallback(() => {
-		setChatVisible(true);
-	}, []);
-
-	const onChatUnmount = React.useCallback(() => {
-		setChatVisible(false);
-		setUnseenMessages(0);
-	}, []);
-
-	const unseenMessages = chatVisible ? 0 : _unseenMessages;
 
 	const showMid = !data.match.isLocked && (participatingInTheMatch || isStaff);
 
@@ -733,18 +669,7 @@ function BottomSection({
 		return `SQ${lastDigit}`;
 	};
 
-	if (!isMounted) return null;
-
-	const chatElement = (
-		<Chat
-			chat={chat}
-			onMount={onChatMount}
-			onUnmount={onChatUnmount}
-			users={chatUsers}
-			rooms={chatRooms}
-			disabled={!groupChatCode} // no message sending by staff to match chat
-		/>
-	);
+	if (!isHydrated) return null;
 
 	const mapListElement = (
 		<MapList
@@ -752,7 +677,6 @@ function BottomSection({
 			canReportScore={canReportScore}
 			isResubmission={ownTeamReported}
 			fetcher={submitScoreFetcher}
-			setIsReportingWeapons={setIsReportingWeapons}
 		/>
 	);
 
@@ -771,7 +695,7 @@ function BottomSection({
 			to={SENDOUQ_RULES_PAGE}
 			variant="outlined"
 			size="small"
-			icon={<ScaleIcon />}
+			icon={<Scale />}
 		>
 			{t("q:front.nav.rules.title")}
 		</LinkButton>
@@ -827,7 +751,7 @@ function BottomSection({
 		<ScreenLegalityInfo ban={screenBanned} />
 	) : null;
 
-	if (!showMid && chatHidden) {
+	if (!showMid) {
 		return mapListElement;
 	}
 
@@ -843,32 +767,7 @@ function BottomSection({
 						{cancelMatchElement}
 					</div>
 				</div>
-
-				<div>
-					<SendouTabs
-						selectedKey={selectedTabKey}
-						onSelectionChange={(key) => setSelectedTabKey(key as string)}
-					>
-						<SendouTabList sticky>
-							{!chatHidden && (
-								<SendouTab id="chat" number={unseenMessages}>
-									{t("q:looking.columns.chat")}
-								</SendouTab>
-							)}
-							<SendouTab id="report">{t("q:match.tabs.reportScore")}</SendouTab>
-						</SendouTabList>
-						<SendouTabPanel id="chat">{chatElement}</SendouTabPanel>
-						<SendouTabPanel
-							id="report"
-							shouldForceMount
-							className={clsx({
-								hidden: selectedTabKey !== "report",
-							})}
-						>
-							{mapListElement}
-						</SendouTabPanel>
-					</SendouTabs>
-				</div>
+				{mapListElement}
 			</div>
 		);
 	}
@@ -889,9 +788,6 @@ function BottomSection({
 						{screenLegalityInfoElement}
 						{cancelMatchElement}
 					</div>
-				</div>
-				<div className={styles.chatContainer}>
-					{chatRooms.length > 0 ? chatElement : null}
 				</div>
 			</div>
 			{cancelFetcher.data?.error === "cant-cancel" ? (
@@ -958,12 +854,10 @@ function MapList({
 	canReportScore,
 	isResubmission,
 	fetcher,
-	setIsReportingWeapons,
 }: {
 	canReportScore: boolean;
 	isResubmission: boolean;
 	fetcher: FetcherWithComponents<any>;
-	setIsReportingWeapons: (val: boolean) => void;
 }) {
 	const { t } = useTranslation(["q"]);
 	const user = useUser();
@@ -1024,9 +918,6 @@ function MapList({
 								addRecentlyReportedWeapon={addRecentlyReportedWeapon}
 								onOwnWeaponSelected={(newReportedWeapon) => {
 									if (!newReportedWeapon) return;
-
-									setIsReportingWeapons(true);
-
 									setOwnWeaponsUsage((val) => {
 										const result = val.filter(
 											(reportedWeapon) =>
@@ -1198,7 +1089,7 @@ function MapListMap({
 											>
 												<img
 													src={preferenceEmojiUrl(preference)}
-													className="q-settings__radio__emoji"
+													className={styles.preferenceEmoji}
 													width={18}
 													alt={`${preference} emoji`}
 												/>
@@ -1357,7 +1248,7 @@ function MapListMapPickInfo({
 
 		return (
 			<div className="stack horizontal xs items-center">
-				<UsersIcon className="w-4" />
+				<Users className="w-4" />
 				<span>
 					{t("tournament:pickInfo.votes", {
 						count: playerCount,
@@ -1402,17 +1293,49 @@ function MapListMapPickInfo({
 		return result;
 	};
 
-	const mapPreferences = data.match.memento?.mapPreferences?.[i];
-	const showPopover = () => {
-		// legacy preference system (season 2)
-		if (mapPreferences && mapPreferences.length > 0) return true;
+	const sourceTeams = () => {
+		if (!data.match.memento?.pools) return [];
 
-		if (map.source === "DEFAULT") return true;
+		const pickerGroups = [data.match.groupAlpha, data.match.groupBravo].filter(
+			(g) => map.source === "BOTH" || String(g.id) === map.source,
+		);
 
-		return sourcePoolMemberIds().length > 0;
+		const teams: Array<{ name: string; avatarUrl: string | null }> = [];
+		for (const pickerGroup of pickerGroups) {
+			for (const poolEntry of data.match.memento.pools) {
+				if (!poolEntry.teamName) continue;
+				if (!pickerGroup.members.some((m) => m.id === poolEntry.userId)) {
+					continue;
+				}
+
+				const modePool = poolEntry.pool.find((p) => p.mode === map.mode);
+				if (
+					modePool?.stages.includes(map.stageId) &&
+					!teams.some((t) => t.name === poolEntry.teamName)
+				) {
+					teams.push({
+						name: poolEntry.teamName,
+						avatarUrl:
+							pickerGroup.team?.name === poolEntry.teamName
+								? pickerGroup.team.avatarUrl
+								: null,
+					});
+				}
+			}
+		}
+
+		return teams;
 	};
 
-	if (showPopover()) {
+	const mapPreferences = data.match.memento?.mapPreferences?.[i];
+	const teams = sourceTeams();
+	const poolMemberIds = sourcePoolMemberIds();
+	const showPopover =
+		(mapPreferences && mapPreferences.length > 0) ||
+		map.source === "DEFAULT" ||
+		poolMemberIds.length > 0;
+
+	if (showPopover) {
 		return (
 			<SendouPopover
 				popoverClassName="text-main-forced"
@@ -1430,9 +1353,25 @@ function MapListMapPickInfo({
 					<div className="text-sm text-center text-lighter">
 						{t("tournament:pickInfo.default.explanation")}
 					</div>
-				) : sourcePoolMemberIds().length > 0 ? (
+				) : teams.length > 0 ? (
 					<div className="stack sm">
-						{sourcePoolMemberIds().map((userId) => {
+						{teams.map((team) => (
+							<div
+								key={team.name}
+								className="stack sm horizontal items-center xs"
+							>
+								<Avatar
+									size="xxs"
+									url={team.avatarUrl}
+									identiconInput={team.name}
+								/>
+								{team.name}
+							</div>
+						))}
+					</div>
+				) : poolMemberIds.length > 0 ? (
+					<div className="stack sm">
+						{poolMemberIds.map((userId) => {
 							const user = userIdToUser(userId);
 							return (
 								<div
@@ -1451,7 +1390,7 @@ function MapListMapPickInfo({
 							<div key={userId} className="stack horizontal items-center xs">
 								<img
 									src={preferenceEmojiUrl(preference)}
-									className="q-settings__radio__emoji"
+									className={styles.preferenceEmoji}
 									width={18}
 									alt={`${preference} emoji`}
 								/>

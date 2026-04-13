@@ -4,11 +4,13 @@ import type { AssociationVisibility } from "../associations-types";
 
 export interface IsVisibleArgs {
 	visibility: AssociationVisibility | null;
-	time: Date;
+	time?: Date;
 	associations: {
 		virtual: Array<string>;
 		actual: Array<{ id: number }>;
+		friendIds?: Array<number>;
 	} | null;
+	contentOwnerUserId?: number;
 }
 
 export function isVisible(args: IsVisibleArgs) {
@@ -18,7 +20,7 @@ export function isVisible(args: IsVisibleArgs) {
 		args.visibility.forAssociation,
 	];
 
-	const dbTime = dateToDatabaseTimestamp(args.time);
+	const dbTime = dateToDatabaseTimestamp(args.time ?? new Date());
 	for (const visibility of args.visibility.notFoundInstructions ?? []) {
 		if (dbTime > visibility.at) {
 			currentVisibility.push(visibility.forAssociation);
@@ -28,6 +30,14 @@ export function isVisible(args: IsVisibleArgs) {
 	const isPublic = currentVisibility.includes(null);
 
 	if (isPublic) return true;
+
+	if (
+		currentVisibility.includes("FRIENDS") &&
+		args.contentOwnerUserId &&
+		args.associations?.friendIds?.includes(args.contentOwnerUserId)
+	) {
+		return true;
+	}
 
 	return (
 		args.associations?.actual.some((association) =>

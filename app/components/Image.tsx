@@ -19,6 +19,7 @@ import {
 	TIER_PLUS_URL,
 	tierImageUrl,
 } from "~/utils/urls";
+import styles from "./Image.module.css";
 
 interface ImageProps {
 	path: string;
@@ -34,7 +35,6 @@ interface ImageProps {
 	testId?: string;
 	onClick?: () => void;
 	loading?: "lazy";
-	forcePng?: boolean;
 }
 
 export function Image({
@@ -51,50 +51,18 @@ export function Image({
 	containerStyle,
 	onClick,
 	loading,
-	forcePng,
 }: ImageProps) {
-	if (forcePng) {
-		return (
-			// biome-ignore lint/a11y/noStaticElementInteractions: Biome v2 migration
-			<div
-				title={title}
-				className={containerClassName}
-				style={containerStyle}
-				onClick={onClick}
-			>
-				<img
-					alt={alt}
-					src={`${path}.png`}
-					className={className}
-					width={size ?? width}
-					height={size ?? height}
-					style={style}
-					draggable="false"
-					loading={loading}
-					data-testid={testId}
-				/>
-			</div>
-		);
-	}
-
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: Biome v2 migration
-		<picture
+		<div
 			title={title}
 			className={containerClassName}
 			style={containerStyle}
 			onClick={onClick}
 		>
-			<source
-				type="image/avif"
-				srcSet={`${path}.avif`}
-				width={width}
-				height={height}
-				style={style}
-			/>
 			<img
 				alt={alt}
-				src={`${path}.png`}
+				src={`${path}.avif`}
 				className={className}
 				width={size ?? width}
 				height={size ?? height}
@@ -103,7 +71,7 @@ export function Image({
 				loading={loading}
 				data-testid={testId}
 			/>
-		</picture>
+		</div>
 	);
 }
 
@@ -229,14 +197,14 @@ export function TierImage({ tier, className, width = 200 }: TierImageProps) {
 	const height = width * 0.8675;
 
 	return (
-		<div className={clsx("tier__container", className)} style={{ width }}>
+		<div className={clsx(styles.tierContainer, className)} style={{ width }}>
 			<Image
 				path={tierImageUrl(tier.name)}
 				width={width}
 				height={height}
 				alt={title}
 				title={title}
-				containerClassName="tier__img"
+				containerClassName={styles.tierImg}
 			/>
 			{tier.isPlus ? (
 				<Image
@@ -245,7 +213,7 @@ export function TierImage({ tier, className, width = 200 }: TierImageProps) {
 					height={height}
 					alt={title}
 					title={title}
-					containerClassName="tier__img"
+					containerClassName={styles.tierImg}
 				/>
 			) : null}
 		</div>

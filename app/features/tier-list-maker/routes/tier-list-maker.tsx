@@ -11,6 +11,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { snapdom } from "@zumer/snapdom";
 import clsx from "clsx";
+import { HardDriveDownload, Plus, RefreshCcw } from "lucide-react";
 import { useRef } from "react";
 import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -26,13 +27,10 @@ import {
 	SendouTabs,
 } from "~/components/elements/Tabs";
 import { ModeImage } from "~/components/Image";
-import { DownloadIcon } from "~/components/icons/Download";
-import { PlusIcon } from "~/components/icons/Plus";
-import { RefreshIcon } from "~/components/icons/Refresh";
 import { Main } from "~/components/Main";
 import { Placeholder } from "~/components/Placeholder";
 import { useUser } from "~/features/auth/core/user";
-import { useIsMounted } from "~/hooks/useIsMounted";
+import { useHydrated } from "~/hooks/useHydrated";
 import { modesShort } from "~/modules/in-game-lists/modes";
 import { metaTags } from "~/utils/remix";
 import type { SendouRouteHandle } from "~/utils/remix.server";
@@ -67,9 +65,9 @@ export const handle: SendouRouteHandle = {
 };
 
 export default function TierListMakerPage() {
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 
-	if (!isMounted)
+	if (!isHydrated)
 		return (
 			<Main bigger>
 				<Placeholder />
@@ -149,17 +147,13 @@ function TierListMakerContent() {
 		<Main bigger className={clsx(styles.container, "stack lg")}>
 			<div className={styles.header}>
 				<div className="stack horizontal md">
-					<SendouButton
-						onPress={handleAddTier}
-						size="small"
-						icon={<PlusIcon />}
-					>
+					<SendouButton onPress={handleAddTier} size="small" icon={<Plus />}>
 						{t("tier-list-maker:addTier")}
 					</SendouButton>
 					<SendouButton
 						onPress={handleDownload}
 						size="small"
-						icon={<DownloadIcon />}
+						icon={<HardDriveDownload />}
 					>
 						{t("tier-list-maker:download")}
 					</SendouButton>
@@ -168,6 +162,7 @@ function TierListMakerContent() {
 			</div>
 
 			<DndContext
+				key={itemType}
 				sensors={sensors}
 				collisionDetection={pointerWithin}
 				onDragStart={handleDragStart}
@@ -208,14 +203,12 @@ function TierListMakerContent() {
 						<SendouSwitch
 							isSelected={canAddDuplicates}
 							onChange={setCanAddDuplicates}
-							size="small"
 						>
 							{t("tier-list-maker:allowDuplicates")}
 						</SendouSwitch>
 						<SendouSwitch
 							isSelected={showTierHeaders}
 							onChange={setShowTierHeaders}
-							size="small"
 						>
 							{t("tier-list-maker:showTierHeaders")}
 						</SendouSwitch>
@@ -324,7 +317,7 @@ function ResetPopover({ handleReset }: { handleReset: () => void }) {
 			trigger={
 				<SendouButton
 					size="small"
-					icon={<RefreshIcon />}
+					icon={<RefreshCcw />}
 					variant="minimal-destructive"
 				>
 					{t("common:actions.reset")}

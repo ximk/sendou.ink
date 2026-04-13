@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { differenceInMinutes } from "date-fns";
 import type { TFunction } from "i18next";
+import { Check, MousePointerClick, X } from "lucide-react";
 import type { JSX } from "react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
@@ -14,17 +15,15 @@ import {
 	SendouTabs,
 } from "~/components/elements/Tabs";
 import { Image } from "~/components/Image";
-import { CheckmarkIcon } from "~/components/icons/Checkmark";
-import { CrossIcon } from "~/components/icons/Cross";
-import { PickIcon } from "~/components/icons/Pick";
 import { Label } from "~/components/Label";
 import { SubmitButton } from "~/components/SubmitButton";
 import { useUser } from "~/features/auth/core/user";
-import { useChat } from "~/features/chat/chat-hooks";
-import { Chat } from "~/features/chat/components/Chat";
 import { useTournament } from "~/features/tournament/routes/to.$id";
-import { resolveLeagueRoundStartDate } from "~/features/tournament/tournament-utils";
-import { useIsMounted } from "~/hooks/useIsMounted";
+import {
+	isLeagueRoundLocked,
+	resolveLeagueRoundStartDate,
+} from "~/features/tournament/tournament-utils";
+import { useHydrated } from "~/hooks/useHydrated";
 import { useSearchParamState } from "~/hooks/useSearchParamState";
 import type { StageId } from "~/modules/in-game-lists/types";
 import { SPLATTERCOLOR_SCREEN_ID } from "~/modules/in-game-lists/weapon-ids";
@@ -43,6 +42,7 @@ import * as Deadline from "../core/Deadline";
 import * as PickBan from "../core/PickBan";
 import type { TournamentDataTeam } from "../core/Tournament.server";
 import type { TournamentMatchLoaderData } from "../loaders/to.$id.matches.$mid.server";
+import styles from "../tournament-bracket.module.css";
 import {
 	groupNumberToLetters,
 	mapCountPlayedInSetWithCertainty,
@@ -54,6 +54,7 @@ import {
 } from "../tournament-bracket-utils";
 import { DeadlineInfoPopover } from "./DeadlineInfoPopover";
 import { MatchActions } from "./MatchActions";
+import { MatchMapInfo } from "./MatchMapInfo";
 import { MatchRosters } from "./MatchRosters";
 import { MatchTimer } from "./MatchTimer";
 
@@ -78,7 +79,7 @@ export function StartedMatch({
 	type: "EDIT" | "OTHER";
 }) {
 	const { t } = useTranslation(["tournament"]);
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 	const user = useUser();
 	const tournament = useTournament();
 	const data = useLoaderData<TournamentMatchLoaderData>();
@@ -169,7 +170,7 @@ export function StartedMatch({
 	];
 
 	return (
-		<div className="tournament-bracket__during-match-actions">
+		<div className={styles.duringMatchActions}>
 			<FancyStageBanner
 				stage={currentStageWithMode}
 				infos={roundInfos}
@@ -191,10 +192,12 @@ export function StartedMatch({
 								name="position"
 								value={currentPosition - 1}
 							/>
-							<div className="tournament-bracket__stage-banner__bottom-bar">
+							<div className={styles.stageBannerBottomBar}>
 								<SubmitButton
 									_action="UNDO_REPORT_SCORE"
-									className="tournament-bracket__stage-banner__undo-button"
+									className={styles.stageBannerUndoButton}
+									variant="destructive"
+									size="miniscule"
 									testId="undo-score-button"
 								>
 									{t("tournament:match.action.undoLastScore")}
@@ -206,10 +209,12 @@ export function StartedMatch({
 					tournament.matchCanBeReopened(data.match.id) &&
 					presentational && (
 						<Form method="post">
-							<div className="tournament-bracket__stage-banner__bottom-bar">
+							<div className={styles.stageBannerBottomBar}>
 								<SubmitButton
 									_action="REOPEN_MATCH"
-									className="tournament-bracket__stage-banner__undo-button"
+									className={styles.stageBannerUndoButton}
+									variant="destructive"
+									size="miniscule"
 									testId="reopen-match-button"
 								>
 									{t("tournament:match.action.reopenMatch")}
@@ -248,11 +253,11 @@ export function StartedMatch({
 			{result ? (
 				<div
 					className={clsx("text-center text-xs text-lighter", {
-						invisible: !isMounted,
+						invisible: !isHydrated,
 					})}
 					data-testid="report-timestamp"
 				>
-					{isMounted
+					{isHydrated
 						? databaseTimestampToDate(result.createdAt).toLocaleString()
 						: "t"}
 				</div>
@@ -284,10 +289,10 @@ function FancyStageBanner({
 	const gamesCompleted = data.results.length;
 
 	const stageNameToBannerImageUrl = (stageId: StageId) => {
-		return `${stageImageUrl(stageId)}.png`;
+		return `${stageImageUrl(stageId)}.avif`;
 	};
 
-	const banPickingTeam = () => {
+	const turnOfResult = (() => {
 		if (
 			!data.match.roundMaps ||
 			!data.match.opponentOne?.id ||
@@ -296,14 +301,28 @@ function FancyStageBanner({
 			return null;
 		}
 
-		const pickingTeamId = PickBan.turnOf({
+		return PickBan.turnOf({
 			results: data.results,
 			maps: data.match.roundMaps,
-			teams: [data.match.opponentOne.id, data.match.opponentTwo.id],
+			teams: [
+				{
+					id: data.match.opponentOne.id,
+					seed: tournament.teamById(data.match.opponentOne.id)!.seed,
+				},
+				{
+					id: data.match.opponentTwo.id,
+					seed: tournament.teamById(data.match.opponentTwo.id)!.seed,
+				},
+			],
 			mapList: data.mapList,
+			pickBanEventCount: data.pickBanEventCount,
 		});
+	})();
 
-		return pickingTeamId ? teams.find((t) => t.id === pickingTeamId) : null;
+	const banPickingTeam = () => {
+		return turnOfResult
+			? teams.find((t) => t.id === turnOfResult.teamId)
+			: null;
 	};
 
 	const style = {
@@ -345,33 +364,38 @@ function FancyStageBanner({
 		return null;
 	})();
 
-	const waitingForLeagueRoundToStart = (() => {
-		const date = resolveLeagueRoundStartDate(tournament, data.match.roundId);
+	const waitingForLeagueRoundToStart = isLeagueRoundLocked(
+		tournament,
+		data.match.roundId,
+	);
 
-		if (!date) return false;
+	const noStageHeading = () => {
+		if (data.match.roundMaps?.pickBan === "CUSTOM" && turnOfResult) {
+			const stepCounter =
+				turnOfResult.stepTotal && turnOfResult.stepTotal > 1
+					? ` (${turnOfResult.stepCurrent}/${turnOfResult.stepTotal})`
+					: "";
 
-		return date > new Date();
-	})();
+			switch (turnOfResult.action) {
+				case "PICK":
+					return t("tournament:pickBan.pickMap") + stepCounter;
+				case "BAN":
+					return t("tournament:pickBan.banMap") + stepCounter;
+				case "MODE_PICK":
+					return t("tournament:pickBan.pickMode") + stepCounter;
+				case "MODE_BAN":
+					return t("tournament:pickBan.banMode") + stepCounter;
+				default:
+					return t("tournament:pickBan.counterpick");
+			}
+		}
+		return t("tournament:pickBan.counterpick");
+	};
 
 	return (
 		<>
-			{inBanPhase ? (
-				<div className="tournament-bracket__locked-banner">
-					<div className="stack sm items-center">
-						<div className="text-lg text-center font-bold">Banning phase</div>
-						<div>Waiting for {banPickingTeam()?.name}</div>
-					</div>
-				</div>
-			) : !stage ? (
-				<div className="tournament-bracket__locked-banner">
-					<div className="stack sm items-center">
-						<div className="text-lg text-center font-bold">Counterpick</div>
-						<div>Waiting for {banPickingTeam()?.name}</div>
-						{children}
-					</div>
-				</div>
-			) : matchIsLocked ? (
-				<div className="tournament-bracket__locked-banner">
+			{matchIsLocked ? (
+				<div className={styles.lockedBanner}>
 					<div className="stack sm items-center">
 						<div className="text-lg text-center font-bold">
 							Match locked to be casted
@@ -380,7 +404,7 @@ function FancyStageBanner({
 					</div>
 				</div>
 			) : waitingForLeagueRoundToStart ? (
-				<div className="tournament-bracket__locked-banner">
+				<div className={styles.lockedBanner}>
 					<div className="stack sm items-center">
 						<div className="text-lg text-center font-bold">
 							Waiting for league round to start
@@ -396,7 +420,7 @@ function FancyStageBanner({
 					</div>
 				</div>
 			) : waitingForPreviousMatch ? (
-				<div className="tournament-bracket__locked-banner">
+				<div className={styles.lockedBanner}>
 					<div className="stack sm items-center">
 						<div className="text-lg text-center font-bold">
 							Previous match ongoing
@@ -407,7 +431,7 @@ function FancyStageBanner({
 					</div>
 				</div>
 			) : waitingForActiveRosterSelectionFor ? (
-				<div className="tournament-bracket__locked-banner">
+				<div className={styles.lockedBanner}>
 					<div className="stack sm items-center">
 						<div
 							className="text-lg text-center font-bold"
@@ -432,27 +456,39 @@ function FancyStageBanner({
 						/>
 					) : null}
 				</div>
+			) : inBanPhase ? (
+				<div className={styles.lockedBanner}>
+					<div className="stack sm items-center">
+						<div className="text-lg text-center font-bold">Banning phase</div>
+						<div>Waiting for {banPickingTeam()?.name}</div>
+					</div>
+				</div>
+			) : !stage ? (
+				<div className={styles.lockedBanner}>
+					<div className="stack sm items-center">
+						<div className="text-lg text-center font-bold">
+							{noStageHeading()}
+						</div>
+						<div>Waiting for {banPickingTeam()?.name}</div>
+						{children}
+					</div>
+				</div>
 			) : (
 				<div
-					className={clsx("tournament-bracket__stage-banner", {
+					className={clsx(styles.stageBanner, {
 						rounded: !infos,
 					})}
 					style={style}
 					data-testid="stage-banner"
 				>
-					<div className="tournament-bracket__stage-banner__top-bar">
-						<h4 className="tournament-bracket__stage-banner__top-bar__header">
-							<Image
-								className="tournament-bracket__stage-banner__top-bar__mode-image"
-								path={modeImageUrl(stage.mode)}
-								alt=""
-								width={24}
-							/>
-							<span className="tournament-bracket__stage-banner__top-bar__map-text-small">
+					<div className={styles.stageBannerTopBar}>
+						<h4 className={styles.stageBannerTopBarHeader}>
+							<Image path={modeImageUrl(stage.mode)} alt="" width={24} />
+							<span className={styles.stageBannerTopBarMapTextSmall}>
 								{t(`game-misc:MODE_SHORT_${stage.mode}`)}{" "}
 								{t(`game-misc:STAGE_${stage.stageId}`)}
 							</span>
-							<span className="tournament-bracket__stage-banner__top-bar__map-text-big">
+							<span className={styles.stageBannerTopBarMapTextBig}>
 								{t(`game-misc:MODE_LONG_${stage.mode}`)} on{" "}
 								{t(`game-misc:STAGE_${stage.stageId}`)}
 							</span>
@@ -489,7 +525,7 @@ function FancyStageBanner({
 				/>
 			) : null}
 			{infos && (
-				<div className="tournament-bracket__infos">
+				<div className={styles.infos}>
 					{infos.filter(Boolean).map((info, i) => (
 						<div key={i}>{info}</div>
 					))}
@@ -539,8 +575,8 @@ function ModeProgressIndicator({
 
 	// TODO: this should be button when we click on it
 	return (
-		<div className="tournament-bracket__mode-progress">
-			<div className="tournament-bracket__mode-progress__inner">
+		<div className={styles.modeProgress}>
+			<div className={styles.modeProgressInner}>
 				{nullFilledArray(
 					Math.max(data.mapList?.length ?? 0, data.match.roundMaps?.count ?? 0),
 				).map((_, i) => {
@@ -558,8 +594,8 @@ function ModeProgressIndicator({
 
 					if (!map?.mode) {
 						return (
-							<div key={i} className="tournament-bracket__mode-progress__image">
-								<PickIcon />
+							<div key={i} className={styles.modeProgressImage}>
+								<MousePointerClick />
 							</div>
 						);
 					}
@@ -576,14 +612,18 @@ function ModeProgressIndicator({
 									<SendouButton
 										variant="minimal"
 										size="small"
-										className="tournament-bracket__mode-progress__image__banned__popover-trigger"
+										className={styles.modeProgressImageBannedPopoverTrigger}
 									>
 										<Image
-											containerClassName="tournament-bracket__mode-progress__image tournament-bracket__mode-progress__image__banned"
+											containerClassName={clsx(
+												styles.modeProgressImage,
+												styles.modeProgressImageBanned,
+											)}
 											path={modeImageUrl(map.mode)}
 											height={20}
 											width={20}
 											alt={t(`game-misc:MODE_LONG_${map.mode}`)}
+											testId="mode-progress-banned"
 										/>
 									</SendouButton>
 								}
@@ -601,24 +641,21 @@ function ModeProgressIndicator({
 
 					return (
 						<Image
-							containerClassName={clsx(
-								"tournament-bracket__mode-progress__image",
-								{
-									"tournament-bracket__mode-progress__image__notable":
-										adjustedI <= maxIndexThatWillBePlayedForSure,
-									"tournament-bracket__mode-progress__image__team-one-win":
-										data.results[adjustedI] &&
-										data.results[adjustedI].winnerTeamId ===
-											data.match.opponentOne?.id,
-									"tournament-bracket__mode-progress__image__team-two-win":
-										data.results[adjustedI] &&
-										data.results[adjustedI].winnerTeamId ===
-											data.match.opponentTwo?.id,
-									"tournament-bracket__mode-progress__image__selected":
-										adjustedI === selectedResultIndex,
-									"cursor-pointer": Boolean(setSelectedResultIndex),
-								},
-							)}
+							containerClassName={clsx(styles.modeProgressImage, {
+								[styles.modeProgressImageNotable]:
+									adjustedI <= maxIndexThatWillBePlayedForSure,
+								[styles.modeProgressImageTeamOneWin]:
+									data.results[adjustedI] &&
+									data.results[adjustedI].winnerTeamId ===
+										data.match.opponentOne?.id,
+								[styles.modeProgressImageTeamTwoWin]:
+									data.results[adjustedI] &&
+									data.results[adjustedI].winnerTeamId ===
+										data.match.opponentTwo?.id,
+								[styles.modeProgressImageSelected]:
+									adjustedI === selectedResultIndex,
+								"cursor-pointer": Boolean(setSelectedResultIndex),
+							})}
 							key={i}
 							path={modeImageUrl(map.mode)}
 							height={20}
@@ -646,86 +683,19 @@ function StartedMatchTabs({
 	teams: [TournamentDataTeam, TournamentDataTeam];
 	result?: Result;
 }) {
+	const { t } = useTranslation(["tournament"]);
 	const user = useUser();
 	const tournament = useTournament();
 	const data = useLoaderData<TournamentMatchLoaderData>();
-	const [_unseenMessages, setUnseenMessages] = React.useState(0);
-	const [chatVisible, setChatVisible] = React.useState(false);
+	const isCustomFlow = data.match.roundMaps?.pickBan === "CUSTOM";
+	const validTabs = isCustomFlow
+		? ["rosters", "actions", "map-info"]
+		: ["rosters", "actions"];
 	const [selectedTabKey, setSelectedTabKey] = useSearchParamState({
 		defaultValue: "rosters",
 		name: "tab",
-		revive: (value) =>
-			["chat", "rosters", "actions"].includes(value) ? value : null,
+		revive: (value) => (validTabs.includes(value) ? value : null),
 	});
-
-	// TODO: resolve this on server (notice it is copy-pasted now)
-	const chatUsers = React.useMemo(() => {
-		return Object.fromEntries(
-			[
-				...data.match.players.map((p) => ({ ...p, title: undefined })),
-				...(tournament.ctx.organization?.members ?? []).map((m) => ({
-					...m,
-					title: m.role === "STREAMER" ? "Cast" : "TO",
-				})),
-				...tournament.ctx.staff.map((s) => ({
-					...s,
-					title: s.role === "STREAMER" ? "Cast" : "TO",
-				})),
-				{
-					...tournament.ctx.author,
-					title: "TO",
-				},
-			].map((p) => [p.id, p]),
-		);
-	}, [data, tournament]);
-
-	const showChat = (() => {
-		if (!data.match.chatCode) return false;
-		if (tournament.ctx.isFinalized && !tournament.isOrganizer(user)) {
-			return false;
-		}
-		const oneMonthAgo = new Date();
-		oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-		if (
-			tournament.ctx.startTime < oneMonthAgo &&
-			!tournament.isLeagueDivision
-		) {
-			return false;
-		}
-
-		return (
-			data.match.players.some((p) => p.id === user?.id) ||
-			tournament.isOrganizerOrStreamer(user)
-		);
-	})();
-
-	const rooms = React.useMemo(() => {
-		return showChat && data.match.chatCode
-			? [
-					{
-						code: data.match.chatCode,
-						label: "Match",
-					},
-				]
-			: [];
-	}, [showChat, data.match.chatCode]);
-
-	const onNewMessage = React.useCallback(() => {
-		setUnseenMessages((msg) => msg + 1);
-	}, []);
-
-	const chat = useChat({ rooms, onNewMessage });
-
-	const onChatMount = React.useCallback(() => {
-		setChatVisible(true);
-	}, []);
-
-	const onChatUnmount = React.useCallback(() => {
-		setChatVisible(false);
-		setUnseenMessages(0);
-	}, []);
-
-	const unseenMessages = chatVisible ? 0 : _unseenMessages;
 
 	const currentPosition = scores[0] + scores[1];
 
@@ -753,31 +723,19 @@ function StartedMatchTabs({
 			<SendouTabs
 				selectedKey={selectedTabKey}
 				onSelectionChange={(key) => setSelectedTabKey(String(key))}
+				className={styles.matchTabs}
 			>
 				<SendouTabList>
-					{showChat && (
-						<SendouTab id="chat" number={unseenMessages} data-testid="chat-tab">
-							Chat
-						</SendouTab>
-					)}
 					<SendouTab id="rosters">Rosters</SendouTab>
 					<SendouTab id="actions" data-testid="actions-tab">
 						{presentational ? "Score" : "Actions"}
 					</SendouTab>
+					{isCustomFlow ? (
+						<SendouTab id="map-info">
+							{t("tournament:match.tab.mapInfo")}
+						</SendouTab>
+					) : null}
 				</SendouTabList>
-
-				<SendouTabPanel id="chat">
-					<Chat
-						rooms={rooms}
-						users={chatUsers}
-						className="tournament__chat-container"
-						messagesContainerClassName="tournament__chat-messages-container pt-0"
-						chat={chat}
-						onMount={onChatMount}
-						onUnmount={onChatUnmount}
-						missingUserName="???"
-					/>
-				</SendouTabPanel>
 
 				<SendouTabPanel id="rosters">
 					<MatchRosters teams={[teams[0].id, teams[1].id]} />
@@ -805,37 +763,19 @@ function StartedMatchTabs({
 						}
 					/>
 				</SendouTabPanel>
+
+				{isCustomFlow ? (
+					<SendouTabPanel id="map-info">
+						<MatchMapInfo teams={[teams[0].id, teams[1].id]} />
+					</SendouTabPanel>
+				) : null}
 			</SendouTabs>
 		</ActionSectionWrapper>
 	);
 }
 
-function ActionSectionWrapper({
-	children,
-	icon,
-	...rest
-}: {
-	children: React.ReactNode;
-	icon?: "warning" | "info" | "success" | "error";
-	"justify-center"?: boolean;
-}) {
-	// todo: flex-dir: column on mobile
-	const style = icon
-		? {
-				"--action-section-icon-color": `var(--theme-${icon})`,
-			}
-		: undefined;
-	return (
-		<section className="tournament__action-section" style={style}>
-			<div
-				className={clsx("tournament__action-section__content", {
-					"justify-center": rest["justify-center"],
-				})}
-			>
-				{children}
-			</div>
-		</section>
-	);
+function ActionSectionWrapper({ children }: { children: React.ReactNode }) {
+	return <div className={styles.actionSectionWrapper}>{children}</div>;
 }
 
 function ScreenBanIcons({ banned }: { banned: boolean }) {
@@ -843,12 +783,12 @@ function ScreenBanIcons({ banned }: { banned: boolean }) {
 
 	return (
 		<div
-			className={clsx("tournament-bracket__no-screen", {
-				"tournament-bracket__no-screen__banned": banned,
+			className={clsx(styles.noScreen, {
+				[styles.noScreenBanned]: banned,
 			})}
 			data-testid={`screen-${banned ? "banned" : "allowed"}`}
 		>
-			{banned ? <CrossIcon /> : <CheckmarkIcon />}
+			{banned ? <X /> : <Check />}
 			<Image
 				path={specialWeaponImageUrl(SPLATTERCOLOR_SCREEN_ID)}
 				width={24}
@@ -874,8 +814,12 @@ function EndSetPopover({
 			placement="top"
 			trigger={
 				<SendouButton
-					variant="minimal"
-					className="tournament-bracket__stage-banner__undo-button tournament-bracket__stage-banner__end-set-button"
+					className={clsx(
+						styles.stageBannerUndoButton,
+						styles.stageBannerEndSetButton,
+					)}
+					size="miniscule"
+					variant="destructive"
 				>
 					{t("tournament:match.action.endSet")}
 				</SendouButton>

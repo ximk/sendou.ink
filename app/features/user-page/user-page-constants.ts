@@ -18,21 +18,13 @@ export const USER = {
 	GAME_BADGES_SMALL_MAX: 4,
 };
 
+export const SPL2_JOIN_ORDER_CUTOFF = 13_589;
+
+export const IN_GAME_NAME_REGEXP = /^.{1,10}#[0-9a-z]{4,5}$/u;
+
 export const MATCHES_PER_SEASONS_PAGE = 8;
 export const RESULTS_PER_PAGE = 25;
 export const DEFAULT_BUILD_SORT = ["WEAPON_POOL", "UPDATED_AT"] as const;
-
-export const CUSTOM_CSS_VAR_COLORS = [
-	"bg",
-	"bg-darker",
-	"bg-lighter",
-	"bg-lightest",
-	"text",
-	"text-lighter",
-	"theme",
-	"theme-secondary",
-	"chat",
-] as const;
 
 /**
  * An array of ISO 3166-1 alpha-2 country codes.

@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { SquarePen, Trash } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useFetcher } from "react-router";
@@ -8,12 +9,10 @@ import { SendouButton } from "~/components/elements/Button";
 import { Flag } from "~/components/Flag";
 import { FormWithConfirm } from "~/components/FormWithConfirm";
 import { Image, TierImage, WeaponImage } from "~/components/Image";
-import { EditIcon } from "~/components/icons/Edit";
-import { TrashIcon } from "~/components/icons/Trash";
 import { useUser } from "~/features/auth/core/user";
 import * as Seasons from "~/features/mmr/core/Seasons";
 import type { TieredSkill } from "~/features/mmr/tiered.server";
-import { useIsMounted } from "~/hooks/useIsMounted";
+import { useHydrated } from "~/hooks/useHydrated";
 import { useTimeFormat } from "~/hooks/useTimeFormat";
 import { useHasRole } from "~/modules/permissions/hooks";
 import { databaseTimestampToDate } from "~/utils/dates";
@@ -69,7 +68,7 @@ function UserLFGPost({ post, tiersMap }: { post: Post; tiersMap: TiersMap }) {
 				/>
 			</div>
 			<div>
-				<div className="stack horizontal justify-between">
+				<div className="stack horizontal justify-between items-center">
 					<PostTextTypeHeader type={post.type} />
 					{post.author.id === user?.id || isAdmin ? (
 						<PostDeleteButton id={post.id} type={post.type} />
@@ -93,7 +92,7 @@ function TeamLFGPost({
 	post: Post & { team: NonNullable<Post["team"]> };
 	tiersMap: TiersMap;
 }) {
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 	const user = useUser();
 	const isAdmin = useHasRole("ADMIN");
 	const [isExpanded, setIsExpanded] = React.useState(false);
@@ -105,14 +104,14 @@ function TeamLFGPost({
 					<div className="stack horizontal items-center justify-between">
 						<PostTeamLogoHeader team={post.team} />
 						<div className="stack horizontal items-center sm">
-							{isMounted && <PostTimezonePill timezone={post.timezone} />}
+							{isHydrated && <PostTimezonePill timezone={post.timezone} />}
 							{post.languages && (
 								<PostLanguagePill languages={post.languages} />
 							)}
 						</div>
 					</div>
 					<Divider />
-					<div className="stack horizontal justify-between">
+					<div className="stack horizontal justify-between items-center">
 						<PostTime createdAt={post.createdAt} updatedAt={post.updatedAt} />
 						{post.author.id === user?.id ? (
 							<PostEditButton id={post.id} />
@@ -306,18 +305,18 @@ function PostPills({
 	canEdit?: boolean;
 	postId: number;
 }) {
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 
 	return (
 		<div
 			className={clsx("stack sm xs-row horizontal flex-wrap", {
-				invisible: !isMounted,
+				invisible: !isHydrated,
 			})}
 		>
-			{typeof timezone === "string" && isMounted && (
+			{typeof timezone === "string" && isHydrated && (
 				<PostTimezonePill timezone={timezone} />
 			)}
-			{!isMounted && <PostTimezonePillPlaceholder />}
+			{!isHydrated && <PostTimezonePillPlaceholder />}
 			{typeof plusTier === "number" && (
 				<PostPlusServerPill plusTier={plusTier} />
 			)}
@@ -442,7 +441,7 @@ function PostEditButton({ id }: { id: number }) {
 
 	return (
 		<Link className={styles.editButton} to={lfgNewPostPage(id)}>
-			<EditIcon />
+			<SquarePen />
 			{t("common:actions.edit")}
 		</Link>
 	);
@@ -466,7 +465,7 @@ function PostDeleteButton({ id, type }: { id: number; type: Post["type"] }) {
 				variant="minimal-destructive"
 				size="small"
 				type="submit"
-				icon={<TrashIcon className="small-icon" />}
+				icon={<Trash />}
 			>
 				{t("common:actions.delete")}
 			</SendouButton>

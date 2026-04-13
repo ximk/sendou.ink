@@ -14,13 +14,13 @@ import {
 	useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Search as SearchIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFetcher, useLoaderData } from "react-router";
 import { SendouButton } from "~/components/elements/Button";
 import { Input } from "~/components/Input";
 import { MainSlotIcon } from "~/components/icons/MainSlot";
-import { SearchIcon } from "~/components/icons/Search";
 import { SideSlotIcon } from "~/components/icons/SideSlot";
 import { Placeholder } from "~/components/Placeholder";
 import type { Tables } from "~/db/tables";
@@ -30,18 +30,18 @@ import {
 	findWidgetById,
 } from "~/features/user-page/core/widgets/portfolio";
 import { USER } from "~/features/user-page/user-page-constants";
-import { useIsMounted } from "~/hooks/useIsMounted";
+import { useHydrated } from "~/hooks/useHydrated";
 import { action } from "../actions/u.$identifier.edit-widgets.server";
 import { WidgetSettingsForm } from "../components/WidgetSettingsForm";
 import { loader } from "../loaders/u.$identifier.edit-widgets.server";
 import styles from "./u.$identifier.edit-widgets.module.css";
 
-export { loader, action };
+export { action, loader };
 
 export default function EditWidgetsPage() {
 	const { t } = useTranslation(["user", "common"]);
 	const data = useLoaderData<typeof loader>();
-	const isMounted = useIsMounted();
+	const isHydrated = useHydrated();
 	const fetcher = useFetcher();
 
 	const [selectedWidgets, setSelectedWidgets] = useState<
@@ -134,7 +134,7 @@ export default function EditWidgetsPage() {
 		setExpandedWidgetId(expandedWidgetId === widgetId ? null : widgetId);
 	};
 
-	if (!isMounted) {
+	if (!isHydrated) {
 		return <Placeholder />;
 	}
 
